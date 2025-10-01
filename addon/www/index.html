@@ -235,7 +235,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 				reflect_bri_in_rgb: config.global.reflect_bri_in_rgb.default,
 				full_bri_when_turning_on: config.global.full_bri_when_turning_on.default,
 				group_throttling_settings: config.global.group_throttling_settings.default,
-				remove_transitiontime_when_turning_off: config.global.remove_transitiontime_when_turning_off.default
+				remove_transitiontime_when_turning_off: config.global.remove_transitiontime_when_turning_off.default,
+				api_version: (config.global.api_version ? config.global.api_version.default : 'auto'),
+				https_verify: (config.global.https_verify ? config.global.https_verify.default : 'none')
 			});
 			update_global_config_form_state();
 		}
@@ -350,7 +352,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 				reflect_bri_in_rgb: config.global.reflect_bri_in_rgb.value,
 				full_bri_when_turning_on: config.global.full_bri_when_turning_on.value,
 				group_throttling_settings: config.global.group_throttling_settings.value,
-				remove_transitiontime_when_turning_off: config.global.remove_transitiontime_when_turning_off.value
+				remove_transitiontime_when_turning_off: config.global.remove_transitiontime_when_turning_off.value,
+				api_version: (config.global.api_version ? config.global.api_version.value : 'auto'),
+				https_verify: (config.global.https_verify ? config.global.https_verify.value : 'none')
 			});
 			update_global_config_form_state();
 		}
@@ -1506,6 +1510,22 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 						<option value="never" data-i18n="option_never"></option>
 						<option value="cuxd" data-i18n="option_cuxd"></option>
 						<option value="always" data-i18n="option_always">always</option>
+					</select>
+				</div>
+				<div class="field">
+					<label>API Version</label>
+					<select class="ui fluid search dropdown" name="api_version" onchange="update_global_config_form_state();">
+						<option value="auto">auto</option>
+						<option value="v1">v1</option>
+						<option value="v2">v2</option>
+					</select>
+				</div>
+				<div class="field">
+					<label>TLS Verification</label>
+					<select class="ui fluid search dropdown" name="https_verify" onchange="update_global_config_form_state();">
+						<option value="none">none</option>
+						<option value="fingerprint">fingerprint</option>
+						<option value="strict">strict</option>
 					</select>
 				</div>
 				<div id="load-global-config" onclick="get_config(function(data){update_view();});" class="ui blue basic button"><i class="sync icon"></i>load_config</div>

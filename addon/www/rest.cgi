@@ -231,22 +231,26 @@ proc process {} {
 				}
 			} elseif {[lindex $path 2] == "global"} {
 				if {$env(REQUEST_METHOD) == "PUT"} {
-					regexp {\"log_level\"\s*:\s*\"([^\"]+)\"} $data match log_level
-					regexp {\"api_log\"\s*:\s*\"([^\"]+)\"} $data match api_log
-					regexp {\"api_connect_timeout\"\s*:\s*\"([^\"]+)\"} $data match api_connect_timeout
-					regexp {\"poll_state_interval\"\s*:\s*\"([^\"]+)\"} $data match poll_state_interval
-					regexp {\"unreachable_update_mode\"\s*:\s*\"([^\"]+)\"} $data match unreachable_update_mode
-					regexp {\"reflect_bri_in_rgb\"\s*:\s*(false|true)} $data match reflect_bri_in_rgb
-					regexp {\"full_bri_when_turning_on\"\s*:\s*(false|true)} $data match full_bri_when_turning_on
-					regexp {\"group_throttling_settings\"\s*:\s*\"([^\"]+)\"} $data match group_throttling_settings
-					regexp {\"remove_transitiontime_when_turning_off\"\s*:\s*\"([^\"]+)\"} $data match remove_transitiontime_when_turning_off
-					hue::update_global_config $log_level $api_log $poll_state_interval $unreachable_update_mode $api_connect_timeout $group_throttling_settings $remove_transitiontime_when_turning_off $reflect_bri_in_rgb $full_bri_when_turning_on
+					regexp {"log_level"\s*:\s*"([^"]+)"} $data match log_level
+					regexp {"api_log"\s*:\s*"([^"]+)"} $data match api_log
+					regexp {"api_connect_timeout"\s*:\s*"([^"]+)"} $data match api_connect_timeout
+					regexp {"poll_state_interval"\s*:\s*"([^"]+)"} $data match poll_state_interval
+					regexp {"unreachable_update_mode"\s*:\s*"([^"]+)"} $data match unreachable_update_mode
+					regexp {"reflect_bri_in_rgb"\s*:\s*(false|true)} $data match reflect_bri_in_rgb
+					regexp {"full_bri_when_turning_on"\s*:\s*(false|true)} $data match full_bri_when_turning_on
+					regexp {"group_throttling_settings"\s*:\s*"([^"]+)"} $data match group_throttling_settings
+					regexp {"remove_transitiontime_when_turning_off"\s*:\s*"([^"]+)"} $data match remove_transitiontime_when_turning_off
+					# Optional new global fields
+					set api_version ""
+					set https_verify ""
+					if {[regexp {"api_version"\s*:\s*"([^"]+)"} $data match tmp]} { set api_version $tmp }
+					if {[regexp {"https_verify"\s*:\s*"([^"]+)"} $data match tmp2]} { set https_verify $tmp2 }
+					hue::update_global_config $log_level $api_log $poll_state_interval $unreachable_update_mode $api_connect_timeout $group_throttling_settings $remove_transitiontime_when_turning_off $reflect_bri_in_rgb $full_bri_when_turning_on $api_version $https_verify
 					catch {
 						hue::hued_command "reload"
 					}
 					return "\"Global config successfully updated\""
 				}
-			} elseif {[lindex $path 2] == "bridge"} {
 				if {$plen == 3} {
 					if {$env(REQUEST_METHOD) == "PUT"} {
 						set id [lindex $path 3]
