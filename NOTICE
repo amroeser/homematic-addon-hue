@@ -1,0 +1,23 @@
+NOTICE
+
+Updated by: Alexander Maximilian Röser
+Date: 01.10.2025
+
+This project remains licensed under the GNU General Public License v3.0 (see LICENSE).
+
+Disclaimer (Haftungsausschluss):
+- Nutzung auf eigene Gefahr. Es wird keinerlei Haftung übernommen für Schäden,
+  Datenverlust oder Fehlfunktionen, die aus der Nutzung dieses Addons entstehen.
+- Keine Gewährleistung, weder ausdrücklich noch implizit, einschließlich, aber
+  nicht beschränkt auf die Gewährleistung der Marktgängigkeit oder Eignung für
+  einen bestimmten Zweck.
+- Durch die Nutzung erklären Sie sich einverstanden, dass weder die ursprünglichen
+  Autoren noch die Pflege dieses Forks für etwaige Schäden verantwortlich gemacht
+  werden können.
+
+Security/Changes Summary (3.3.0):
+- Hue CLIP API v2 Schreibzugriffe (HTTPS) mit Header hue-application-key
+- TLS-Policy (https_verify): none | strict | fingerprint (mit optionalem per-Bridge
+  tls_pubkey_sha256)
+- Backward-Compatibility: Legacy v1-ID/Parameter werden intern auf v2 gemappt
+- Optionale v2 Sensor-Polls (motion/light_level/temperature) zu CCU Systemvariablen
