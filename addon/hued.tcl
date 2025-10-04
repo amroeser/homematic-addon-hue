@@ -25,6 +25,7 @@ variable group_command_times [list]
 variable set_sysvars_reachable 1
 variable scheduled_update_time 0
 variable scheduled_update_cuxd_device_map_time 0
+variable update_cuxd_device_map_interval 30
 variable forced_updates
 
 proc same_array {array1 array2} {

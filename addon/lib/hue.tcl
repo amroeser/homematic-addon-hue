@@ -1266,7 +1266,12 @@ proc ::hue::request {type bridge_id method path {data ""}} {
 	}
 	acquire_bridge_lock $bridge_id
 	if {[catch {
-		set result [api_request $type $bridge(ip) $bridge(port) $bridge(username) $method $path $data]
+		# For v1 API calls, ensure we never try to send plain HTTP to an HTTPS port.
+		# If bridge is configured with port 443, route v1 traffic to port 80.
+		set req_port $bridge(port)
+		if {$req_port == ""} { set req_port 80 }
+		if {[string is integer -strict $req_port] && $req_port == 443} { set req_port 80 }
+		set result [api_request $type $bridge(ip) $req_port $bridge(username) $method $path $data]
 	} errmsg]} {
 		release_bridge_lock $bridge_id
 		return -code 1 -errorcode $::errorCode -errorinfo $::errorInfo $errmsg
