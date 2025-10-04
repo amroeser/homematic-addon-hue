@@ -388,9 +388,13 @@ proc read_from_channel {channel} {
 					if {$s_rid != ""} {
 						set response [hue::request_v2 "command" $bridge_id "PUT" "resource/scene/${s_rid}" "{\"recall\":{\"action\":\"active\",\"duration\":0}}"]
 					} else {
-						# fallback to v1 if mapping missing
-						set path "groups/${obj_id}/action"
-						set response [hue::request "command" $bridge_id "PUT" $path $json]
+						# v2 strict mode: fallback to v1 only when api_version==auto
+						if {$hue::api_version == "auto"} {
+							set path "groups/${obj_id}/action"
+							set response [hue::request "command" $bridge_id "PUT" $path $json]
+						} else {
+							set response "ERROR: v2 scene mapping not found for ${scene_id}"
+						}
 					}
 				} else {
 					# Light / Grouped Light write
@@ -400,20 +404,26 @@ proc read_from_channel {channel} {
 							set body [hue::v1_params_to_v2_body $bridge_id $obj_type $obj_id [array get p]]
 							set response [hue::request_v2 "command" $bridge_id "PUT" "resource/light/${rid}" $body]
 						} else {
-							# fallback to v1
-							set path "lights/${obj_id}/state"
-							set response [hue::request "command" $bridge_id "PUT" $path $json]
+							if {$hue::api_version == "auto"} {
+								set path "lights/${obj_id}/state"
+								set response [hue::request "command" $bridge_id "PUT" $path $json]
+							} else {
+								set response "ERROR: v2 light mapping not found for ${obj_id}"
+							}
 						}
 					} else {
-						# group -> grouped_light
+						# group -> grouped_light (no v1 fallback unless api_version==auto)
 						set rid [hue::map_v1_group_id_to_v2 $bridge_id $obj_id]
 						if {$rid != ""} {
 							set body [hue::v1_params_to_v2_body $bridge_id $obj_type $obj_id [array get p]]
 							set response [hue::request_v2 "command" $bridge_id "PUT" "resource/grouped_light/${rid}" $body]
 						} else {
-							# fallback to v1
-							set path "groups/${obj_id}/action"
-							set response [hue::request "command" $bridge_id "PUT" $path $json]
+							if {$hue::api_version == "auto"} {
+								set path "groups/${obj_id}/action"
+								set response [hue::request "command" $bridge_id "PUT" $path $json]
+							} else {
+								set response "ERROR: v2 group mapping not found for ${obj_id}"
+							}
 						}
 					}
 				}

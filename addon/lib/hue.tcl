@@ -97,54 +97,85 @@ proc ::hue::build_v1_v2_index {bridge_id} {
 	# helper to set array key
 	set lid "${bridge_id}::"
 
-	# Lights
+	# Lights: scan id_v1 and nearest id
 	set res [catch { request_v2 "status" $bridge_id "GET" "resource/light" } data]
 	if {$res == 0} {
-		# flatten, then find pairs of id and id_v1 /lights/<n>
 		set flat [string map {"\n" "" "\r" ""} $data]
-		set start 0
-		while {[regexp -indices -start $start {\{[^\{\}]*"id"\s*:\s*"([^"]+)"[^\{\}]*"id_v1"\s*:\s*"/lights/(\d+)"[^\{\}]*\}} $flat m]} {
-			# Extract with submatches
-			set slice [string range $flat [lindex $m 0] [lindex $m 1]]
-			if {[regexp {"id"\s*:\s*"([^"]+)"} $slice -> rid] && [regexp {"id_v1"\s*:\s*"/lights/(\d+)"} $slice -> v1id]} {
+		set pos 0
+		while {1} {
+			set idx [string first "\"id_v1\":\"/lights/" $flat $pos]
+			if {$idx < 0} { break }
+			set num_start [expr {$idx + [string length "\"id_v1\":\"/lights/"]}]
+			set num_end [string first "\"" $flat $num_start]
+			if {$num_end < 0} { break }
+			set v1id [string range $flat $num_start [expr {$num_end - 1}]]
+			# search backwards a limited window for the id field
+			set back_start [expr {$idx - 800}]
+			if {$back_start < 0} { set back_start 0 }
+			set window [string range $flat $back_start [expr {$idx + 200}]]
+			set rid ""
+			if {[regexp {"id"\s*:\s*"([^"]+)"} $window -> rid_match]} {
+				set rid $rid_match
+			}
+			if {$rid != "" && [string is integer -strict $v1id]} {
 				set v2_index_lights(${lid}${v1id}) $rid
 			}
-			set start [expr {[lindex $m 1] + 1}]
+			set pos [expr {$num_end + 1}]
 		}
 	}
 
-	# Rooms and Zones -> grouped_light
+	# Rooms and Zones -> grouped_light: find id_v1 group and grouped_light rid in vicinity
 	foreach type {room zone} {
 		set res [catch { request_v2 "status" $bridge_id "GET" "resource/$type" } data]
 		if {$res == 0} {
 			set flat [string map {"\n" "" "\r" ""} $data]
-			set start 0
-			while {[regexp -indices -start $start {\{[^\{\}]*"id"\s*:\s*"([^"]+)"[^\{\}]*"id_v1"\s*:\s*"/groups/(\d+)"[^\{\}]*"services"\s*:\s*\[(.*?)\][^\{\}]*\}} $flat m]} {
-				set slice [string range $flat [lindex $m 0] [lindex $m 1]]
-				set services [regsub -all {\s+} [lindex $m 3] " "]
-				# find grouped_light service rid within services
+			set pos 0
+			while {1} {
+				set idx [string first "\"id_v1\":\"/groups/" $flat $pos]
+				if {$idx < 0} { break }
+				set gid_start [expr {$idx + [string length "\"id_v1\":\"/groups/"]}]
+				set gid_end [string first "\"" $flat $gid_start]
+				if {$gid_end < 0} { break }
+				set v1gid [string range $flat $gid_start [expr {$gid_end - 1}]]
+				# search forward a window for grouped_light rid
+				set fwd_end [expr {$gid_end + 1200}]
+				if {$fwd_end > [string length $flat]} { set fwd_end [string length $flat] }
+				set window [string range $flat [expr {$gid_start - 400}] $fwd_end]
 				set glrid ""
-				if {[regexp {\{[^\{\}]*"rtype"\s*:\s*"grouped_light"[^\{\}]*"rid"\s*:\s*"([^"]+)"[^\{\}]*\}} $slice -> glrid]} {
-					if {[regexp {"id_v1"\s*:\s*"/groups/(\d+)"} $slice -> v1gid]} {
-						set v2_index_groups(${lid}${v1gid}) $glrid
-					}
+				if {[regexp {"rtype"\s*:\s*"grouped_light"[^\}]*"rid"\s*:\s*"([^"]+)"} $window -> ridm]} {
+					set glrid $ridm
 				}
-				set start [expr {[lindex $m 1] + 1}]
+				if {$glrid != "" && [string is integer -strict $v1gid]} {
+					set v2_index_groups(${lid}${v1gid}) $glrid
+				}
+				set pos [expr {$gid_end + 1}]
 			}
 		}
 	}
 
-	# Scenes
+	# Scenes: map id_v1 scene to id (rid)
 	set res [catch { request_v2 "status" $bridge_id "GET" "resource/scene" } data]
 	if {$res == 0} {
 		set flat [string map {"\n" "" "\r" ""} $data]
-		set start 0
-		while {[regexp -indices -start $start {\{[^\{\}]*"id"\s*:\s*"([^"]+)"[^\{\}]*"id_v1"\s*:\s*"/scenes/([A-Za-z0-9\-]+)"[^\{\}]*\}} $flat m]} {
-			set slice [string range $flat [lindex $m 0] [lindex $m 1]]
-			if {[regexp {"id"\s*:\s*"([^"]+)"} $slice -> rid] && [regexp {"id_v1"\s*:\s*"/scenes/([A-Za-z0-9\-]+)"} $slice -> v1sid]} {
+		set pos 0
+		while {1} {
+			set idx [string first "\"id_v1\":\"/scenes/" $flat $pos]
+			if {$idx < 0} { break }
+			set sid_start [expr {$idx + [string length "\"id_v1\":\"/scenes/"]}]
+			set sid_end [string first "\"" $flat $sid_start]
+			if {$sid_end < 0} { break }
+			set v1sid [string range $flat $sid_start [expr {$sid_end - 1}]]
+			set back_start [expr {$idx - 800}]
+			if {$back_start < 0} { set back_start 0 }
+			set window [string range $flat $back_start [expr {$idx + 200}]]
+			set rid ""
+			if {[regexp {"id"\s*:\s*"([^"]+)"} $window -> ridm]} {
+				set rid $ridm
+			}
+			if {$rid != "" && $v1sid != ""} {
 				set v2_index_scenes(${lid}${v1sid}) $rid
 			}
-			set start [expr {[lindex $m 1] + 1}]
+			set pos [expr {$sid_end + 1}]
 		}
 	}
 }
