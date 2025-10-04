@@ -1130,8 +1130,31 @@ proc ::hue::api_request_v2 {type bridge_id ip port appkey method path {data ""}}
 		write_log 0 "api v2 request: ${url} - ${method} - ${data}"
 	}
 	set res ""
+	# Try the request; on SSL verification errors, transparently retry with --insecure (to support self-signed bridges)
+	set err 0
+	set errmsg ""
 	if { [catch { set res [eval exec $cmd] } errmsg] } {
-		return -code 1 -errorcode $::errorCode -errorinfo $::errorInfo $errmsg
+		set err 1
+	}
+	if {$err} {
+		# Retry once with --insecure if not already present and error indicates cert validation issue
+		set ssl_err 0
+		# Detect common curl SSL verify errors
+		if {[string first "SSL certificate problem" $errmsg] >= 0 || [string first "curl: (60)" $errmsg] >= 0} {
+			set ssl_err 1
+		}
+		if {$ssl_err && [lsearch -exact $cmd "--insecure"] < 0} {
+			set cmd_insec $cmd
+			# insert --insecure after curl binary
+			set cmd_insec [linsert $cmd_insec 1 "--insecure"]
+			if {$log} { write_log 1 "api v2 request retrying with --insecure due to SSL verify error" }
+			if { [catch { set res [eval exec $cmd_insec] } errmsg2] } {
+				# Still failing; return original error context
+				return -code 1 -errorcode $::errorCode -errorinfo $::errorInfo $errmsg
+			}
+		} else {
+			return -code 1 -errorcode $::errorCode -errorinfo $::errorInfo $errmsg
+		}
 	}
 	if {$log} {
 		write_log 0 "api v2 response: ${res}"
@@ -1152,6 +1175,14 @@ proc ::hue::request_v2 {type bridge_id method path {data ""}} {
 	if {$bridge(username) == ""} {
 		error "Hue bridge ${bridge_id} username not configured"
 	}
+	# Ensure TLS fingerprint is available if https_verify=fingerprint
+	variable https_verify
+	if {[string equal -nocase $https_verify "fingerprint"]} {
+		set curpin [hue::get_bridge_param $bridge_id "tls_pubkey_sha256"]
+		if {$curpin == ""} {
+			catch { hue::fetch_tls_pubkey_sha256 $bridge_id }
+		}
+	}
 	acquire_bridge_lock $bridge_id
 	if {[catch {
 		set result [api_request_v2 $type $bridge_id $bridge(ip) $bridge(port) $bridge(username) $method $path $data]
@@ -1161,6 +1192,33 @@ proc ::hue::request_v2 {type bridge_id method path {data ""}} {
 	}
 	release_bridge_lock $bridge_id
 	return $result
+}
+
+# Fetch TLS public key SHA256 (base64) for a bridge and persist as tls_pubkey_sha256
+proc ::hue::fetch_tls_pubkey_sha256 {bridge_id} {
+	set abridge [get_bridge $bridge_id]
+	array set bridge $abridge
+	set ip $bridge(ip)
+	set port $bridge(port)
+	if {$port == ""} { set port 443 }
+	# locate openssl
+	set openssl "/usr/bin/openssl"
+	if { [file exists $openssl] == 0 } {
+		set openssl "/usr/local/addons/cuxd/openssl"
+	}
+	if { [file exists $openssl] == 0 } {
+		return
+	}
+	set cmd "echo | $openssl s_client -servername $ip -connect $ip:$port 2>/dev/null | $openssl x509 -pubkey -noout | $openssl pkey -pubin -outform DER | $openssl dgst -sha256 -binary | base64"
+	set pin ""
+	if { [catch { set pin [exec /bin/sh -c $cmd] } errmsg] } {
+		return
+	}
+	set pin [string trim $pin]
+	if {$pin != ""} {
+		# persist pin
+		hue::set_bridge_param $bridge_id "tls_pubkey_sha256" $pin
+	}
 }
 
 proc ::hue::api_request {type ip port username method path {data ""}} {

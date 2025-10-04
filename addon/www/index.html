@@ -833,6 +833,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 			}
 			var light_id = $('#light-control-target').find(':selected').data('light_id');
 			var group_id = $('#light-control-target').find(':selected').data('group_id');
+			var selectedApi = $('#form-global-config select[name="api_version"]').val() || (config.global.api_version ? config.global.api_version.value : 'auto');
 			var resource = (light_id ? '/lights/' + light_id + '/state' : '/groups/' + group_id + '/action');
 			
 			var values = {};
@@ -878,23 +879,136 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 			//console.log(values);
 			$('#message-light-control-request').html('<div class="header">' + i18next.t('request') + '</div><pre>' + JSON.stringify(values, null, 2) + '</pre>');
 			$('#message-light-control-request').attr('class', 'ui message info visible');
-			api_request(bridge_id, "PUT", resource, values,
-				function(data) {
-					//console.log(data);
-					var data_str = JSON.stringify(data, null, 2); // spacing level = 2
+			// If v1 selected, send to v1 endpoints as before
+			if (selectedApi !== 'v2') {
+				api_request(bridge_id, "PUT", resource, values,
+					function(data) {
+						var data_str = JSON.stringify(data, null, 2);
+						$('#message-light-control-response').html('<div class="header">' + i18next.t('response') + '</div><pre>' + data_str + '</pre>');
+						$('#message-light-control-response').attr('class', 'ui message info visible');
+						$('#modal-light-control').modal('refresh');
+						get_control_target_state();
+					},
+					function(xhr) {
+						$('#message-light-control-response').html(xhr);
+						$('#message-light-control-response').attr('class', 'ui message error visible');
+						$('#modal-light-control').modal('refresh');
+						get_control_target_state();
+					}
+				);
+				return;
+			}
+
+			// Otherwise map to v2 body and resolve proper resource path
+			function v1ToV2Body(vals) {
+				var body = {};
+				if (vals.on !== undefined) { body.on = { on: !!vals.on }; }
+				if (vals.bri !== undefined && vals.bri !== '') {
+					var bri = parseInt(vals.bri); if (isNaN(bri)) bri = 0; if (bri < 0) bri = 0; if (bri > 254) bri = 254;
+					body.dimming = { brightness: Math.round((bri/254.0)*100.0) };
+				}
+				if (vals.ct !== undefined && vals.ct !== '') { body.color_temperature = { mirek: parseInt(vals.ct) } }
+				if (vals.xy) {
+					var xy = vals.xy; if (!Array.isArray(xy)) { try { xy = xy.split(',').map(parseFloat) } catch(e) { xy = null; } }
+					if (xy && xy.length >= 2) { body.color = { xy: { x: parseFloat(xy[0]), y: parseFloat(xy[1]) } } }
+				}
+				if (vals.alert === 'select') { body.alert = { action: 'breathe' } }
+				return body;
+			}
+
+			var v2body = v1ToV2Body(values);
+			// helper: send v2 with method fallback (PUT first, then PATCH on 405)
+			function sendV2WithFallback(path, body, successCb) {
+				var triedPatch = false;
+				function doPut() {
+					api_request(bridge_id, 'PUT', path, body, function(data){
+						try {
+							if (data && data.errors && data.errors.length) {
+								var desc = (data.errors[0].description || '').toString();
+								if (/Method Not Allowed/i.test(desc)) { return doPatch(); }
+							}
+						} catch(e) {}
+						successCb(data);
+					}, function(xhr, ajaxOptions, thrownError){
+						var is405 = (xhr && xhr.status == 405) || /Method Not Allowed/i.test((thrownError||'').toString());
+						if (is405) { return doPatch(); }
+						// fallback: show error
+						$('#message-light-control-response').html(xhr);
+						$('#message-light-control-response').attr('class', 'ui message error visible');
+						$('#modal-light-control').modal('refresh');
+						get_control_target_state();
+					});
+				}
+				function doPatch() {
+					if (triedPatch) { return; }
+					triedPatch = true;
+					api_request(bridge_id, 'PATCH', path, body, function(data){ successCb(data); }, function(xhr){
+						$('#message-light-control-response').html(xhr);
+						$('#message-light-control-response').attr('class', 'ui message error visible');
+						$('#modal-light-control').modal('refresh');
+						get_control_target_state();
+					});
+				}
+				doPut();
+			}
+			// Light: map id_v1 -> rid and PATCH resource/light/<rid>
+			if (light_id) {
+				api_request(bridge_id, 'GET', 'resource/light', null, function(resp) {
+					try {
+						var arr = resp && resp.data ? resp.data : resp; var rid = null;
+						if (Array.isArray(arr)) { for (var i=0;i<arr.length;i++){ if (arr[i].id_v1 === ('/lights/' + light_id)) { rid = arr[i].id || arr[i].rid; break; } } }
+						if (!rid) { display_message('error', i18next.t('error_occurred', {error: 'no v2 RID for light ' + light_id}), 6000); return; }
+						sendV2WithFallback('resource/light/' + rid, v2body, function(data){
+							var data_str = JSON.stringify(data, null, 2);
+							$('#message-light-control-response').html('<div class="header">' + i18next.t('response') + '</div><pre>' + data_str + '</pre>');
+							$('#message-light-control-response').attr('class', 'ui message info visible');
+							$('#modal-light-control').modal('refresh');
+							get_control_target_state();
+						});
+					} catch(e) { display_message('error', i18next.t('error_occurred', {error: e.toString()}), 6000); }
+				});
+				return;
+			}
+
+			// Group: resolve grouped_light RID either via bridge_home (0) or room/zone id_v1
+			function useGroupRid(rid){
+				if (!rid) { display_message('error', i18next.t('error_occurred', {error: 'no grouped_light RID'}), 6000); return; }
+				sendV2WithFallback('resource/grouped_light/' + rid, v2body, function(data){
+					var data_str = JSON.stringify(data, null, 2);
 					$('#message-light-control-response').html('<div class="header">' + i18next.t('response') + '</div><pre>' + data_str + '</pre>');
 					$('#message-light-control-response').attr('class', 'ui message info visible');
 					$('#modal-light-control').modal('refresh');
 					get_control_target_state();
-				},
-				function(xhr, ajaxOptions, thrownError) {
-					console.error(xhr);
-					$('#message-light-control-response').html(xhr);
-					$('#message-light-control-response').attr('class', 'ui message error visible');
-					$('#modal-light-control').modal('refresh');
-					get_control_target_state();
+				});
+			}
+			if (group_id == 0 || group_id == '0') {
+				api_request(bridge_id, 'GET', 'resource/bridge_home', null, function(resp){
+					try {
+						var data = resp && resp.data ? resp.data : resp; var rid=null;
+						if (Array.isArray(data) && data.length>0) { var services = data[0].services||[]; for (var i=0;i<services.length;i++){ if (services[i].rtype==='grouped_light'){ rid=services[i].rid; break; } } }
+						if (rid) { useGroupRid(rid); return; }
+					} catch(e) {}
+					// fallback first grouped_light
+					api_request(bridge_id, 'GET', 'resource/grouped_light', null, function(r2){ try{ var a=r2&&r2.data?r2.data:r2; if(Array.isArray(a)&&a.length>0){ useGroupRid(a[0].id||a[0].rid); return; } }catch(e){} display_message('error', i18next.t('error_occurred', {error: 'no grouped_light available'}), 6000); });
+				});
+			} else {
+				function tryMap(type){
+					api_request(bridge_id, 'GET', 'resource/' + type, null, function(resp){
+						try {
+							var arr = resp && resp.data ? resp.data : resp;
+							if (Array.isArray(arr)){
+								for (var i=0;i<arr.length;i++){
+									if (arr[i].id_v1 === ('/groups/' + group_id)){
+										var services = arr[i].services||[]; for (var j=0;j<services.length;j++){ if (services[j].rtype==='grouped_light'){ useGroupRid(services[j].rid); return; } }
+									}
+								}
+							}
+						} catch(e) {}
+					});
 				}
-			);
+				tryMap('room');
+				setTimeout(function(){ tryMap('zone'); }, 150);
+			}
 		}
 		
 		function show_log() {
@@ -914,7 +1028,86 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 		}
 		
 		function bridge_test(bridge_id) {
-			api_request(bridge_id, "PUT", "/groups/0/action", {"alert":"select"});
+			// Choose API by current selection in Global Config (fallback to backend value)
+			var selectedApi = $('#form-global-config select[name="api_version"]').val() || (config.global.api_version ? config.global.api_version.value : 'auto');
+			if (selectedApi === 'v2') {
+				// v2: perform a very short visible on/off toggle (about ~250-400ms) using grouped_light or first light
+				var quickToggle = function(rid) {
+					if (!rid) { display_message('error', i18next.t('error_occurred', {error: 'no grouped_light found'}), 5000); return; }
+					var delay = 100; // ms, keep very short
+					api_request(bridge_id, "GET", "resource/grouped_light/" + rid, null, function(stateResp) {
+						try {
+							var data = stateResp && stateResp.data ? stateResp.data : stateResp;
+							var cur = (Array.isArray(data) && data.length > 0) ? data[0] : {};
+							var wasOn = !!(cur.on && cur.on.on);
+							if (wasOn) {
+								api_request(bridge_id, "PUT", "resource/grouped_light/" + rid, {"on":{"on":false}, "dynamics":{"duration":0}}, function(){
+									setTimeout(function(){
+										api_request(bridge_id, "PUT", "resource/grouped_light/" + rid, {"on":{"on":true}, "dynamics":{"duration":0}}, function(){ display_message('success', i18next.t('test') + ' v2 OK', 1500); });
+									}, delay);
+								});
+							} else {
+								api_request(bridge_id, "PUT", "resource/grouped_light/" + rid, {"on":{"on":true}, "dynamics":{"duration":0}}, function(){
+									setTimeout(function(){
+										api_request(bridge_id, "PUT", "resource/grouped_light/" + rid, {"on":{"on":false}, "dynamics":{"duration":0}}, function(){ display_message('success', i18next.t('test') + ' v2 OK', 1500); });
+									}, delay);
+								});
+							}
+						} catch(e) {
+							// If reading state failed, still try a quick toggle: on then off
+							api_request(bridge_id, "PUT", "resource/grouped_light/" + rid, {"on":{"on":true}, "dynamics":{"duration":0}}, function(){ setTimeout(function(){ api_request(bridge_id, "PUT", "resource/grouped_light/" + rid, {"on":{"on":false}, "dynamics":{"duration":0}}); }, delay); });
+						}
+					});
+				};
+				// Try bridge_home -> services -> grouped_light
+				api_request(bridge_id, "GET", "resource/bridge_home", null, function(resp) {
+					try {
+						var data = resp && resp.data ? resp.data : resp; // support both {data:[...]} and direct array
+						var glrid = null;
+						if (Array.isArray(data) && data.length > 0) {
+							var services = data[0].services || [];
+							for (var i=0;i<services.length;i++) {
+								if (services[i].rtype === 'grouped_light') { glrid = services[i].rid; break; }
+							}
+						}
+						if (glrid) { quickToggle(glrid); return; }
+					} catch(e) {}
+					// Fallback: fetch grouped_light list and use the first one
+					api_request(bridge_id, "GET", "resource/grouped_light", null, function(resp2){
+						try {
+							var d = resp2 && resp2.data ? resp2.data : resp2;
+							if (Array.isArray(d) && d.length > 0) { quickToggle(d[0].id || d[0].rid); return; }
+						} catch(e) {}
+						// Fallback 2: try first individual light
+						api_request(bridge_id, "GET", "resource/light", null, function(resp3){
+							try {
+								var l = resp3 && resp3.data ? resp3.data : resp3;
+								if (Array.isArray(l) && l.length > 0) {
+									var lrid = l[0].id || l[0].rid;
+									var delay = 100;
+									api_request(bridge_id, "GET", "resource/light/" + lrid, null, function(lstate){
+										var ld = lstate && lstate.data ? lstate.data : lstate;
+										var wasOn = false;
+										try { wasOn = !!(Array.isArray(ld) && ld.length>0 && ld[0].on && ld[0].on.on); } catch(e) {}
+										if (wasOn) {
+											api_request(bridge_id, "PUT", "resource/light/" + lrid, {"on":{"on":false}, "dynamics":{"duration":0}}, function(){ setTimeout(function(){ api_request(bridge_id, "PUT", "resource/light/" + lrid, {"on":{"on":true}, "dynamics":{"duration":0}}, function(){ display_message('success', i18next.t('test') + ' v2 OK', 1500); }); }, delay); });
+										} else {
+											api_request(bridge_id, "PUT", "resource/light/" + lrid, {"on":{"on":true}, "dynamics":{"duration":0}}, function(){ setTimeout(function(){ api_request(bridge_id, "PUT", "resource/light/" + lrid, {"on":{"on":false}, "dynamics":{"duration":0}}, function(){ display_message('success', i18next.t('test') + ' v2 OK', 1500); }); }, delay); });
+										}
+									});
+									return;
+								}
+							} catch(e) {}
+							display_message('error', i18next.t('error_occurred', {error: 'no grouped_light/light available'}), 5000);
+						});
+					});
+				});
+			} else {
+				// v1: visual blink via alert on group 0 (all lights)
+				api_request(bridge_id, "PUT", "/groups/0/action", {"alert":"select"}, function(){
+					display_message('success', i18next.t('test') + ' v1 OK', 2000);
+				});
+			}
 		}
 		
 		function get_hued_info() {
