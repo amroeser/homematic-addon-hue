@@ -873,6 +873,9 @@ proc ::hue::get_config_json {} {
 	append json "\"unreachable_update_mode\":\{\"default\":\"${unreachable_update_mode_default}\",\"value\":\"${unreachable_update_mode}\"\},"
 	append json "\"reflect_bri_in_rgb\":\{\"default\":[json_bool $reflect_bri_in_rgb_default],\"value\":[json_bool $reflect_bri_in_rgb]\},"
 	append json "\"full_bri_when_turning_on\":\{\"default\":[json_bool $full_bri_when_turning_on_default],\"value\":[json_bool $full_bri_when_turning_on]\},"
+	# expose optional new global keys to the UI as well
+	append json "\"api_version\":\{\"default\":\"${api_version_default}\",\"value\":\"${api_version}\"\},"
+	append json "\"https_verify\":\{\"default\":\"${https_verify_default}\",\"value\":\"${https_verify}\"\},"
 	append json "\"remove_transitiontime_when_turning_off\":\{\"default\":\"${remove_transitiontime_when_turning_off_default}\",\"value\":\"${remove_transitiontime_when_turning_off}\"\}"
 	append json "\},"
 	append json "\"bridges\":\["

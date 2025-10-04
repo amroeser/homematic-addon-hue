@@ -280,7 +280,14 @@ proc process {} {
 					if {$data == "null"} {
 						set data ""
 					}
-					return [hue::request "command" $id $method $path $data]
+					# Perform request and ensure JSON is returned to the frontend
+					set resp [hue::request "command" $id $method $path $data]
+					# If the bridge (or a proxy) returns HTML or other non-JSON, wrap it as a JSON error
+					if {![regexp {^\s*[\{\[]]} $resp]} {
+						# Return a proper JSON error so the UI doesn't try to JSON.parse HTML
+						error "Bridge response is not JSON: [string range $resp 0 200]" "Bad Gateway" 502
+					}
+					return $resp
 				}
 			}
 		} elseif {[lindex $path 1] == "hued"} {
