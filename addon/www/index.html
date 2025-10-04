@@ -354,15 +354,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 			
 			var form = $('#form-global-config');
 			form.form('clear');
-			// Determine display API version: if backend says 'auto', derive from ports (443=>v2 else v1)
-			var displayApiVersion = (config.global.api_version ? config.global.api_version.value : 'auto');
-			if (displayApiVersion === 'auto') {
-				var anySSL = false;
-				try {
-					config.bridges.forEach(function(b){ if (parseInt(b.port||80) === 443) { anySSL = true; } });
-				} catch(e) {}
-				displayApiVersion = anySSL ? 'v2' : 'v1';
-			}
 			form.form('set values', {
 				poll_state_interval: config.global.poll_state_interval.value,
 				log_level: config.global.log_level.value,
@@ -373,12 +364,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 				full_bri_when_turning_on: config.global.full_bri_when_turning_on.value,
 				group_throttling_settings: config.global.group_throttling_settings.value,
 				remove_transitiontime_when_turning_off: config.global.remove_transitiontime_when_turning_off.value,
-				api_version: displayApiVersion,
+				api_version: (config.global.api_version ? config.global.api_version.value : 'auto'),
 				https_verify: (config.global.https_verify ? config.global.https_verify.value : 'none')
 			});
-			// force the Semantic UI dropdown to reflect the computed value
-			$('#form-global-config select[name="api_version"]').val(displayApiVersion);
-			$('#form-global-config select[name="api_version"]').parent('.dropdown').dropdown('set selected', displayApiVersion);
 			update_global_config_form_state();
 		}
 		
@@ -485,10 +473,37 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 		
 		function update_config_bridge(bridge) {
 			rest("PUT", "/config/bridge/" + bridge.id, bridge, function(data) {
-				get_config(function(data) {
-					update_view();
+				// After saving the bridge, automatically persist global api_version based on the chosen port
+				var desiredApi = (parseInt(bridge.port || 80) === 443) ? 'v2' : 'v1';
+				// Immediately reflect desired API version in UI and local config to avoid reverting
+				try {
+					config.global.api_version.value = desiredApi;
+					$('#form-global-config select[name="api_version"]').val(desiredApi);
+					$('#form-global-config select[name="api_version"]').parent('.dropdown').dropdown('set selected', desiredApi);
+					update_global_config_form_state();
+				} catch(e) {}
+				var gc = {
+					poll_state_interval: config.global.poll_state_interval.value,
+					log_level: config.global.log_level.value,
+					api_log: config.global.api_log.value,
+					api_connect_timeout: config.global.api_connect_timeout.value,
+					unreachable_update_mode: config.global.unreachable_update_mode.value,
+					reflect_bri_in_rgb: config.global.reflect_bri_in_rgb.value,
+					full_bri_when_turning_on: config.global.full_bri_when_turning_on.value,
+					group_throttling_settings: config.global.group_throttling_settings.value,
+					remove_transitiontime_when_turning_off: config.global.remove_transitiontime_when_turning_off.value,
+					api_version: desiredApi,
+					https_verify: (config.global.https_verify ? config.global.https_verify.value : 'none')
+				};
+				rest("PUT", "/config/global", gc, function() {
+					get_config(function(data) {
+						update_view();
+					});
+					display_message('success', i18next.t('bridge_updated'), 3000);
+				}, function() {
+					// Even if global update fails, refresh view for the bridge change
+					get_config(function(data) { update_view(); });
 				});
-				display_message('success', i18next.t('bridge_updated'), 5000);
 			});
 		}
 		
@@ -576,10 +591,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 					var sslOn = (parseInt(bridge.port || 80) === 443);
 					form.find("input[name='ssl']").prop('checked', sslOn);
 					$('.ui.checkbox').checkbox();
-					// also reflect desired API version in global form for visibility
-					var desiredApi = sslOn ? 'v2' : 'v1';
-					$('#form-global-config').form('set values', { api_version: desiredApi });
-					$('#form-global-config select[name="api_version"]').val(desiredApi).trigger('change');
 					form.find("input[name='id']").parent().css('display', 'block');
 					form.find("input[name='name']").parent().css('display', 'block');
 					form.find("input[name='username']").parent().css('display', 'block');
@@ -613,9 +624,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 			form.form('set values', { port: newPort });
 			// Also update the visible input and trigger change for establish_link()
 			form.find("input[name='port']").val(newPort).trigger('change');
-			// Set global API version accordingly
-			$('#form-global-config').form('set values', { api_version: (checked ? 'v2' : 'v1') });
-			update_global_config_form_state();
 		}
 
 		function update_ssl_toggle_from_port() {
@@ -624,10 +632,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 			var ssl = (p === 443);
 			form.find("input[name='ssl']").prop('checked', ssl);
 			$('#form-edit-bridge .ui.checkbox.ssl-toggle').checkbox(ssl ? 'check' : 'uncheck');
-			if (p === 443 || p === 80) {
-				$('#form-global-config').form('set values', { api_version: (ssl ? 'v2' : 'v1') });
-				update_global_config_form_state();
-			}
 		}
 		
 		function object_to_table( obj) {

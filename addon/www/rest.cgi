@@ -298,8 +298,8 @@ proc process {} {
 						# hue::api_request handles leading slash in path itself
 						set resp [hue::api_request "command" $bridge(ip) $req_port $bridge(username) $method $path $data]
 					}
-					# If the bridge (or a proxy) returns HTML or other non-JSON, wrap it as a JSON error
-					if {![regexp {^\s*[\{\[]]} $resp]} {
+					# If the bridge (or a proxy) returns an HTML page, wrap it as a JSON error
+					if {[regexp {^\s*<} $resp]} {
 						# Return a proper JSON error so the UI doesn't try to JSON.parse HTML
 						error "Bridge response is not JSON: [string range $resp 0 200]" "Bad Gateway" 502
 					}
