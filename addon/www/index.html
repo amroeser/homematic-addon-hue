@@ -226,6 +226,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 		function set_config_defaults() {
 			var form = $('#form-global-config');
 			form.form('clear');
+			// derive api version for display: prefer defaults, but map 'auto' to v1/v2 by ports
+			var defaultApi = (config.global.api_version ? config.global.api_version.default : 'auto');
+			var displayApi = defaultApi;
+			if (displayApi === 'auto') {
+				var anySSL = false;
+				try {
+					config.bridges.forEach(function(b){ if (parseInt(b.port||80) === 443) { anySSL = true; } });
+				} catch(e) {}
+				displayApi = anySSL ? 'v2' : 'v1';
+			}
 			form.form('set values', {
 				poll_state_interval: config.global.poll_state_interval.default,
 				log_level: config.global.log_level.default,
@@ -236,9 +246,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 				full_bri_when_turning_on: config.global.full_bri_when_turning_on.default,
 				group_throttling_settings: config.global.group_throttling_settings.default,
 				remove_transitiontime_when_turning_off: config.global.remove_transitiontime_when_turning_off.default,
-				api_version: (config.global.api_version ? config.global.api_version.default : 'auto'),
+				api_version: displayApi,
 				https_verify: (config.global.https_verify ? config.global.https_verify.default : 'none')
 			});
+			$('#form-global-config select[name="api_version"]').val(displayApi).trigger('change');
 			update_global_config_form_state();
 		}
 		
@@ -343,6 +354,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 			
 			var form = $('#form-global-config');
 			form.form('clear');
+			// Determine display API version: if backend says 'auto', derive from ports (443=>v2 else v1)
+			var displayApiVersion = (config.global.api_version ? config.global.api_version.value : 'auto');
+			if (displayApiVersion === 'auto') {
+				var anySSL = false;
+				try {
+					config.bridges.forEach(function(b){ if (parseInt(b.port||80) === 443) { anySSL = true; } });
+				} catch(e) {}
+				displayApiVersion = anySSL ? 'v2' : 'v1';
+			}
 			form.form('set values', {
 				poll_state_interval: config.global.poll_state_interval.value,
 				log_level: config.global.log_level.value,
@@ -353,9 +373,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 				full_bri_when_turning_on: config.global.full_bri_when_turning_on.value,
 				group_throttling_settings: config.global.group_throttling_settings.value,
 				remove_transitiontime_when_turning_off: config.global.remove_transitiontime_when_turning_off.value,
-				api_version: (config.global.api_version ? config.global.api_version.value : 'auto'),
+				api_version: displayApiVersion,
 				https_verify: (config.global.https_verify ? config.global.https_verify.value : 'none')
 			});
+			// force the Semantic UI dropdown to reflect the computed value
+			$('#form-global-config select[name="api_version"]').val(displayApiVersion);
+			$('#form-global-config select[name="api_version"]').parent('.dropdown').dropdown('set selected', displayApiVersion);
 			update_global_config_form_state();
 		}
 		
@@ -540,6 +563,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 						port: bridge.port || 80,
 						username: bridge.username || ''
 					});
+					// set SSL toggle based on port
+					var sslOn = (parseInt(bridge.port || 80) === 443);
+					form.find("input[name='ssl']").prop('checked', sslOn);
+					$('.ui.checkbox').checkbox();
+					// also reflect desired API version in global form for visibility
+					var desiredApi = sslOn ? 'v2' : 'v1';
+					$('#form-global-config').form('set values', { api_version: desiredApi });
+					$('#form-global-config select[name="api_version"]').val(desiredApi).trigger('change');
 					form.find("input[name='id']").parent().css('display', 'block');
 					form.find("input[name='name']").parent().css('display', 'block');
 					form.find("input[name='username']").parent().css('display', 'block');
@@ -555,11 +586,39 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 				ip: ip || '',
 				port: port
 			});
+			// preset SSL toggle based on provided port
+			form.find("input[name='ssl']").prop('checked', parseInt(port) === 443);
+			$('#form-edit-bridge .ui.checkbox.ssl-toggle').checkbox(parseInt(port) === 443 ? 'check' : 'uncheck');
 			form.find("input[name='id']").parent().css('display', 'none');
 			form.find("input[name='username']").parent().css('display', 'none');
 			$('#modal-edit-bridge').modal('show');
 			$('#submit-edit-bridge').addClass('disabled');
 			establish_link();
+		}
+
+		// Bridge SSL helpers
+		function on_ssl_toggle_change(checked) {
+			var form = $('#form-edit-bridge');
+			// Set port based on SSL toggle
+			var newPort = (checked ? 443 : 80);
+			form.form('set values', { port: newPort });
+			// Also update the visible input and trigger change for establish_link()
+			form.find("input[name='port']").val(newPort).trigger('change');
+			// Set global API version accordingly
+			$('#form-global-config').form('set values', { api_version: (checked ? 'v2' : 'v1') });
+			update_global_config_form_state();
+		}
+
+		function update_ssl_toggle_from_port() {
+			var form = $('#form-edit-bridge');
+			var p = parseInt(form.form('get value', 'port') || 0);
+			var ssl = (p === 443);
+			form.find("input[name='ssl']").prop('checked', ssl);
+			$('#form-edit-bridge .ui.checkbox.ssl-toggle').checkbox(ssl ? 'check' : 'uncheck');
+			if (p === 443 || p === 80) {
+				$('#form-global-config').form('set values', { api_version: (ssl ? 'v2' : 'v1') });
+				update_global_config_form_state();
+			}
 		}
 		
 		function object_to_table( obj) {
@@ -1382,6 +1441,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 				$('#show-cuxd-device-map-info-button').contents().last()[0].textContent = i18next.t('show_mappings');
 				$('#restart-hued-button').contents().last()[0].textContent = i18next.t('restart');
 				$('#add-bridge-button').contents().last()[0].textContent = i18next.t('add_hue_bridge');
+				// initialize semantic checkboxes (used for SSL toggle)
+				$('.ui.checkbox').checkbox();
+				// bind SSL toggle events
+				$('#form-edit-bridge .ui.checkbox.ssl-toggle').checkbox({
+					onChecked: function(){ on_ssl_toggle_change(true); },
+					onUnchecked: function(){ on_ssl_toggle_change(false); }
+				});
+				// also bind native change on the input to be robust
+				$('#form-edit-bridge input[name="ssl"]').on('change', function(){ on_ssl_toggle_change($(this).is(':checked')); });
+				// keep SSL toggle in sync when port field is edited
+				$('#form-edit-bridge input[name="port"]').on('change keyup', function(){ update_ssl_toggle_from_port(); });
 				$('#execute-test-command').contents().last()[0].textContent = i18next.t('execute');
 				$('#truncate-log-button').contents().last()[0].textContent = i18next.t('truncate_log');
 				$('#show-log-button').contents().last()[0].textContent = i18next.t('show_log');
@@ -1622,6 +1692,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 				<div class="field">
 					<label data-i18n="port"></label>
 					<input name="port" placeholder="" type="text" onchange='establish_link();'>
+				</div>
+				<div class="field">
+					<div class="ui toggle checkbox ssl-toggle">
+						<input type="checkbox" name="ssl">
+						<label>SSL</label>
+					</div>
 				</div>
 				<div class="field">
 					<label data-i18n="name"></label>

@@ -251,23 +251,22 @@ proc process {} {
 					}
 					return "\"Global config successfully updated\""
 				}
-				if {$plen == 3} {
-					if {$env(REQUEST_METHOD) == "PUT"} {
-						set id [lindex $path 3]
-						#error "${data}" "Debug" 500
-						regexp {\"name\"\s*:\s*\"([^\"]+)\"} $data match name
-						regexp {\"ip\"\s*:\s*\"([^\"]+)\"} $data match ip
-						regexp {\"username\"\s*:\s*\"([^\"]+)\"} $data match username
-						if {! [regexp {\"port\"\s*:\s*(\d+)} $data match port]} {
-							set port 80
-						}
-						hue::create_bridge $id $name $ip $username $port
-						return "\"Bridge ${id} successfully created\""
-					} elseif {$env(REQUEST_METHOD) == "DELETE"} {
-						set id [lindex $path 3]
-						hue::delete_bridge $id
-						return "\"Bridge ${id} successfully deleted\""
+			} elseif {$plen == 3 && [lindex $path 2] == "bridge"} {
+				if {$env(REQUEST_METHOD) == "PUT"} {
+					set id [lindex $path 3]
+					# parse bridge fields from payload
+					regexp {\"name\"\s*:\s*\"([^\"]+)\"} $data match name
+					regexp {\"ip\"\s*:\s*\"([^\"]+)\"} $data match ip
+					regexp {\"username\"\s*:\s*\"([^\"]+)\"} $data match username
+					if {! [regexp {\"port\"\s*:\s*(\d+)} $data match port]} {
+						set port 80
 					}
+					hue::create_bridge $id $name $ip $username $port
+					return "\"Bridge ${id} successfully created\""
+				} elseif {$env(REQUEST_METHOD) == "DELETE"} {
+					set id [lindex $path 3]
+					hue::delete_bridge $id
+					return "\"Bridge ${id} successfully deleted\""
 				}
 			}
 		} elseif {[lindex $path 1] == "bridges"} {
