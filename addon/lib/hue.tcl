@@ -192,9 +192,35 @@ proc ::hue::map_v1_scene_to_v2 {bridge_id v1scene} {
 proc ::hue::v1_params_to_v2_body {bridge_id obj_type obj_id aparams} {
 	array set params $aparams
 	set parts [list]
-	# on
+
+	# Normalize 'on' to JSON boolean and short-circuit for OFF (immediate off)
+	set has_on 0
+	set on_bool ""
 	if {[info exists params(on)]} {
-		lappend parts "\"on\":{\"on\":${params(on)}}"
+		set has_on 1
+		set raw $params(on)
+		# Accept 0/1 or true/false
+		if {[string is integer -strict $raw]} {
+			set on_bool [json_bool [expr {$raw != 0}]]
+		} else {
+			set on_bool $raw
+			# ensure lowercase true/false
+			set on_bool [string tolower $on_bool]
+			if {$on_bool ne "true" && $on_bool ne "false"} {
+				# fallback: treat anything non-zero/non-empty as true
+				set on_bool [json_bool 1]
+			}
+		}
+	}
+
+	# If turning off, do NOT include dimming/color to avoid long fades; send only on:false
+	if {$has_on && $on_bool eq "false"} {
+		return "{\"on\":{\"on\":false}}"
+	}
+
+	# on (when true), allow other attributes alongside
+	if {$has_on} {
+		lappend parts "\"on\":{\"on\":${on_bool}}"
 	}
 	# brightness (0..254) -> percent 0..100
 	if {[info exists params(bri)]} {

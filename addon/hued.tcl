@@ -386,7 +386,7 @@ proc read_from_channel {channel} {
 					regsub -all {^"|"$} $scene_id "" scene_id
 					set s_rid [hue::map_v1_scene_to_v2 $bridge_id $scene_id]
 					if {$s_rid != ""} {
-						set response [hue::request_v2 "command" $bridge_id "PUT" "resource/scene/${s_rid}" "{\"recall\":{\"action\":\"active\"}}"]
+						set response [hue::request_v2 "command" $bridge_id "PUT" "resource/scene/${s_rid}" "{\"recall\":{\"action\":\"active\",\"duration\":0}}"]
 					} else {
 						# fallback to v1 if mapping missing
 						set path "groups/${obj_id}/action"
