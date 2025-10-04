@@ -392,23 +392,32 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 		function establish_link() {
 			console.log("establish_link");
 			var form = $('#form-edit-bridge');
+			// Do NOT try to establish a new link when editing an existing bridge
+			var existingId = form.find("input[name='id']").val();
+			if (existingId) {
+				return;
+			}
 			var ip_or_hostname = form.form('get value', 'ip');
 			var port = form.form('get value', 'port');
 			if (!port) { port = '80' }
 			port = parseInt(port);
+			// Use HTTP port 80 for the initial v1 link sequence even when SSL (443) is selected
+			var originalPort = port;
+			var request_port = (port === 443 ? 80 : port);
 			//form.addClass('loading');
 			if (ip_or_hostname) {
 				display_message('info', i18next.t('connecting_to_bridge'), 15000);
-				rest("POST", "/establish-link", {"ip": ip_or_hostname, "port": port},
+				rest("POST", "/establish-link", {"ip": ip_or_hostname, "port": request_port},
 					function(config) {
 						console.log("link established");
 						config.bridgeid = config.bridgeid.toLowerCase();
 						display_message('success', i18next.t('link_to_bridge_established', {bridgeid: config.bridgeid}), 5000);
+						// Keep the user-selected port (80/443) in the form; ignore backend port echo
 						form.form('set values', {
 							id: config.bridgeid || '',
 							name: config.name || '',
 							username: config.username || '',
-							port: config.port || '80'
+							port: originalPort
 						});
 						$('#submit-edit-bridge').removeClass('disabled');
 					},
@@ -1687,11 +1696,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 				</div>
 				<div class="field">
 					<label data-i18n="ip_address_or_hostname"></label>
-					<input name="ip" placeholder="" type="text" onchange='establish_link();'>
+					<input name="ip" placeholder="" type="text">
 				</div>
 				<div class="field">
 					<label data-i18n="port"></label>
-					<input name="port" placeholder="" type="text" onchange='establish_link();'>
+					<input name="port" placeholder="" type="text">
 				</div>
 				<div class="field">
 					<div class="ui toggle checkbox ssl-toggle">

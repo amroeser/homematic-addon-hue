@@ -280,7 +280,24 @@ proc process {} {
 						set data ""
 					}
 					# Perform request and ensure JSON is returned to the frontend
-					set resp [hue::request "command" $id $method $path $data]
+					# If bridge is configured with SSL (port 443) but UI sends v1 endpoints,
+					# route v1 over HTTP (port 80) to avoid sending plain HTTP to HTTPS port.
+					# Heuristic: treat as v1 if path does not start with "resource/" (CLIPv2) and is typical v1 like config/lights/groups/scenes...
+					set resp ""
+					set is_v2_path [regexp {^\s*/?resource/} $path]
+					if {$is_v2_path} {
+						# Use CLIPv2 over HTTPS via curl
+						set resp [hue::request_v2 "status" $id $method $path $data]
+					} else {
+						# v1 style: use HTTP. If bridge port is 443, force port 80 for this request
+						set abridge [hue::get_bridge $id]
+						array set bridge $abridge
+						set req_port $bridge(port)
+						if {$req_port == ""} { set req_port 80 }
+						if {[string is integer -strict $req_port] && $req_port == 443} { set req_port 80 }
+						# hue::api_request handles leading slash in path itself
+						set resp [hue::api_request "command" $bridge(ip) $req_port $bridge(username) $method $path $data]
+					}
 					# If the bridge (or a proxy) returns HTML or other non-JSON, wrap it as a JSON error
 					if {![regexp {^\s*[\{\[]]} $resp]} {
 						# Return a proper JSON error so the UI doesn't try to JSON.parse HTML
