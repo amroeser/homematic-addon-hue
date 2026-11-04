@@ -70,6 +70,29 @@ CCU3 mit Original-Firmware, OpenCCU und RaspberryMatic. Ohne zusätzliche Pakete
 
 </td>
 </tr>
+<tr>
+<td valign="top">
+
+### Lampen ohne Hue
+
+Deckenlampe am Shelly, Stehlampe an der HomeMatic-Steckdose: Ordne sie dem Raum zu, und sie schalten mit. Egal ob über die Addon-Seite, ein Programm, die Hue-App oder einen Hue-Schalter.
+
+</td>
+<td valign="top">
+
+### Szenen-Tasten, die mitdenken
+
+Eine Szenen-Taste steht nur auf „an“, solange ihre Szene aktiv ist. Programme mit „Umschalten“ wechseln so zuverlässig zwischen Hell und Gedimmt, statt versehentlich auszuschalten.
+
+</td>
+<td valign="top">
+
+### Shelly im Blick
+
+Schaltest du einen Shelly am Wandschalter, erfährt HomeMatic es trotzdem. Das Addon liest das Relais und korrigiert den CUxD-Schalter, ohne erneut zu schalten.
+
+</td>
+</tr>
 </table>
 
 <br>
@@ -98,7 +121,16 @@ Helligkeit, Weißton, Farbe und Effekte. Darunter das passende HomeMatic-Gerät:
 <td width="58%"><img src="docs/media/control-light.png" alt="Detailansicht einer Lampe"></td>
 </tr>
 <tr>
-<td width="58%"><img src="docs/media/diagnose.png" alt="Diagnose mit Statusprüfungen"></td>
+<td width="58%"><img src="docs/media/more-lamps.png" alt="Weitere Lampen eines Raums mit Vorschlägen aus der CCU"></td>
+<td valign="middle">
+
+### Lampen ohne Hue gehören dazu
+
+Shellys und HomeMatic-Aktoren erscheinen als Kacheln im Raum. Das Addon schlägt passende Geräte aus der CCU vor, je Szene legst du fest, ob sie an oder aus sein sollen.
+
+</td>
+</tr>
+<tr>
 <td valign="middle">
 
 ### Sofort sehen, ob alles läuft
@@ -106,6 +138,7 @@ Helligkeit, Weißton, Farbe und Effekte. Darunter das passende HomeMatic-Gerät:
 Die Diagnose prüft Dienst, Bridge, Echtzeit-Verbindung und Version. Befehle probierst du direkt aus.
 
 </td>
+<td width="58%"><img src="docs/media/diagnose.png" alt="Diagnose mit Statusprüfungen"></td>
 </tr>
 </table>
 
@@ -202,7 +235,11 @@ Das Addon legt drei Arten von CUxD-Geräten an:
 
 **Szenen in Programmen:** Schalte unter *Einstellungen* „Szenen als Systemvariablen“ ein, oder direkt in der Kurzanleitung. Jeder Raum und jede Zone bekommt die Variable „Hue Szene <Raum>“ als Werteliste: Eintrag „Aus“ schaltet den Raum aus, die übrigen rufen die Szene auf. Wählst du in der Hue-App eine Szene, steht sie auch hier, sodass Programme darauf reagieren können. Das Addon hängt neue Szenen an und markiert gelöschte als „(entfernt)“, damit sich die Positionen in deinen Programmen nie verschieben. Namen werden in ASCII geschrieben (`Kueche`), weil die CCU intern ISO-8859-1 nutzt. Benötigt API v2.
 
-**Szenen als Tasten:** Für Fernbedienungen und Wandtaster legst du in den Details eines Raums je Szene eine CUxD-Taste an. Lang drücken ruft die Szene auf, kurz drücken schaltet den Raum aus. Die Taste speichert die Szenen-ID und ist damit unempfindlich gegen Umlaute und Umbenennen.
+**Weitere Lampen im Raum:** In den Details eines Raums ordnest du Lampen ohne Hue zu, etwa einen Shelly hinter einem CUxD-Schalter oder einen HomeMatic-IP-Aktor. Das Addon schlägt Geräte vor, deren CCU-Raum oder Name zum Hue-Raum passt. Sie schalten mit dem Raum an und aus, egal von wo der Raum geschaltet wurde, wahlweise auch nur aus. Je Szene legst du fest, ob die Lampe an, aus oder unverändert bleibt. Geschaltet wird über die CCU, deine Geräte und Programme bleiben, wie sie sind. Benötigt API v2.
+
+**Shelly-Zustand:** CUxD-Schalter, die einen Shelly per URL schalten (`/relay/0?turn=on` oder `/rpc/Switch.Set`), kennen den echten Zustand nicht. Das Addon liest alle 10 Sekunden das Relais und korrigiert den Schalter per `SET_STATE`, ohne den Befehl erneut auszuführen. Abschaltbar unter *Einstellungen*.
+
+**Szenen als Tasten:** Für Fernbedienungen und Wandtaster legst du in den Details eines Raums je Szene eine CUxD-Taste an. Lang drücken ruft die Szene auf, kurz drücken schaltet den Raum aus. Die Taste speichert die Szenen-ID und ist damit unempfindlich gegen Umlaute und Umbenennen. Sie steht nur auf „an“, solange ihre Szene aktiv ist: Programme, die mit „Umschalten“ zwischen zwei Szenen eines Raums wechseln, schalten so nicht versehentlich aus.
 
 In WebUI-Programmen verhalten sich die Geräte wie gewohnte HomeMatic-Geräte. Für Effekte oder Sonnenaufgang nutzt du ein CUxD-Exec-Gerät:
 

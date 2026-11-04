@@ -28,6 +28,12 @@ array set object_states {}
 # CUxD address -> "<bridge>_<type>_<id>"
 variable cuxd_device_map
 array set cuxd_device_map {}
+# CUxD address -> scene of a Hue scene switch
+variable cuxd_scene
+array set cuxd_scene {}
+# Last state written to a scene switch
+variable scene_switch_last
+array set scene_switch_last {}
 variable set_sysvars_reachable 1
 variable scheduled_update_time 0
 variable scheduled_update_cuxd_device_map_time 0
@@ -96,11 +102,17 @@ proc update_sysvars_reachable {name reachable} {
 
 proc update_cuxd_device_map {} {
 	variable cuxd_device_map
+	variable cuxd_scene
 	hue::write_log 4 "Updating cuxd device map"
 	if { [catch {
-		set dmap [hue::get_cuxd_device_map]
+		set details [hue::get_cuxd_device_details]
 		hue::v2::aunset cuxd_device_map *
-		array set cuxd_device_map $dmap
+		hue::v2::aunset cuxd_scene *
+		foreach d $details {
+			foreach {address b t i scene} $d break
+			set cuxd_device_map($address) "${b}_${t}_${i}"
+			if {$scene != ""} { set cuxd_scene($address) $scene }
+		}
 	} errmsg] } {
 		hue::write_log 1 "Failed to get cuxd device map: ${errmsg} - ${::errorCode} - ${::errorInfo}"
 	}
@@ -196,7 +208,10 @@ proc process_object_state {bridge_id obj_type obj_id astate} {
 	hue::write_log 4 "State of ${bridge_id} ${obj_type} ${obj_id} has changed (forced=${force_update})"
 	set object_states($full_id) [array get state]
 
+	variable cuxd_scene
 	foreach cuxd_device [get_cuxd_devices_from_map $bridge_id $obj_type $obj_id] {
+		# Scene switches follow their scene, see process_scene_switches
+		if {[info exists cuxd_scene($cuxd_device)] && [string equal $hue::scene_switch_state "scene"]} { continue }
 		if { [catch {
 			update_cuxd_device $cuxd_device $bridge_id $obj_type $obj_id [array get state]
 		} errmsg] } {
@@ -224,6 +239,12 @@ proc process_bridge_v2 {bridge_id} {
 	if {[catch {scene_vars_for_bridge $bridge_id} err]} {
 		hue::write_log 1 "Scene variables of ${bridge_id}: ${err}"
 	}
+	if {[catch {process_scene_switches $bridge_id} err]} {
+		hue::write_log 1 "Scene switches of ${bridge_id}: ${err}"
+	}
+	if {[catch {process_extras $bridge_id} err]} {
+		hue::write_log 1 "More lamps of ${bridge_id}: ${err}"
+	}
 }
 
 # v1: poll lights and groups
@@ -242,6 +263,45 @@ proc process_bridge_v1 {bridge_id} {
 			}
 		}
 	}
+	if {[catch {process_scene_switches $bridge_id} err]} {
+		hue::write_log 1 "Scene switches of ${bridge_id}: ${err}"
+	}
+}
+
+# A Hue scene switch (CUxD) is on while the room is on and its scene is active.
+# Programs toggle these switches; with every switch of a room on, a toggle on
+# the second scene would switch the room off instead of recalling the scene.
+# The v1 API does not tell the active scene: there the room state is used.
+proc process_scene_switches {bridge_id} {
+	variable cuxd_scene
+	variable cuxd_device_map
+	variable object_states
+	variable scene_switch_last
+	if {![string equal $hue::scene_switch_state "scene"]} { return }
+	set b [string tolower $bridge_id]
+	set v2 [hue::v2::active $b]
+	set script ""
+	foreach address [array names cuxd_scene] {
+		if {![info exists cuxd_device_map($address)]} { continue }
+		set o [string tolower $cuxd_device_map($address)]
+		if {![string equal [lindex [split $o "_"] 0] $b]} { continue }
+		if {![info exists object_states($o)]} { continue }
+		array set st $object_states($o)
+		set on [expr {[info exists st(on)] && [lsearch -exact {true 1} $st(on)] >= 0}]
+		catch {unset st}
+		if {$on && $v2} {
+			set rid [hue::v2::scene_rid $b $cuxd_scene($address)]
+			set act [hue::v2::rget $b $rid status/active]
+			if {$rid == "" || $act == "" || [string equal $act "inactive"]} { set on 0 }
+		}
+		if {[info exists scene_switch_last($address)] && $scene_switch_last($address) == $on} { continue }
+		set scene_switch_last($address) $on
+		set ch $address
+		if {[string first ":" $ch] < 0} { append ch ":1" }
+		hue::write_log 3 "Scene switch ${ch} = ${on}"
+		append script "dom.GetObject(\"CUxD.${ch}.SET_STATE\").State(${on});\n"
+	}
+	if {$script != ""} { rega_script $script }
 }
 
 proc set_scheduled_update {time} {
@@ -268,11 +328,17 @@ proc check_update {} {
 			if {[lsearch -exact $bridge_ids $b] < 0} { lappend bridge_ids $b }
 		}
 	}
+	foreach b [extras_bridges] {
+		if {[lsearch -exact $bridge_ids $b] < 0} { lappend bridge_ids $b }
+	}
 	foreach bridge_id $bridge_ids {
 		ensure_eventstream $bridge_id
 	}
 	if {[catch {poll_scene_vars} err]} {
 		hue::write_log 1 "Scene variables: ${err}"
+	}
+	if {[catch {shelly_poll} err]} {
+		hue::write_log 1 "Shelly: ${err}"
 	}
 
 	if {$scheduled_update_time < 0 || [clock seconds] < $scheduled_update_time} {
@@ -688,6 +754,177 @@ proc scene_vars_for_bridge {b} {
 }
 
 # ---------------------------------------------------------------------------
+# More lamps in a room
+#
+# Switch actuators of the CCU that follow a Hue room: on and off with the room,
+# whoever switched it (web UI, CUxD, programs, scene variable, Hue app, Hue
+# switches). Scenes can switch them on or off as well. Only changes of the
+# room are acted on, never the actuators' own state, so nothing can loop.
+# ---------------------------------------------------------------------------
+
+variable extras_rooms
+array set extras_rooms {}
+variable extras_scenes
+array set extras_scenes {}
+variable extras_last
+array set extras_last {}
+
+proc load_extras {} {
+	variable extras_rooms
+	variable extras_scenes
+	hue::v2::aunset extras_rooms *
+	hue::v2::aunset extras_scenes *
+	if {[catch {hue::extras::all} all]} {
+		hue::write_log 1 "More lamps: ${all}"
+		return
+	}
+	foreach e $all {
+		foreach {kind b rid entries} $e break
+		if {[string equal $kind "room"]} {
+			set extras_rooms($b|$rid) $entries
+		} else {
+			set extras_scenes($b|$rid) $entries
+		}
+	}
+	# New assignments start from the current state of their room
+	foreach b [extras_bridges] {
+		if {[hue::v2::loaded_at $b] > 0} {
+			catch { process_extras $b 1 }
+		}
+	}
+}
+
+proc extras_bridges {} {
+	variable extras_rooms
+	set out [list]
+	foreach k [array names extras_rooms] {
+		set b [lindex [split $k "|"] 0]
+		if {[lsearch -exact $out $b] < 0} { lappend out $b }
+	}
+	return $out
+}
+
+proc active_scene {b owner} {
+	foreach rid [scenes_of $b $owner] {
+		set st [hue::v2::rget $b $rid status/active]
+		if {$st != "" && ![string equal $st "inactive"]} { return $rid }
+	}
+	return ""
+}
+
+# init 1: only remember the current state (after loading the assignments)
+proc process_extras {b {init 0}} {
+	variable extras_rooms
+	variable extras_scenes
+	variable extras_last
+	set pairs [list]
+	foreach k [array names extras_rooms "$b|*"] {
+		set room [lindex [split $k "|"] 1]
+		set gl [hue::v2::lookup $b "gl_of,$room"]
+		if {$gl == ""} { continue }
+		set on [string equal [hue::v2::rget $b $gl on/on] "true"]
+		set scene [active_scene $b $room]
+		if {![info exists extras_last($k)]} {
+			# First look after a start: remember only
+			set extras_last($k) [list $on $scene]
+			continue
+		}
+		if {$init} { continue }
+		foreach {lon lscene} $extras_last($k) break
+		set extras_last($k) [list $on $scene]
+		catch {unset want}
+		array set want {}
+		if {$on != $lon} {
+			foreach e $extras_rooms($k) {
+				foreach {ch mode} $e break
+				if {!$on} {
+					set want($ch) 0
+				} elseif {[string equal $mode "both"]} {
+					set want($ch) 1
+				}
+			}
+		}
+		if {$on && $scene != "" && ($on != $lon || ![string equal $scene $lscene]) && [info exists extras_scenes($b|$scene)]} {
+			foreach e $extras_scenes($b|$scene) {
+				foreach {ch v} $e break
+				set want($ch) [string equal $v "on"]
+			}
+		}
+		foreach ch [array names want] {
+			lappend pairs $ch $want($ch)
+		}
+	}
+	if {[llength $pairs] > 0} {
+		hue::write_log 3 "More lamps: ${pairs}"
+		hue::extras::set_states $pairs
+	}
+}
+
+# Shellys behind CUxD switches: read the relays, correct the CUxD state
+variable shelly_list [list]
+variable shelly_list_time 0
+variable shelly_polled 0
+variable shelly_pending 0
+variable shelly_buf
+array set shelly_buf {}
+
+proc shelly_poll {} {
+	variable shelly_list
+	variable shelly_list_time
+	variable shelly_polled
+	variable shelly_pending
+	variable shelly_buf
+	if {!$hue::shelly_sync} { return }
+	set now [clock seconds]
+	if {$shelly_pending > 0 && $now - $shelly_polled < 20} { return }
+	if {$now - $shelly_polled < 10} { return }
+	set shelly_polled $now
+	if {$now - $shelly_list_time > 600} {
+		set shelly_list_time $now
+		if {[catch {set shelly_list [hue::extras::shelly_devices]} err]} {
+			hue::write_log 2 "Shelly devices: ${err}"
+			set shelly_list [list]
+		}
+		hue::write_log 4 "Shelly devices: ${shelly_list}"
+	}
+	hue::v2::aunset shelly_buf *
+	set shelly_pending 0
+	foreach d $shelly_list {
+		foreach {ch url} $d break
+		if {[catch {
+			set chan [open "|[list [hue::curl_bin] --silent --max-time 3 $url]" r]
+			fconfigure $chan -blocking 0 -buffering none
+			set shelly_buf($ch) ""
+			incr shelly_pending
+			fileevent $chan readable [list shelly_read $ch $chan]
+		} err]} {
+			hue::write_log 2 "Shelly ${url}: ${err}"
+		}
+	}
+}
+
+proc shelly_read {ch chan} {
+	variable shelly_pending
+	variable shelly_buf
+	append shelly_buf($ch) [read $chan]
+	if {![eof $chan]} { return }
+	catch { close $chan }
+	incr shelly_pending -1
+	if {$shelly_pending <= 0} {
+		set pairs [list]
+		foreach c [array names shelly_buf] {
+			set v [hue::extras::shelly_parse $shelly_buf($c)]
+			if {$v != ""} { lappend pairs $c $v }
+		}
+		if {[catch {set changed [hue::extras::cuxd_correct $pairs]} err]} {
+			hue::write_log 2 "Shelly state: ${err}"
+		} elseif {[llength $changed] > 0} {
+			hue::write_log 3 "Shelly state corrected: ${changed}"
+		}
+	}
+}
+
+# ---------------------------------------------------------------------------
 # Commands from hue.tcl and the web UI
 # ---------------------------------------------------------------------------
 
@@ -804,8 +1041,14 @@ proc read_from_channel {channel} {
 				set stream($b,next_try) 0
 			}
 			update_cuxd_device_map
+			load_extras
+			set ::shelly_list_time 0
+			foreach k [array names ::scene_switch_last] { unset ::scene_switch_last($k) }
 			set_scheduled_update [clock seconds]
 			set response "Reload scheduled"
+		} elseif {[string equal $cmd "reload_extras"]} {
+			load_extras
+			set response "OK"
 		} elseif {[regexp "^objects\\s+(\\S+)$" $cmd match bridge_id]} {
 			# Overview for the web UI from the cache, kept current by the event stream
 			set response [hue::objects_json $bridge_id 0]
@@ -860,6 +1103,7 @@ proc main {} {
 	} else {
 		socket -server accept_connection -myaddr $hue::hued_address $hue::hued_port
 	}
+	load_extras
 	hue::write_log 3 "Hue daemon [hue::version] is listening for connections on ${hue::hued_address}:${hue::hued_port}"
 	main_loop
 }

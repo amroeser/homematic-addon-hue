@@ -37,10 +37,46 @@ proc ::hue_test_var_write {name list value} {
 	close $fd
 }
 
+# CCU channels for "more lamps": STATE values in chan_states.txt ("<channel> true|false" per line),
+# the candidate list as the ReGa script prints it in ccu_channels.txt
+proc ::hue_test_extras {kind script} {
+	array set S [::hue_test_read chan_states.txt]
+	set out ""
+	foreach line [split $script "\n"] {
+		if {![regexp {GetObject\("([^"]+)\.STATE"\)} $line -> ch]} { continue }
+		set cur "false"
+		if {[info exists S($ch)]} { set cur $S($ch) }
+		if {[string equal $kind "states"]} {
+			append out "${ch}|${cur}\n"
+		} elseif {[string equal $kind "names"]} {
+			set name "Lamp ${ch}"
+			foreach c [split [::hue_test_read ccu_channels.txt] "\n"] {
+				set f [split $c "|"]
+				if {[string equal [lindex $f 0] $ch]} { set name [lindex $f 5] }
+			}
+			append out "${ch}|${name}\n"
+		} elseif {[string equal $kind "switch"] && [regexp {State\((true|false)\)} $line -> v]} {
+			set S($ch) $v
+		} elseif {[string equal $kind "correct"] && [regexp {!= (true|false)} $line -> v]} {
+			if {![string equal $cur $v]} { set S($ch) $v; append out "${ch}\n" }
+		}
+	}
+	set fd [open [file join $::hue_test_dir chan_states.txt] w]
+	foreach k [array names S] { puts $fd "$k $S($k)" }
+	close $fd
+	return $out
+}
+
 # ReGa script: logged, system variables listed in sysvars.txt exist
 proc rega_script {script} {
 	::hue_test_append rega.log [string map {"\n" " " "\t" " "} $script]
 	set out ""
+	if {[regexp {^!hue:extras:candidates} $script]} {
+		return [list STDOUT [::hue_test_read ccu_channels.txt]]
+	}
+	if {[regexp {^!hue:extras:(states|names|switch|correct)} $script -> kind]} {
+		return [list STDOUT [::hue_test_extras $kind $script]]
+	}
 	if {[regexp {^!hue:scenevar:get ([^\n]+)} $script -> name]} {
 		set v [::hue_test_var_read $name]
 		if {[llength $v] == 0} { ::hue_test_var_write $name "Aus" 0; set v [list "Aus" 0] }

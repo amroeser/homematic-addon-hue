@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.0.3
+
+- Lampen ohne Hue: Shellys hinter CUxD-Schaltern und HomeMatic-Aktoren ordnest du in den Raumdetails einem Hue-Raum zu. Sie schalten mit dem Raum an und aus, egal ob über die Addon-Seite, ein Programm, die Szenen-Auswahlliste, die Hue-App oder einen Hue-Schalter. Wahlweise nur aus. Je Szene einstellbar: an, aus oder unverändert. Das Addon schlägt passende Geräte aus der CCU vor und zeigt sie als Kacheln im Raum.
+- Shelly-Zustand: Für CUxD-Schalter, die einen Shelly per URL schalten, liest das Addon das Relais und korrigiert den Zustand in HomeMatic, ohne erneut zu schalten. Damit stimmt „Umschalten“ in Programmen auch nach dem Wandschalter.
+- Szenen-Tasten stehen nur auf „an“, solange ihre Szene aktiv ist. Bisher standen alle Tasten eines Raums auf „an“; ein Programm, das die zweite Szene per „Umschalten“ aufrufen sollte, schaltete den Raum stattdessen aus.
+- Schneller: Der Gerätetyp der CUxD-Geräte wird nur noch einmal abgefragt, nicht bei jeder Zustandsänderung.
+- Kurzanleitung um den Schritt „Lampen ohne Hue“ erweitert.
+- Räume zeigen beim HomeMatic-Hinweis, was verbunden ist, etwa „Szenen-Tasten: Hell, Gedimmt“, mit den Gerätenamen der CCU statt CUxD-Adressen.
+- Sensoren übersichtlicher: kompakter Hinweis zur Systemvariable, Tastenereignisse verständlich („Kurz gedrückt“ statt `short_release`).
+
 ## 4.0.2
 
 - Szenen als Auswahlliste: Auf Wunsch legt das Addon je Raum und Zone eine Systemvariable „Hue Szene <Raum>“ an und hält sie automatisch aktuell. In Programmen wählst du die Szene einfach aus, „Aus“ schaltet den Raum aus. Wählst du in der Hue-App eine Szene, steht sie auch in HomeMatic. Neue Szenen werden angehängt, gelöschte als „(entfernt)“ markiert, damit sich die Positionen in Programmen nie verschieben. Keine CUxD-Befehle nötig.

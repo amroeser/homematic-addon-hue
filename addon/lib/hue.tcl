@@ -89,6 +89,15 @@ namespace eval hue {
 	# One system variable per room / zone to choose its scene, kept up to date by hued
 	variable scene_sysvars_default 0
 	variable scene_sysvars $scene_sysvars_default
+	# Read the relay of Shellys behind CUxD switches and correct the CUxD state
+	variable shelly_sync_default 1
+	variable shelly_sync $shelly_sync_default
+	# Hue scene switches (CUxD) are on only while their scene is active
+	variable scene_switch_state_default "scene"
+	variable scene_switch_state $scene_switch_state_default
+	# HssType per CUxD device, asked once
+	variable cuxd_hss_types
+	array set cuxd_hss_types {}
 	variable update_repo "amroeser/homematic-addon-hue"
 	if {[info exists ::env(HUE_CONF)]} { set ini_file $::env(HUE_CONF) }
 	if {[info exists ::env(HUE_LOG_FILE)]} { set log_file $::env(HUE_LOG_FILE) }
@@ -656,6 +665,8 @@ proc ::hue::global_config_keys {} {
 		https_verify {enum {none fingerprint strict}}
 		eventstream {bool {}}
 		scene_sysvars {bool {}}
+		shelly_sync {bool {}}
+		scene_switch_state {enum {scene room}}
 	}
 }
 
@@ -717,6 +728,8 @@ proc ::hue::read_global_config {} {
 	variable https_verify
 	variable eventstream
 	variable scene_sysvars
+	variable shelly_sync
+	variable scene_switch_state
 	
 	write_log 4 "Reading global config"
 	acquire_lock $lock_id_ini_file
@@ -736,6 +749,8 @@ proc ::hue::read_global_config {} {
 		set https_verify [::ini::value $ini "global" "https_verify" $https_verify]
 		set eventstream [expr { 0 + [::ini::value $ini "global" "eventstream" $eventstream] }]
 		set scene_sysvars [expr { 0 + [::ini::value $ini "global" "scene_sysvars" $scene_sysvars] }]
+		set shelly_sync [expr { 0 + [::ini::value $ini "global" "shelly_sync" $shelly_sync] }]
+		set scene_switch_state [::ini::value $ini "global" "scene_switch_state" $scene_switch_state]
 	}
 	ini::close $ini
 	release_lock $lock_id_ini_file
@@ -770,6 +785,10 @@ proc ::hue::get_config_json {} {
 	variable eventstream
 	variable scene_sysvars_default
 	variable scene_sysvars
+	variable shelly_sync_default
+	variable shelly_sync
+	variable scene_switch_state_default
+	variable scene_switch_state
 	
 	set cuxd_version ""
 	catch { set cuxd_version [get_cuxd_version] }
@@ -791,6 +810,8 @@ proc ::hue::get_config_json {} {
 	append json "\"https_verify\":\{\"default\":\"${https_verify_default}\",\"value\":\"${https_verify}\"\},"
 	append json "\"eventstream\":\{\"default\":[json_bool $eventstream_default],\"value\":[json_bool $eventstream]\},"
 	append json "\"scene_sysvars\":\{\"default\":[json_bool $scene_sysvars_default],\"value\":[json_bool $scene_sysvars]\},"
+	append json "\"shelly_sync\":\{\"default\":[json_bool $shelly_sync_default],\"value\":[json_bool $shelly_sync]\},"
+	append json "\"scene_switch_state\":\{\"default\":\"${scene_switch_state_default}\",\"value\":\"${scene_switch_state}\"\},"
 	append json "\"remove_transitiontime_when_turning_off\":\{\"default\":\"${remove_transitiontime_when_turning_off_default}\",\"value\":\"${remove_transitiontime_when_turning_off}\"\}"
 	append json "\},"
 	append json "\"bridges\":\["
@@ -1275,9 +1296,13 @@ proc ::hue::update_cuxd_device_state {device astate} {
 		set s "dom.GetObject(\"CUxD.${address}.SET_STATE\").State(${on});"
 	} elseif {$dtype == 28 && $dtype2 == 1} {
 		# System.Exec
-		set s2 "Write(xmlrpc.GetObjectByHSSAddress(interfaces.Get('CUxD'), '${device}').HssType());"
-		array set res [rega_script $s2]
-		set hss_type [string trim [encoding convertfrom utf-8 $res(STDOUT)]]
+		variable cuxd_hss_types
+		if {![info exists cuxd_hss_types($device)]} {
+			set s2 "Write(xmlrpc.GetObjectByHSSAddress(interfaces.Get('CUxD'), '${device}').HssType());"
+			array set res [rega_script $s2]
+			set cuxd_hss_types($device) [string trim [encoding convertfrom utf-8 $res(STDOUT)]]
+		}
+		set hss_type $cuxd_hss_types($device)
 		if {$hss_type == "VIR-LG-RGBW-DIM"} {
 			set states [list]
 			set level [expr round((double($bri)*1000.0) / 254.0)/1000.0]
@@ -1925,6 +1950,7 @@ proc ::hue::objects_json_v1 {bridge_id} {
 }
 
 source [file join $::hue_addon_dir lib hue_v2.tcl]
+source [file join $::hue_addon_dir lib extras.tcl]
 
 hue::read_global_config
 

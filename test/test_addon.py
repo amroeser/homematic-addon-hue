@@ -206,11 +206,23 @@ class AddonTest(unittest.TestCase):
                     if what and re.search(pat, target):
                         problems.append(f"{f.relative_to(ROOT)}:{n}: {what}: {line.strip()[:100]}")
         # Tcl reads sources in the system encoding (ISO-8859-1 on the CCU): no UTF-8 literals in new code
-        for f in [ADDON / "hued.tcl", ADDON / "lib" / "hue_v2.tcl", ADDON / "lib" / "json.tcl", ADDON / "lib" / "update.tcl", ADDON / "www" / "rest.cgi"]:
+        for f in [ADDON / "hued.tcl", ADDON / "lib" / "hue_v2.tcl", ADDON / "lib" / "json.tcl", ADDON / "lib" / "update.tcl", ADDON / "lib" / "extras.tcl", ADDON / "www" / "rest.cgi"]:
             for n, line in enumerate(f.read_text().splitlines(), 1):
                 if not line.lstrip().startswith("#") and re.search(r"[^\x00-\x7f]", line):
                     problems.append(f"{f.relative_to(ROOT)}:{n}: non-ASCII character in code: {line.strip()[:80]}")
         self.assertEqual(problems, [], "\n".join(problems))
+
+    def test_00_web_ui_script_parses(self):
+        """The page is one inline script: a syntax error would leave it blank."""
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node not installed")
+        html = (ADDON / "www" / "index.html").read_text(encoding="utf-8")
+        script = re.search(r"<script>([\s\S]*?)</script>", html).group(1)
+        js = RUN / "ui-check.js"
+        js.write_text(script, encoding="utf-8")
+        p = subprocess.run([node, "--check", str(js)], capture_output=True, text=True)
+        self.assertEqual(p.returncode, 0, p.stderr)
 
     def test_01_status_uses_v2(self):
         st = self.hued_cmd("status")
@@ -576,6 +588,111 @@ class AddonTest(unittest.TestCase):
             conf.write_text(old)
             M_restore = ctl("/_scene_add", {"id": "AbCdEfGhIjKlMnO", "name": "Abend", "group": "1"})
             ctl("/_scene_delete", {"id": "Kueche000000001"})
+            self.hued_cmd("reload")
+
+    def test_57_scene_switch_follows_its_scene(self):
+        """Two scene switches of one room: only the switch of the active scene is on (programs toggle them)."""
+        devices = RUN / "cuxd_devices.txt"
+        old = devices.read_text()
+        devices.write_text(old + f"CUX2801030 /usr/local/addons/hue/hue.tcl {BRIDGE} group 1 scene:AbCdEfGhIjKlMnO\n"
+                                 f"CUX2801031 /usr/local/addons/hue/hue.tcl {BRIDGE} group 1 scene:GutenMorgen0001\n")
+        log = RUN / "rega.log"
+        try:
+            self.hued_cmd("reload")
+            until(lambda: "stream_connected=1" in self.hued_cmd("status"))
+            hue(BRIDGE, "group", "1", "on:true")
+            log.write_text("")
+            ctl("/_recall", {"scene": "AbCdEfGhIjKlMnO"})
+            ok = until(lambda: 'CUxD.CUX2801030:1.SET_STATE").State(1)' in log.read_text(), 10)
+            self.assertTrue(ok, log.read_text())
+            self.assertNotIn('CUxD.CUX2801031:1.SET_STATE").State(1)', log.read_text())
+            log.write_text("")
+            ctl("/_recall", {"scene": "GutenMorgen0001"})
+            ok = until(lambda: 'CUxD.CUX2801031:1.SET_STATE").State(1)' in log.read_text()
+                       and 'CUxD.CUX2801030:1.SET_STATE").State(0)' in log.read_text(), 10)
+            self.assertTrue(ok, log.read_text())
+        finally:
+            devices.write_text(old)
+            self.hued_cmd("reload")
+
+    def test_58_more_lamps_follow_the_room(self):
+        """CCU actuators assigned to a room switch with it; scenes can switch them, too."""
+        import uuid
+        room = str(uuid.uuid5(uuid.NAMESPACE_DNS, "group-owner-1"))
+        morning = str(uuid.uuid5(uuid.NAMESPACE_DNS, "scene-GutenMorgen0001"))
+        plug, shelly = "HmIP-RF.0001AAAA000001:3", "CUxD.CUX2801600:1"
+        states = RUN / "chan_states.txt"
+        states.write_text(f"{plug} false\n{shelly} false\n")
+        (RUN / "ccu_channels.txt").write_text(
+            f"{plug}|SWITCH_VIRTUAL_RECEIVER|HmIP-PSM-2|false|7|Wohnzimmer_Lampe:3|Wohnzimmer;\n"
+            "HmIP-RF.0001AAAA000001:2|SWITCH_TRANSMITTER|HmIP-PSM-2|false|5|Wohnzimmer_Lampe:2|Wohnzimmer;\n"
+            "HmIP-RF.0002BBBB000002:1|MULTI_MODE_INPUT_TRANSMITTER|HmIP-BRC2|false|5|Taster:1|Wohnzimmer;\n"
+            "HmIP-RF.0002BBBB000002:8|SWITCH_VIRTUAL_RECEIVER|HmIP-BRC2|false|7|Taster:8|Wohnzimmer;\n"
+            f"{shelly}|SWITCH|HM-LC-Sw1-FM|false|7|Wohnzimmer_Shelly:1|Wohnzimmer;\n"
+            f"CUxD.CUX2801002:1|SWITCH|HM-LC-Sw1-FM|false|7|Hue Gruppe:1|Wohnzimmer;\n")
+        try:
+            st, cands = self.rest("GET", f"extras/{BRIDGE}/candidates")
+            self.assertEqual(st, 200, cands)
+            # Actuators only: no wall switch, no Hue device of this addon, one channel per device
+            self.assertEqual(sorted(c["channel"] for c in cands), sorted([plug, shelly]))
+            self.assertEqual([c["rooms"] for c in cands if c["channel"] == plug], [["Wohnzimmer"]])
+            hue(BRIDGE, "group", "1", "on:false")
+            st, o = self.rest("POST", f"extras/{BRIDGE}/room", {"room": room, "channel": plug, "mode": "both"})
+            self.assertEqual(st, 200, o)
+            st, o = self.rest("POST", f"extras/{BRIDGE}/room", {"room": room, "channel": shelly, "mode": "off"})
+            self.assertEqual(st, 200, o)
+            self.assertEqual([x["channel"] for x in o["rooms"][room]], [plug, shelly])
+            st, bad = self.rest("POST", f"extras/{BRIDGE}/room", {"room": room, "channel": 'x"); dom.Delete(1', "mode": "both"})
+            self.assertEqual(st, 400, bad)
+            until(lambda: "stream_connected=1" in self.hued_cmd("status"))
+            time.sleep(0.5)
+            (RUN / "rega.log").write_text("")
+            # Room on (e.g. in the Hue app): the plug follows, the "off only" Shelly does not
+            hue(BRIDGE, "group", "1", "on:true")
+            ok = until(lambda: f"{plug} true" in states.read_text(), 10)
+            self.assertTrue(ok, (RUN / "rega.log").read_text())
+            self.assertIn(f"{shelly} false", states.read_text())
+            states.write_text(f"{plug} true\n{shelly} true\n")
+            # A scene that switches the plug off
+            st, o = self.rest("POST", f"extras/{BRIDGE}/scene", {"scene": morning, "channel": plug, "mode": "off"})
+            self.assertEqual(st, 200, o)
+            ctl("/_recall", {"scene": "GutenMorgen0001"})
+            ok = until(lambda: f"{plug} false" in states.read_text(), 10)
+            self.assertTrue(ok, (RUN / "rega.log").read_text())
+            # Room off: everything off
+            hue(BRIDGE, "group", "1", "on:false")
+            ok = until(lambda: f"{shelly} false" in states.read_text(), 10)
+            self.assertTrue(ok, (RUN / "rega.log").read_text())
+            st, o = self.rest("GET", f"extras/{BRIDGE}")
+            self.assertEqual(st, 200, o)
+            self.assertEqual(o["rooms"][room][0]["on"], False)
+            self.assertEqual(o["scenes"][morning], [{"channel": plug, "value": "off"}])
+            # Removing a lamp from the room removes it from the scenes as well
+            st, o = self.rest("POST", f"extras/{BRIDGE}/room", {"room": room, "channel": plug, "mode": ""})
+            self.assertEqual(st, 200, o)
+            self.assertNotIn(morning, o["scenes"])
+        finally:
+            self.rest("POST", f"extras/{BRIDGE}/room", {"room": room, "channel": plug, "mode": ""})
+            self.rest("POST", f"extras/{BRIDGE}/room", {"room": room, "channel": shelly, "mode": ""})
+
+    def test_59_shelly_state_is_read_back(self):
+        """A Shelly switched at the wall: hued corrects the CUxD switch without running its command."""
+        devices = RUN / "cuxd_devices.txt"
+        old = devices.read_text()
+        devices.write_text(old + f"CUX2801600 /usr/local/addons/cuxd/curl -s http://{MOCK_HOST}:{HTTP_PORT}/relay/0?turn~3don\n")
+        states = RUN / "chan_states.txt"
+        states.write_text("CUxD.CUX2801600:1 false\n")
+        try:
+            ctl("/_shelly", {"on": True})
+            self.hued_cmd("reload")
+            ok = until(lambda: "CUxD.CUX2801600:1 true" in states.read_text(), 25, 0.5)
+            self.assertTrue(ok, (RUN / "rega.log").read_text()[-2000:])
+            self.assertIn('CUxD.CUX2801600:1.SET_STATE").State(true)', (RUN / "rega.log").read_text())
+            # The relay was only read, never switched
+            self.assertTrue(ctl("/_state") is not None)
+        finally:
+            ctl("/_shelly", {"on": False})
+            devices.write_text(old)
             self.hued_cmd("reload")
 
     def test_30_v1_bridge_fallback(self):

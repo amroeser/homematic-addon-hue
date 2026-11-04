@@ -1273,7 +1273,7 @@ proc ::hue::v2::objects_json {bridge_id {reload 1}} {
 		if {[string equal $otype "bridge_home"]} { set name "All lights" }
 		set lj [list]
 		foreach x $st(lights) { lappend lj [jstr $x] }
-		lappend groups [jobj id [jstr $id] rid [jstr $rid] name [jstr $name] \
+		lappend groups [jobj id [jstr $id] rid [jstr $rid] owner [jstr $owner] name [jstr $name] \
 			type [jstr $otype] class [jstr [rget $b $owner metadata/archetype]] lights [::hue::json::arr $lj] \
 			color $st(color) reachable $st(reachable) on $st(on) bri [$N $st(bri)]]
 	}

@@ -246,6 +246,23 @@ input[type=range]::-moz-range-thumb { width: 26px; height: 26px; border: 0; bord
 .tile .name { margin-top: auto; padding-top: 14px; font-weight: 600; letter-spacing: -.005em; line-height: 1.25; }
 .tile .state { color: var(--ink-2); font-size: .8125rem; margin-top: 2px; }
 .tile.unreachable { border-style: dashed; }
+/* Lamps of the CCU (Shelly, HomeMatic): plain warm light, they cannot dim or colour */
+.tile.extra { --lamp: 255 206 140; }
+.tile.extra.unknown .state { color: var(--ink-3); }
+.extra-row { border-top: 1px solid var(--line); padding: 4px 0 10px; }
+.extra-row:first-child { border-top: 0; }
+.extra-row .row { padding: 8px 0; }
+.extra-ic { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--fill-2); color: var(--ink-3); flex: none; }
+.extra-ic.on { background: rgb(255 206 140); color: rgba(0,0,0,.5); box-shadow: 0 0 16px rgb(255 206 140 / .8); }
+.extra-opts { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding-left: 44px; }
+.extra-opts details { width: 100%; }
+.extra-opts summary { cursor: pointer; color: var(--ink-2); font-weight: 540; padding: 6px 0; }
+.extra-scene { display: flex; align-items: center; gap: 10px; padding: 6px 0; flex-wrap: wrap; }
+.extra-scene .grow { min-width: 120px; }
+.pick-list { margin-top: 12px; display: grid; gap: 2px; }
+.pick-list h4 { margin: 10px 0 4px; font-size: .8125rem; color: var(--ink-2); font-weight: 600; }
+.pick-list .row { padding: 8px 0; }
+@media (max-width: 760px) { .extra-opts { padding-left: 0; } }
 .tile.unreachable .state { color: var(--bad); }
 .tile-wrap { position: relative; }
 .tile-wrap > .tile { width: 100%; }
@@ -297,7 +314,11 @@ pre { margin: 0; padding: 14px; border-radius: var(--r-sm); background: var(--fi
 
 .sensor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .sensor { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 16px; }
-.sensor .reading { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; }
+.sensor .reading { display: grid; gap: 2px; padding: 10px 0; min-width: 0; }
+.sensor .var { display: flex; align-items: center; gap: 6px; font-size: .75rem; color: var(--ink-3); margin-top: 4px; }
+.sensor .var i { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-3); flex: none; }
+.sensor .var.ok { color: var(--ink-2); }
+.sensor .var.ok i { background: var(--ok); }
 .sensor .reading + .reading { border-top: 1px solid var(--line); }
 .sensor .value { font-size: 1.25rem; font-weight: 600; letter-spacing: -.01em; }
 
@@ -469,6 +490,9 @@ const I18N = {
 		tour5_c: "Lampen steuerst du hier auf der Seite direkt, auch vom Handy.",
 		scene_add: "Als Taste anlegen", scene_added: "Taste {{dev}} für „{{name}}“ angelegt. Bestätige sie im Posteingang.",
 		room_in_hm: "In HomeMatic", room_in_hm_n: "{{n}} Geräte in HomeMatic",
+		room_keys: "Szenen-Tasten: {{names}}", room_dev_keys: "In HomeMatic, Szenen-Tasten: {{names}}",
+		btn_initial_press: "Gedrückt", btn_repeat: "Gehalten", btn_short_release: "Kurz gedrückt", btn_long_press: "Lang gedrückt",
+		btn_long_release: "Losgelassen", btn_double_short_release: "Doppelt gedrückt", var_ok_short: "Systemvariable vorhanden", var_missing_short: "Noch keine Systemvariable",
 		add_all: "Alle hinzufügen", adding: "Füge {{i}} von {{n}} hinzu …",
 		added_all: "{{n}} Geräte hinzugefügt. Bestätige sie im Posteingang der CCU mit „Fertig“.",
 		inbox_hint: "Neue Geräte erscheinen im Posteingang der CCU. Bestätige sie dort mit „Fertig“.",
@@ -529,7 +553,16 @@ const I18N = {
 		ob_done: "Verbunden mit {{name}}", ob_done_text: "{{l}} Lampen und {{r}} Räume gefunden.",
 		ob_add: "Alle zu HomeMatic hinzufügen", ob_later: "Später",
 		login: "Anmelden", username: "Benutzername", password: "Passwort", login_text: "Melde dich mit deinem CCU-Konto an.",
-		failed: "Das hat nicht geklappt: {{e}}"
+		failed: "Das hat nicht geklappt: {{e}}",
+		extras: "Weitere Lampen", extras_text: "Lampen ohne Hue, etwa am Shelly oder an einem HomeMatic-Aktor. Sie schalten mit dem Raum, egal ob über diese Seite, ein Programm, die Hue-App oder einen Hue-Schalter.",
+		extras_none: "In diesem Raum gibt es noch keine weiteren Lampen.", extras_add: "Lampe hinzufügen", extras_loading: "Suche Schaltaktoren in der CCU …",
+		extras_suggested: "Passt zu diesem Raum", extras_other: "Alle anderen Schaltaktoren", extras_empty: "Die CCU hat keine weiteren Schaltaktoren.",
+		extras_pick: "Hinzufügen", extras_added: "{{name}} schaltet jetzt mit dem Raum.", extras_removed: "{{name}} entfernt.",
+		extras_mode_both: "An und aus", extras_mode_off: "Nur aus", extras_scenes: "Bei Szenen", extras_scene_keep: "Unverändert",
+		extra_on: "An", extra_off: "Aus", extra_unknown: "Zustand unbekannt",
+		shelly_sync: "Shelly-Zustand abgleichen", shelly_sync_text: "Für Shellys hinter CUxD-Schaltern: Das Addon liest alle 10 Sekunden das Relais und korrigiert den Zustand in HomeMatic, etwa nach dem Wandschalter.",
+		scene_state: "Szenen-Tasten zeigen ihre Szene", scene_state_text: "Eine Szenen-Taste steht nur auf „an“, solange ihre Szene aktiv ist. So wechseln Programme mit „Umschalten“ zuverlässig zwischen den Szenen eines Raums.",
+		tour6_t: "Lampen ohne Hue", tour6_x: "Deckenlampe am Shelly, Stehlampe an der HomeMatic-Steckdose: Ordne sie beim Raum unter „Mehr“ zu. Dann schalten sie mit dem Raum an und aus, und jede Szene kann sie mitnehmen."
 	},
 	en: {
 		nav_rooms: "Rooms", nav_sensors: "Sensors", nav_settings: "Settings", nav_diagnose: "Diagnostics",
@@ -559,6 +592,9 @@ const I18N = {
 		tour5_c: "Control your lights right here on this page, also from your phone.",
 		scene_add: "Add as button", scene_added: "Button {{dev}} for “{{name}}” added. Confirm it in the inbox.",
 		room_in_hm: "In HomeMatic", room_in_hm_n: "{{n}} devices in HomeMatic",
+		room_keys: "Scene buttons: {{names}}", room_dev_keys: "In HomeMatic, scene buttons: {{names}}",
+		btn_initial_press: "Pressed", btn_repeat: "Held", btn_short_release: "Short press", btn_long_press: "Long press",
+		btn_long_release: "Released", btn_double_short_release: "Double press", var_ok_short: "System variable exists", var_missing_short: "No system variable yet",
 		add_all: "Add all", adding: "Adding {{i}} of {{n}} …",
 		added_all: "{{n}} devices added. Confirm them with “Done” in the CCU inbox.",
 		inbox_hint: "New devices appear in the CCU inbox. Confirm them there with “Done”.",
@@ -619,7 +655,16 @@ const I18N = {
 		ob_done: "Connected to {{name}}", ob_done_text: "Found {{l}} lights and {{r}} rooms.",
 		ob_add: "Add all to HomeMatic", ob_later: "Later",
 		login: "Log in", username: "User name", password: "Password", login_text: "Log in with your CCU account.",
-		failed: "That did not work: {{e}}"
+		failed: "That did not work: {{e}}",
+		extras: "More lamps", extras_text: "Lamps without Hue, for example on a Shelly or a HomeMatic actuator. They switch with the room, whether from this page, a program, the Hue app or a Hue switch.",
+		extras_none: "This room has no other lamps yet.", extras_add: "Add a lamp", extras_loading: "Looking for switch actuators in the CCU …",
+		extras_suggested: "Matches this room", extras_other: "All other switch actuators", extras_empty: "The CCU has no other switch actuators.",
+		extras_pick: "Add", extras_added: "{{name}} now switches with the room.", extras_removed: "{{name}} removed.",
+		extras_mode_both: "On and off", extras_mode_off: "Off only", extras_scenes: "In scenes", extras_scene_keep: "Unchanged",
+		extra_on: "On", extra_off: "Off", extra_unknown: "State unknown",
+		shelly_sync: "Read back Shelly state", shelly_sync_text: "For Shellys behind CUxD switches: every 10 seconds the addon reads the relay and corrects the state in HomeMatic, for example after the wall switch.",
+		scene_state: "Scene buttons show their scene", scene_state_text: "A scene button is only “on” while its scene is active. Programs that toggle switch reliably between the scenes of a room.",
+		tour6_t: "Lamps without Hue", tour6_x: "Ceiling lamp on a Shelly, floor lamp on a HomeMatic plug: assign them under “More” in the room. They switch on and off with the room, and every scene can include them."
 	}
 };
 let lang = "de";
@@ -650,6 +695,7 @@ const ICON = {
 	bulb: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3Z"/></svg>',
 	dots: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>',
 	link: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>',
+	plug: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3v5M15 3v5M7 8h10v3a5 5 0 0 1-10 0V8ZM12 16v5"/></svg>',
 	check: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>',
 	cross: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
 	warn: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 7v6M12 17h.01"/></svg>',
@@ -773,8 +819,21 @@ async function loadObjects(live) {
 	const json = JSON.stringify(objects);
 	const changed = json !== S.objectsJson;
 	S.objects = objects; S.objectsJson = json; S.map = map; S.loadError = null;
-	return changed;
+	// More lamps: asked on every poll only when a room has some
+	const xc = (!live || hasExtras()) ? await loadExtras() : false;
+	return changed || xc;
 }
+async function loadExtras() {
+	if (!S.bridge || !v2()) { S.extras = null; return false; }
+	try {
+		const x = await rest("GET", "extras/" + S.bridge);
+		const json = JSON.stringify(x);
+		const changed = json !== S.extrasJson;
+		S.extras = x; S.extrasJson = json;
+		return changed;
+	} catch (e) { return false; }
+}
+function hasExtras() { return !!(S.extras && Object.keys(S.extras.rooms || {}).length); }
 async function loadHued() {
 	try {
 		S.huedPid = await rest("GET", "hued/pid");
@@ -870,7 +929,7 @@ function roomSection(r, members, scenes) {
 	const status = on === 0 ? t("room_off") : on === members.length ? t("room_all_on") : t("room_on", { on, n: members.length });
 	const grouped = r.id != null;
 	const devs = grouped ? mapped("group", r.id) : [];
-	const hmBadge = devs.length ? h("span", { class: "badge ok", title: devs.join(", ") }, icon("link"), devs.length > 1 ? t("room_in_hm_n", { n: devs.length }) : t("room_in_hm")) : null;
+	const hmBadge = devs.length ? roomBadge(r) : null;
 	return h("section", { class: "room" + (r.type === "zone" ? " zone" : ""), "aria-label": r.name },
 		h("div", { class: "room-head" },
 			h("div", { class: "grow" }, h("h2", { class: "t-h2", style: "display:flex;gap:10px;align-items:center;flex-wrap:wrap" }, r.name, hmBadge), h("p", { class: "muted t-small num" }, status)),
@@ -880,7 +939,26 @@ function roomSection(r, members, scenes) {
 		scenes.length ? h("div", { class: "scenes" }, scenes.map(s => h("button", { class: "chip", onclick: e => recall(s, e.currentTarget) }, s.name))) : null,
 		// Zones reuse lamps of rooms: list them by name instead of repeating the tiles
 		r.type === "zone" ? h("p", { class: "muted t-small", style: "margin:0" }, members.map(m => m.name).join(", "))
-			: h("div", { class: "tiles" }, members.map(tile)));
+			: h("div", { class: "tiles" }, members.map(tile), extrasOf(r).map(x => extraTile(x, r))));
+}
+
+// What the room has in HomeMatic, by name: the room device and its scene buttons
+function roomBadge(r) {
+	const norm = v => String(v || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+	const entries = S.map.filter(m => m.bridge_id.toLowerCase() === (S.bridge || "") && m.type === "group" && String(m.id) === String(r.id));
+	const seen = new Set(), keys = [], names = [];
+	let device = false;
+	for (const m of entries) {
+		const dev = m.cuxd_device.split(":")[0];
+		if (seen.has(dev)) continue;
+		seen.add(dev);
+		names.push((m.name ? m.name + " (" + dev + ")" : dev));
+		if (!m.scene) { device = true; continue; }
+		const sc = (S.objects.scenes || []).find(s => s.id === m.scene || s.rid === m.scene || norm(s.name) === norm(m.scene));
+		keys.push(sc ? sc.name : m.scene.replace(/_/g, " "));
+	}
+	const label = !keys.length ? t("room_in_hm") : device ? t("room_dev_keys", { names: keys.join(", ") }) : t("room_keys", { names: keys.join(", ") });
+	return h("span", { class: "badge ok", title: names.join("\n") }, icon("link"), label);
 }
 
 function tile(l) {
@@ -956,6 +1034,102 @@ async function addAll(btn) {
 	else toast(t("added_all", { n: added }));
 }
 
+/* ====================================================================== more lamps */
+// Switch actuators of the CCU (Shelly behind CUxD, HomeMatic plugs) that follow a Hue room
+function extrasOf(r) { return (S.extras && r.owner && (S.extras.rooms || {})[r.owner]) || []; }
+function extraName(x) { return String(x.name || x.channel).replace(/:\d+$/, "").replace(/_/g, " "); }
+function extraState(x) { return x.on == null ? t("extra_unknown") : x.on ? t("extra_on") : t("extra_off"); }
+function roomMembers(r) { return lights().filter(l => (r.lights || []).map(String).includes(String(l.id))); }
+function extraTile(x, r) {
+	const on = x.on === true;
+	const card = h("button", { class: "tile extra" + (on ? " on" : "") + (x.on == null ? " unknown" : ""), style: "--glow:" + (on ? ".8" : "0"),
+		"aria-pressed": String(on), "aria-label": extraName(x) + ", " + extraState(x), onclick: e => toggleExtra(x, e.currentTarget) },
+		h("span", { class: "bulb" }, icon("plug")),
+		h("span", { class: "name" }, extraName(x)),
+		h("span", { class: "state" }, extraState(x)));
+	return h("div", { class: "tile-wrap" }, card,
+		h("button", { class: "more", "aria-label": t("details", { name: extraName(x) }), onclick: e => { e.stopPropagation(); openControl("group", r, roomMembers(r), "extras"); } }, icon("dots")));
+}
+async function switchExtra(x, on) {
+	x.on = on;
+	S.busy++;
+	try { await rest("POST", "extras/" + S.bridge + "/switch", { channel: x.channel, on }); }
+	catch (e) { fail(e); }
+	finally { S.busy--; setTimeout(() => loadExtras().then(c => { if (c && !S.busy) render(); }), 900); }
+}
+async function toggleExtra(x, el) {
+	const on = x.on !== true;
+	el.classList.toggle("on", on);
+	el.classList.remove("unknown");
+	el.style.setProperty("--glow", on ? ".8" : "0");
+	el.setAttribute("aria-pressed", String(on));
+	el.querySelector(".state").textContent = on ? t("extra_on") : t("extra_off");
+	await switchExtra(x, on);
+}
+function extrasSection(room) {
+	const box = h("div", { class: "section", id: "extras-section" });
+	const scenes = (S.objects.scenes || []).filter(s => String(s.group) === String(room.id));
+	const norm = v => String(v || "").toLowerCase().replace(/ß/g, "ss").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]/g, "");
+	const save = async (kind, body) => { await rest("POST", "extras/" + S.bridge + "/" + kind, body); await loadExtras(); };
+	const seg = (options, value, onpick) => {
+		const el = h("div", { class: "seg", role: "group" });
+		options.forEach(([val, label]) => el.append(h("button", { "aria-pressed": String(val === value), onclick: async e => {
+			el.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b === e.currentTarget)));
+			try { await onpick(val); } catch (x) { fail(x); }
+		} }, label)));
+		return el;
+	};
+	const sceneVal = (s, ch) => { const e = (((S.extras || {}).scenes || {})[s.rid] || []).find(y => y.channel === ch); return e ? e.value : ""; };
+	const picker = h("div");
+	const openPicker = async btn => {
+		btn.disabled = true;
+		picker.replaceChildren(h("p", { class: "muted t-small" }, t("extras_loading")));
+		let cands = [];
+		try { cands = await rest("GET", "extras/" + S.bridge + "/candidates"); } catch (e) { fail(e); btn.disabled = false; picker.replaceChildren(); return; }
+		const taken = new Set(Object.values((S.extras || {}).rooms || {}).flat().map(x => x.channel));
+		cands = cands.filter(c => !taken.has(c.channel));
+		const rn = norm(room.name);
+		const fits = c => c.rooms.some(x => norm(x) === rn) || norm(c.name).startsWith(rn);
+		const item = c => h("div", { class: "row" },
+			h("span", { class: "extra-ic" + (c.on ? " on" : "") }, icon("plug")),
+			h("div", { class: "grow" }, h("div", { style: "font-weight:600" }, extraName(c)), h("div", { class: "muted t-small" }, [c.type, ...c.rooms].join(", "))),
+			h("button", { class: "btn sm primary", onclick: async e => {
+				e.currentTarget.disabled = true;
+				try { await save("room", { room: room.owner, channel: c.channel, mode: "both" }); toast(t("extras_added", { name: extraName(c) })); draw(); render(); }
+				catch (x) { fail(x); e.currentTarget.disabled = false; }
+			} }, t("extras_pick")));
+		const good = cands.filter(fits), others = cands.filter(c => !fits(c));
+		picker.replaceChildren(!cands.length ? h("p", { class: "muted" }, t("extras_empty")) : h("div", { class: "pick-list" },
+			good.length ? [h("h4", {}, t("extras_suggested")), ...good.map(item)] : null,
+			others.length ? (good.length ? h("details", {}, h("summary", { class: "muted", style: "cursor:pointer;padding:8px 0" }, t("extras_other") + " (" + others.length + ")"), others.map(item))
+				: [h("h4", {}, t("extras_other")), ...others.map(item)]) : null));
+	};
+	const draw = () => {
+		const list = extrasOf(room);
+		const add = h("button", { class: "btn", style: "margin-top:10px", onclick: e => openPicker(e.currentTarget) }, t("extras_add"));
+		picker.replaceChildren();
+		box.replaceChildren(h("div", { class: "t-h3" }, t("extras")), h("p", { class: "muted t-small", style: "margin:0 0 10px" }, t("extras_text")),
+			list.length ? h("div", {}, list.map(x => h("div", { class: "extra-row" },
+				h("div", { class: "row" },
+					h("span", { class: "extra-ic" + (x.on ? " on" : "") }, icon("plug")),
+					h("div", { class: "grow" }, h("div", { style: "font-weight:600" }, extraName(x)), h("div", { class: "muted t-small" }, extraState(x))),
+					h("input", { type: "checkbox", class: "switch", role: "switch", "aria-label": extraName(x), checked: x.on === true, onchange: e => switchExtra(x, e.target.checked) })),
+				h("div", { class: "extra-opts" },
+					seg([["both", t("extras_mode_both")], ["off", t("extras_mode_off")]], x.mode, v => save("room", { room: room.owner, channel: x.channel, mode: v })),
+					h("button", { class: "btn quiet sm", onclick: async () => {
+						try { await save("room", { room: room.owner, channel: x.channel, mode: "" }); toast(t("extras_removed", { name: extraName(x) })); draw(); render(); } catch (e) { fail(e); }
+					} }, t("remove")),
+					scenes.length ? h("details", {}, h("summary", {}, t("extras_scenes")),
+						scenes.map(sc => h("div", { class: "extra-scene" }, h("div", { class: "grow" }, sc.name),
+							seg([["", t("extras_scene_keep")], ["on", t("extra_on")], ["off", t("extra_off")]], sceneVal(sc, x.channel),
+								v => save("scene", { scene: sc.rid, channel: x.channel, mode: v }))))) : null))))
+				: h("p", { class: "muted", style: "margin:0" }, t("extras_none")),
+			add, picker);
+	};
+	draw();
+	return box;
+}
+
 /* ====================================================================== sheet */
 function openSheet(build) {
 	const d = $("#sheet");
@@ -985,7 +1159,7 @@ function sheetHead(title, sub, closable) {
 }
 
 /* Lamp or room: control, HomeMatic device, technical details */
-function openControl(type, obj, members) {
+function openControl(type, obj, members, focus) {
 	const id = obj.id;
 	const color = type === "light" ? !!obj.color : members.some(m => m.color);
 	const hasCt = type === "light" ? (obj.ct_min != null || color) : members.some(m => m.ct_min != null || m.color);
@@ -1010,6 +1184,8 @@ function openControl(type, obj, members) {
 			h("div", { class: "section" }, h("div", { class: "big-toggle" }, h("div", { class: "grow t-h3" }, t("power")), power)),
 			h("div", { class: "section" }, h("div", { style: "display:flex;justify-content:space-between;align-items:baseline" }, h("span", { class: "t-h3" }, t("brightness")), briOut), briRange)
 		];
+		// Lamps without Hue belong to the room: right below its power and brightness
+		if (type === "group" && v2() && obj.owner && obj.type === "room") sections.push(extrasSection(obj));
 		if (hasCt) {
 			const ctRange = h("input", { type: "range", min: ctMin, max: ctMax, value: obj.ct || Math.round((ctMin + ctMax) / 2), "aria-label": t("white"),
 				style: "--track:linear-gradient(90deg, #b9d2ff, #fff3e2, #ffb258)", oninput: e => { power.checked = true; sendCt(e.target.value); }, onchange: e => sendCt.now(e.target.value) });
@@ -1049,6 +1225,7 @@ function openControl(type, obj, members) {
 		sections.push(techSection(type, obj));
 		return [sheetHead(obj.name, sub), h("div", { class: "sheet-body" }, sections)];
 	});
+	if (focus === "extras") setTimeout(() => { const x = $("#extras-section"); if (x) x.scrollIntoView({ block: "start", behavior: "smooth" }); }, 60);
 }
 
 function hmSection(type, obj) {
@@ -1169,14 +1346,16 @@ function renderSensors() {
 		if (s.kind === "bool") return v === "true" ? t("motion_yes") : t("motion_no");
 		if (s.kind === "lux") return v + " lx";
 		if (s.kind === "temp") return (lang === "de" ? v.replace(".", ",") : v) + " °C";
+		if (s.kind === "button") { const k = "btn_" + v.replace(/"/g, ""); return I18N[lang][k] ? t(k) : v.replace(/_/g, " "); }
 		return v;
 	};
 	const label = { bool: "motion", lux: "lux", temp: "temp", button: "button" };
 	page.replaceChildren(head, h("div", { class: "sensor-grid" }, [...groups].map(([name, items]) =>
 		h("article", { class: "sensor" }, h("h2", { class: "t-h3", style: "margin-bottom:4px" }, name),
 			items.map(s => h("div", { class: "reading" },
-				h("div", {}, h("div", { class: "muted t-small" }, t(label[s.kind] || s.kind)), h("div", { class: "value num" }, fmt(s))),
-				h("span", { class: "badge " + (s.exists ? "ok" : ""), title: s.sysvar }, s.exists ? t("var_ok") : t("var_missing"))))))));
+				h("div", { class: "muted t-small" }, t(label[s.kind] || s.kind)),
+				h("div", { class: "value num" }, fmt(s)),
+				h("div", { class: "var" + (s.exists ? " ok" : ""), title: s.sysvar }, h("i"), s.exists ? t("var_ok_short") : t("var_missing_short"))))))));
 }
 
 /* ====================================================================== settings */
@@ -1234,6 +1413,9 @@ function renderSettings() {
 			row(t("api"), t("api_text"), seg("api_version", [["auto", t("api_auto")], ["v2", "API v2"], ["v1", "API v1"]])),
 			row(t("realtime"), t("realtime_text"), sw("eventstream")),
 			row(t("scene_vars"), t("scene_vars_text"), sw("scene_sysvars")),
+			row(t("scene_state"), t("scene_state_text"), h("input", { type: "checkbox", class: "switch", role: "switch", checked: draft.scene_switch_state !== "room",
+				onchange: e => set("scene_switch_state", e.target.checked ? "scene" : "room") })),
+			row(t("shelly_sync"), t("shelly_sync_text"), sw("shelly_sync")),
 			row(t("poll"), t("poll_text"), num("poll_state_interval", 1)),
 			row(t("tls"), t("tls_text"), h("input", { type: "checkbox", class: "switch", role: "switch", checked: draft.https_verify !== "none",
 				onchange: e => set("https_verify", e.target.checked ? "fingerprint" : "none") }))),
@@ -1451,13 +1633,15 @@ function guideStep(i) {
 				h("input", { type: "checkbox", class: "switch", role: "switch", checked: sceneOn, onchange: e => setSceneVars(e.target.checked) }))],
 		() => [h("p", {}, t("tour4_x")),
 			h("button", { class: "btn", onclick: () => { closeSheet(); go("sensors"); } }, t("nav_sensors"))],
+		() => [h("div", { class: "tour-art", "aria-hidden": "true" }, h("div", { class: "tour-room" }, h("span"), h("span"), h("span")), h("span", { class: "tour-arrow" }, "+"), h("div", { class: "tour-node" }, "Shelly")),
+			h("p", {}, t("tour6_x"))],
 		() => [h("p", {}, t("tour5_x")), h("div", { class: "example" }, t("tour5_a")), h("div", { class: "example" }, t("tour5_b")), h("p", { class: "muted", style: "margin-top:12px" }, t("tour5_c"))]
 	];
 	return steps[i]();
 }
 function openGuide(i) {
-	const n = 5;
-	const titles = ["tour1_t", "tour2_t", "tour3_t", "tour4_t", "tour5_t"];
+	const n = 6;
+	const titles = ["tour1_t", "tour2_t", "tour3_t", "tour4_t", "tour6_t", "tour5_t"];
 	openSheet(() => [
 		sheetHead(t(titles[i])),
 		h("div", { class: "sheet-body tour" }, guideStep(i)),

@@ -90,7 +90,7 @@ def demo_routes(page, state):
             state["sysvars"] = True
             return route.fulfill(json={"created": 3})
         if path == "update/check":
-            return route.fulfill(json={"installed": "4.0.2", "latest": "4.0.2", "available": False, "url": ""})
+            return route.fulfill(json={"installed": "4.0.3", "latest": "4.0.3", "available": False, "url": ""})
         if path.startswith("bridges/") and path.endswith("/objects") and state.get("sysvars"):
             resp = route.fetch()
             data = resp.json()
@@ -177,6 +177,15 @@ def screenshots(browser):
         if scheme == "light":
             page.screenshot(path=OUT / "control-homematic.png")
         page.keyboard.press("Escape"); page.wait_for_timeout(500)
+        if scheme == "light":
+            # More lamps of a room: a Shelly on the ceiling, suggestions from the CCU
+            click(page, page.locator(".tile-wrap", has_text="Shelly").locator(".more"), 900)
+            page.locator("#extras-section .btn", has_text="Lampe hinzufügen").click()
+            page.wait_for_selector("#extras-section .pick-list", timeout=20000)
+            page.locator("#extras-section").evaluate("e => e.scrollIntoView({ block: 'start' })")
+            page.wait_for_timeout(400)
+            page.screenshot(path=OUT / "more-lamps.png")
+            page.keyboard.press("Escape"); page.wait_for_timeout(500)
         for nav in ("sensors", "settings", "diagnose"):
             page.click(f".nav-item[data-page={nav}]")
             page.wait_for_timeout(900)

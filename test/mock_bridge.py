@@ -34,6 +34,7 @@ class Model:
     def __init__(self):
         self.lock = threading.RLock()
         self.v2_enabled = True
+        self.shelly_on = False
         self.log = []
         self.subscribers = []
         self.lights = {
@@ -345,6 +346,14 @@ class Handler(BaseHTTPRequestHandler):
                 return self.v2(method, p[len("/clip/v2/"):], body)
         if p.startswith(f"/api/{USER}"):
             return self.v1(method, p[len(f"/api/{USER}"):].strip("/"), body)
+        if not self.https and p == "/relay/0":
+            # A Shelly (Gen1 API) behind a CUxD switch
+            q = self.path.partition("?")[2]
+            if "turn=on" in q:
+                M.shelly_on = True
+            elif "turn=off" in q:
+                M.shelly_on = False
+            return self.send_json({"ison": M.shelly_on, "has_timer": False, "source": "http"})
         if p in ("/api/config", "/api/0/config"):
             return self.send_json({"name": "Mock", "bridgeid": "001788FFFE000000", "apiversion": "1.68.0", "modelid": "BSB002"})
         self.send_json([{"error": {"type": 1, "description": "unauthorized user"}}])
@@ -384,6 +393,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json({"ok": True})
             if p == "/_recall":
                 Handler.recall(self, req["scene"])
+                return self.send_json({"ok": True})
+            if p == "/_shelly":
+                M.shelly_on = bool(req["on"])
                 return self.send_json({"ok": True})
             if p == "/_state":
                 return self.send_json({"lights": M.lights})

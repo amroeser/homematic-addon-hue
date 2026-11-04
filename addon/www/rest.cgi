@@ -140,6 +140,49 @@ proc bridge_json {bridge_id} {
 	return [::hue::json::objl $parts]
 }
 
+# Rooms and scenes with more lamps, with names and current state
+proc extras_json {b {with_state 1}} {
+	set rooms [list]
+	set scenes [list]
+	set channels [list]
+	foreach e [hue::extras::all] {
+		foreach {kind eb rid entries} $e break
+		if {![string equal $eb $b]} { continue }
+		foreach x $entries {
+			if {[lsearch -exact $channels [lindex $x 0]] < 0} { lappend channels [lindex $x 0] }
+		}
+		if {[string equal $kind "room"]} { lappend rooms $rid $entries } else { lappend scenes $rid $entries }
+	}
+	array set names {}
+	array set states {}
+	if {[llength $channels] > 0} {
+		array set names [hue::extras::names $channels]
+		if {$with_state} { array set states [hue::extras::states $channels] }
+	}
+	set ro [list]
+	foreach {rid entries} $rooms {
+		set items [list]
+		foreach x $entries {
+			set ch [lindex $x 0]
+			set name $ch
+			if {[info exists names($ch)]} { set name $names($ch) }
+			set st "null"
+			if {[info exists states($ch)] && $states($ch) != ""} { set st [jbool [is_true $states($ch)]] }
+			lappend items [jobj channel [jstr $ch] mode [jstr [lindex $x 1]] name [jstr $name] on $st]
+		}
+		lappend ro $rid [jarr $items]
+	}
+	set so [list]
+	foreach {rid entries} $scenes {
+		set items [list]
+		foreach x $entries {
+			lappend items [jobj channel [jstr [lindex $x 0]] value [jstr [lindex $x 1]]]
+		}
+		lappend so $rid [jarr $items]
+	}
+	return [jobj rooms [::hue::json::objl $ro] scenes [::hue::json::objl $so]]
+}
+
 proc process {} {
 	global env B
 	set path [list]
@@ -235,10 +278,24 @@ proc process {} {
 			return [jobj x [lindex $r 0] y [lindex $r 1] bri [lindex $r 2]]
 		}
 		get-cuxd-device-map {
+			set details [hue::get_cuxd_device_details]
+			# Names as shown in the CCU, one ReGa call for all devices
+			set chs [list]
+			foreach d $details {
+				set a [lindex $d 0]
+				if {[string first ":" $a] < 0} { append a ":1" }
+				lappend chs "CUxD.${a}"
+			}
+			array set names {}
+			catch { array set names [hue::extras::names $chs] }
 			set items [list]
-			foreach d [hue::get_cuxd_device_details] {
+			foreach d $details {
 				foreach {cuxd_device bridge_id type id scene} $d break
-				lappend items [jobj bridge_id [jstr $bridge_id] type [jstr $type] id [jstr $id] cuxd_device [jstr $cuxd_device] scene [jstr $scene]]
+				set a $cuxd_device
+				if {[string first ":" $a] < 0} { append a ":1" }
+				set name ""
+				if {[info exists names(CUxD.$a)]} { regsub {:[0-9]+$} $names(CUxD.$a) "" name }
+				lappend items [jobj bridge_id [jstr $bridge_id] type [jstr $type] id [jstr $id] cuxd_device [jstr $cuxd_device] scene [jstr $scene] name [jstr $name]]
 			}
 			return [jarr $items]
 		}
@@ -374,6 +431,46 @@ proc process {} {
 						error "Bridge response is not JSON: [string range $resp 0 200]" "Bad Gateway" 502
 					}
 					return $resp
+				}
+			}
+		}
+		extras {
+			# More lamps in a room: switch actuators of the CCU
+			set b [string tolower [lindex $path 1]]
+			set action [lindex $path 2]
+			if {![regexp {^[0-9a-z]+$} $b]} { error "Invalid bridge id" "Bad Request" 400 }
+			if {$plen == 2 && [string equal $method "GET"]} {
+				return [extras_json $b]
+			}
+			switch -- $action {
+				candidates {
+					set items [list]
+					foreach c [hue::extras::candidates] {
+						foreach {ch name rooms dtype state} $c break
+						set rl [list]
+						foreach r $rooms { lappend rl [jstr $r] }
+						lappend items [jobj channel [jstr $ch] name [jstr $name] rooms [jarr $rl] type [jstr $dtype] on [jbool [is_true $state]]]
+					}
+					return [jarr $items]
+				}
+				room - scene {
+					if {![string equal $method "POST"]} { error "POST required" "Method Not Allowed" 405 }
+					set rid [arg $action]
+					set ch [arg channel]
+					set mode [arg mode]
+					if {![hue::extras::valid_channel $ch] || ![hue::extras::valid_rid $rid]} { error "Invalid channel or ${action}" "Bad Request" 400 }
+					if {[string equal $action "room"]} { set ok {both off} } else { set ok {on off} }
+					if {$mode != "" && [lsearch -exact $ok $mode] < 0} { error "Invalid mode" "Bad Request" 400 }
+					hue::extras::set_entry $action $b $rid $ch $mode
+					catch { hue::hued_command "reload_extras" }
+					return [extras_json $b 0]
+				}
+				switch {
+					if {![string equal $method "POST"]} { error "POST required" "Method Not Allowed" 405 }
+					set ch [arg channel]
+					if {![hue::extras::valid_channel $ch]} { error "Invalid channel" "Bad Request" 400 }
+					hue::extras::set_states [list $ch [is_true [arg on false]]]
+					return [jobj channel [jstr $ch] on [jbool [is_true [arg on false]]]]
 				}
 			}
 		}

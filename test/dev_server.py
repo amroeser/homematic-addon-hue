@@ -87,6 +87,20 @@ def main():
             f"CUX2801001 /usr/local/addons/hue/hue.tcl {T.BRIDGE} light 1\n"
             f"CUX2801002 /usr/local/addons/hue/hue.tcl {T.BRIDGE} group 1\n"
             f"CUX2802001 /usr/local/addons/hue/hue.tcl {T.BRIDGE} light 6\n")
+        # More lamps: a Shelly and HomeMatic actuators of the CCU
+        import uuid
+        owner = lambda g: str(uuid.uuid5(uuid.NAMESPACE_DNS, f"group-owner-{g}"))
+        (T.RUN / "ccu_channels.txt").write_text(
+            "CUxD.CUX2801600:1|SWITCH|HM-LC-Sw1-FM|true|7|Wohnzimmer_Shelly_Deckenlampe:1|Wohnzimmer;\n"
+            "HmIP-RF.0034DF29AEAC31:3|SWITCH_VIRTUAL_RECEIVER|HmIP-PSM-2|false|7|Wohnzimmer Leselampe:3|Wohnzimmer;\n"
+            "HmIP-RF.00089D899E0F95:2|SWITCH_VIRTUAL_RECEIVER|HmIP-FSM|false|7|Küche Deckenlampe:2|Küche;\n"
+            "HmIP-RF.00089D899E0C76:2|SWITCH_VIRTUAL_RECEIVER|HmIP-FSM|false|7|Küche Wandlampe:2|Küche;\n"
+            "HmIP-RF.00089D8992C710:2|SWITCH_VIRTUAL_RECEIVER|HmIP-FSM|false|7|Garten Außenbeleuchtung:2|Garten;\n"
+            "CUxD.CUX2801601:1|SWITCH|HM-LC-Sw1-FM|false|7|Schlafzimmer_Shelly_Bett:1|Schlafzimmer;\n")
+        (T.RUN / "chan_states.txt").write_text("CUxD.CUX2801600:1 true\nHmIP-RF.00089D899E0F95:2 false\n")
+        conf.write_text(conf.read_text() + "[extras]\n"
+                        f"room_{T.BRIDGE}_{owner(1)}={{CUxD.CUX2801600:1 both}}\n"
+                        f"room_{T.BRIDGE}_{owner(2)}={{HmIP-RF.00089D899E0F95:2 both}}\n")
         T.AddonTest.stop_hued()
         T.AddonTest.start_hued()
     srv = ThreadingHTTPServer(("127.0.0.1", a.port), Handler)
