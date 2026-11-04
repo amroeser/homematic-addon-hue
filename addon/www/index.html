@@ -427,8 +427,11 @@ const I18N = {
 		no_room: "Ohne Raum", room_on: "{{on}} von {{n}} an", room_all_on: "Alle an", room_off: "Aus",
 		lamp_off: "Aus", lamp_on: "An", lamp_on_bri: "{{p}} %", unreachable: "Nicht erreichbar",
 		details: "Details zu {{name}}", not_in_hm: "Nicht in HomeMatic",
-		unlinked_title: "{{n}} Lampen und Räume sind noch nicht in HomeMatic",
-		unlinked_text: "Mit einem Klick bekommt jede ein CUxD-Gerät, das schalten, dimmen und färben kann.",
+		unlinked_title: "{{n}} Räume, Zonen oder Lampen sind noch nicht in HomeMatic",
+		unlinked_text: "Mit einem Klick bekommt jeder Raum und jede Zone ein CUxD-Gerät, das schalten, dimmen und färben kann. Einzelne Lampen fügst du über ihre Details hinzu.",
+		scene_keys: "Szenen als Tasten", scene_keys_text: "Eine Taste je Szene: lang drücken ruft die Szene auf, kurz drücken schaltet den Raum aus. Die Szene wird per Name aufgerufen und funktioniert auch, wenn du sie in der Hue-App neu anlegst.",
+		scene_add: "Als Taste anlegen", scene_added: "Taste {{dev}} für „{{name}}“ angelegt. Bestätige sie im Posteingang.",
+		room_in_hm: "In HomeMatic", room_in_hm_n: "{{n}} Geräte in HomeMatic",
 		add_all: "Alle hinzufügen", adding: "Füge {{i}} von {{n}} hinzu …",
 		added_all: "{{n}} Geräte hinzugefügt. Bestätige sie im Posteingang der CCU mit „Fertig“.",
 		inbox_hint: "Neue Geräte erscheinen im Posteingang der CCU. Bestätige sie dort mit „Fertig“.",
@@ -440,7 +443,7 @@ const I18N = {
 		effect_cosmos: "Kosmos", effect_sunbeam: "Sonnenstrahl", effect_enchant: "Zauber",
 		actions: "Aktionen", flash: "Blinken", sunrise: "Sonnenaufgang, 10 Minuten",
 		warm: "Warm", neutral: "Neutral", cold: "Kalt",
-		hm_section: "HomeMatic", hm_linked: "Verbunden mit {{dev}}", hm_linked_text: "Steuere die Lampe in Programmen über dieses Gerät.",
+		hm_section: "HomeMatic", hm_linked: "Verbunden mit {{dev}}", hm_linked_text: "Steuere die Lampe in Programmen über dieses Gerät.", hm_linked_text_room: "Steuere den Raum in Programmen über diese Geräte.",
 		hm_add_text: "Lege ein CUxD-Gerät an, um die Lampe in Programmen zu verwenden.",
 		type_rgbw: "Farbe und Helligkeit", type_rgbw_text: "Ein Gerät für Schalten, Dimmen, Farbe und Weißton. Empfohlen.",
 		type_dimmer: "Getrennte Kanäle", type_dimmer_text: "Je ein Kanal für Helligkeit, Weißton, Farbton und Sättigung.",
@@ -497,8 +500,11 @@ const I18N = {
 		no_room: "No room", room_on: "{{on}} of {{n}} on", room_all_on: "All on", room_off: "Off",
 		lamp_off: "Off", lamp_on: "On", lamp_on_bri: "{{p}} %", unreachable: "Unreachable",
 		details: "Details for {{name}}", not_in_hm: "Not in HomeMatic",
-		unlinked_title: "{{n}} lights and rooms are not in HomeMatic yet",
-		unlinked_text: "One click gives each a CUxD device that can switch, dim and colour.",
+		unlinked_title: "{{n}} rooms, zones or lights are not in HomeMatic yet",
+		unlinked_text: "One click gives every room and zone a CUxD device that can switch, dim and colour. Add single lights from their details.",
+		scene_keys: "Scenes as buttons", scene_keys_text: "One button per scene: long press recalls the scene, short press switches the room off. The scene is recalled by name and keeps working if you recreate it in the Hue app.",
+		scene_add: "Add as button", scene_added: "Button {{dev}} for “{{name}}” added. Confirm it in the inbox.",
+		room_in_hm: "In HomeMatic", room_in_hm_n: "{{n}} devices in HomeMatic",
 		add_all: "Add all", adding: "Adding {{i}} of {{n}} …",
 		added_all: "{{n}} devices added. Confirm them with “Done” in the CCU inbox.",
 		inbox_hint: "New devices appear in the CCU inbox. Confirm them there with “Done”.",
@@ -510,7 +516,7 @@ const I18N = {
 		effect_cosmos: "Cosmos", effect_sunbeam: "Sunbeam", effect_enchant: "Enchant",
 		actions: "Actions", flash: "Flash", sunrise: "Sunrise, 10 minutes",
 		warm: "Warm", neutral: "Neutral", cold: "Cool",
-		hm_section: "HomeMatic", hm_linked: "Linked to {{dev}}", hm_linked_text: "Use this device to control the light in programs.",
+		hm_section: "HomeMatic", hm_linked: "Linked to {{dev}}", hm_linked_text: "Use this device to control the light in programs.", hm_linked_text_room: "Use these devices to control the room in programs.",
 		hm_add_text: "Create a CUxD device to use the light in programs.",
 		type_rgbw: "Colour and brightness", type_rgbw_text: "One device to switch, dim, colour and set white. Recommended.",
 		type_dimmer: "Separate channels", type_dimmer_text: "One channel each for brightness, white, hue and saturation.",
@@ -745,11 +751,19 @@ function rooms() {
 	const order = { room: 0, zone: 1 };
 	return g.sort((a, b) => ((order[a.type] ?? 2) - (order[b.type] ?? 2)) || String(a.name).localeCompare(String(b.name)));
 }
+// What is not in HomeMatic at all: rooms and zones without a device whose lamps have none
+// either, and lamps outside rooms. A lamp in a room with a device (e.g. a scene switch) is covered.
 function unlinked() {
 	if (!S.objects) return [];
-	const l = lights().filter(x => !mapped("light", x.id).length).map(x => ({ type: "light", obj: x }));
-	const r = rooms().filter(x => x.type === "room" && !mapped("group", x.id).length).map(x => ({ type: "group", obj: x }));
-	return [...l, ...r];
+	const out = [];
+	const inRoom = new Set();
+	for (const r of rooms().filter(x => x.type === "room" || x.type === "zone")) {
+		if (r.type === "room") (r.lights || []).forEach(id => inRoom.add(String(id)));
+		const lampsLinked = r.type === "room" && (r.lights || []).some(id => mapped("light", id).length);
+		if (!mapped("group", r.id).length && !lampsLinked) out.push({ type: "group", obj: r });
+	}
+	lights().filter(l => !inRoom.has(String(l.id)) && !mapped("light", l.id).length).forEach(l => out.push({ type: "light", obj: l }));
+	return out;
 }
 function lampState(l) {
 	if (l.reachable === false) return t("unreachable");
@@ -801,9 +815,11 @@ function roomSection(r, members, scenes) {
 	const on = members.filter(l => l.on && l.reachable !== false).length;
 	const status = on === 0 ? t("room_off") : on === members.length ? t("room_all_on") : t("room_on", { on, n: members.length });
 	const grouped = r.id != null;
+	const devs = grouped ? mapped("group", r.id) : [];
+	const hmBadge = devs.length ? h("span", { class: "badge ok", title: devs.join(", ") }, icon("link"), devs.length > 1 ? t("room_in_hm_n", { n: devs.length }) : t("room_in_hm")) : null;
 	return h("section", { class: "room" + (r.type === "zone" ? " zone" : ""), "aria-label": r.name },
 		h("div", { class: "room-head" },
-			h("div", { class: "grow" }, h("h2", { class: "t-h2" }, r.name), h("p", { class: "muted t-small num" }, status)),
+			h("div", { class: "grow" }, h("h2", { class: "t-h2", style: "display:flex;gap:10px;align-items:center;flex-wrap:wrap" }, r.name, hmBadge), h("p", { class: "muted t-small num" }, status)),
 			grouped ? h("button", { class: "btn quiet sm", onclick: () => openControl("group", r, members) }, t("more")) : null,
 			grouped ? h("input", { type: "checkbox", class: "switch", role: "switch", "aria-label": r.name, checked: on > 0,
 				onchange: e => roomPower(r, members, e.target.checked) }) : null),
@@ -972,6 +988,10 @@ function openControl(type, obj, members) {
 				h("button", { class: "chip", onclick: () => hue([type, id, "alert:select"]).catch(fail) }, t("flash")),
 				v2() && type === "light" ? h("button", { class: "chip", onclick: () => hue([type, id, "timed_effect:sunrise", "transitiontime:6000"]).then(() => toast(t("sunrise"))).catch(fail) }, t("sunrise")) : null)));
 		sections.push(hmSection(type, obj));
+		if (type === "group") {
+			const sc = (S.objects.scenes || []).filter(s => String(s.group) === String(id));
+			if (sc.length) sections.push(sceneKeySection(obj, sc));
+		}
 		sections.push(techSection(type, obj));
 		return [sheetHead(obj.name, sub), h("div", { class: "sheet-body" }, sections)];
 	});
@@ -985,7 +1005,7 @@ function hmSection(type, obj) {
 		if (devs.length && !showForm) {
 			box.append(h("div", { class: "big-toggle" },
 				h("span", { style: "color:var(--ok)" }, icon("check")),
-				h("div", { class: "grow" }, h("div", { style: "font-weight:600" }, t("hm_linked", { dev: devs.join(", ") })), h("div", { class: "muted t-small" }, t("hm_linked_text"))),
+				h("div", { class: "grow" }, h("div", { style: "font-weight:600" }, t("hm_linked", { dev: devs.join(", ") })), h("div", { class: "muted t-small" }, t(type === "group" ? "hm_linked_text_room" : "hm_linked_text"))),
 				h("button", { class: "btn quiet sm", onclick: () => draw(true) }, t("add_another"))));
 			return;
 		}
@@ -1011,6 +1031,34 @@ function hmSection(type, obj) {
 			h("div", { style: "display:flex;gap:12px;align-items:center;margin-top:14px;flex-wrap:wrap" }, add, h("span", { class: "hint", style: "flex:1;min-width:200px" }, t("inbox_hint"))));
 	};
 	draw(false);
+	return box;
+}
+
+// Scene buttons: one CUxD switch per scene, matched by scene id or by name
+function sceneKeySection(room, scenes) {
+	const box = h("div", { class: "section" });
+	const norm = v => String(v || "").toLowerCase().split("_").join(" ");
+	const draw = () => {
+		const keys = S.map.filter(m => m.bridge_id.toLowerCase() === S.bridge && m.type === "group" && String(m.id) === String(room.id) && m.scene);
+		box.replaceChildren(h("div", { class: "t-h3" }, t("scene_keys")), h("p", { class: "muted t-small", style: "margin:0 0 10px" }, t("scene_keys_text")),
+			h("div", {}, scenes.map(s => {
+				const dev = keys.find(k => k.scene === s.id || k.scene === s.rid || norm(k.scene) === norm(s.name));
+				return h("div", { class: "row", style: "padding:10px 0" },
+					h("div", { class: "grow", style: "font-weight:560" }, s.name),
+					dev ? h("span", { class: "badge ok" }, icon("link"), dev.cuxd_device.split(":")[0])
+						: h("button", { class: "btn sm", onclick: async e => {
+							e.currentTarget.disabled = true;
+							try {
+								const r = await rest("POST", "create-cuxd-device", { type: "scene", serial: 0, name: ("Hue " + room.name + " " + s.name).replace(/["'\\]/g, ""),
+									bridge_id: S.bridge, obj_type: "group", obj_id: String(room.id), scene: s.name.replace(/["'\\;]/g, ""), transitiontime: null });
+								S.map = await rest("GET", "get-cuxd-device-map").catch(() => S.map);
+								toast(t("scene_added", { dev: r.device, name: s.name }));
+								draw();
+							} catch (x) { fail(x); e.currentTarget.disabled = false; }
+						} }, t("scene_add")));
+			})));
+	};
+	draw();
 	return box;
 }
 

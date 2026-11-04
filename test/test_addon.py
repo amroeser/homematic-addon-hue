@@ -484,6 +484,57 @@ class AddonTest(unittest.TestCase):
         self.assertTrue(l, "live state not updated from the event stream")
         self.assertEqual(l["colormode"], "ct")
         self.assertEqual(l["ct"], 300)
+        # Names with umlauts survive the way through hued (system encoding ISO-8859-1 on the CCU)
+        e = env()
+        e.update(QUERY_STRING=f"sid=@x@&path=bridges%2F{BRIDGE}%2Fobjects&live=1", REQUEST_METHOD="GET", CONTENT_LENGTH="0")
+        p = subprocess.run([TCLSH, str(ADDON / "www" / "rest.cgi")], capture_output=True, env=e, timeout=60)
+        names = [x["name"] for x in json.loads(p.stdout.partition(b"\r\n\r\n")[2])["lights"]]
+        self.assertIn("Küchenflur", names)
+
+    def test_49_uppercase_bridge_id_in_cuxd_command(self):
+        """Old addons wrote the bridge id in upper case into CUxD commands."""
+        devices = RUN / "cuxd_devices.txt"
+        old = devices.read_text()
+        # Only upper case ids, as on a CCU that ran the original addon
+        devices.write_text(old.replace(BRIDGE, BRIDGE.upper()) + f"CUX2801009 /usr/local/addons/hue/hue.tcl {BRIDGE.upper()} light 3\n")
+        sysvars = RUN / "sysvars.txt"
+        old_vars = sysvars.read_text()
+        sysvars.write_text(old_vars + f"Hue_reachable_{BRIDGE.upper()}_light_3\n")
+        try:
+            self.hued_cmd("reload")
+            st = until(lambda: (lambda s: s if "stream_connected=1" in s else None)(self.hued_cmd("status")))
+            self.assertIn(f"bridge {BRIDGE}: api=v2 stream_connected=1", st)
+            (RUN / "rega.log").write_text("")
+            ctl("/_set", {"light": "3", "on": True, "bri": 100})
+            ok = until(lambda: "CUxD.CUX2801009.SET_STATES" in (RUN / "rega.log").read_text())
+            self.assertTrue(ok, (RUN / "rega.log").read_text())
+            ctl("/_connectivity", {"light": "3", "status": "disconnected"})
+            ok = until(lambda: f'Hue_reachable_{BRIDGE.upper()}_light_3"); if (s) {{ s.State(false)' in (RUN / "rega.log").read_text())
+            self.assertTrue(ok, (RUN / "rega.log").read_text())
+        finally:
+            ctl("/_connectivity", {"light": "3", "status": "connected"})
+            devices.write_text(old)
+            sysvars.write_text(old_vars)
+            self.hued_cmd("reload")
+
+    def test_54_scene_name_with_underscore(self):
+        """CUxD commands cannot quote: scene:Guten_Morgen means the scene "Guten Morgen"."""
+        hue(BRIDGE, "group", "1", "scene:guten_morgen")
+        p = self.puts()[0]
+        self.assertIn("/clip/v2/resource/scene/", p["path"])
+        self.assertEqual(p["body"], {"recall": {"action": "active"}})
+
+    def test_55_device_map_reports_scene(self):
+        devices = RUN / "cuxd_devices.txt"
+        old = devices.read_text()
+        devices.write_text(old + f"CUX2801020 /usr/local/addons/hue/hue.tcl {BRIDGE} group 1 scene:Guten_Morgen\n")
+        try:
+            st, o = self.rest("GET", "get-cuxd-device-map")
+            self.assertEqual(st, 200, o)
+            entry = [x for x in o if x["cuxd_device"] == "CUX2801020"][0]
+            self.assertEqual((entry["type"], entry["id"], entry["scene"]), ("group", "1", "Guten_Morgen"))
+        finally:
+            devices.write_text(old)
 
     def test_30_v1_bridge_fallback(self):
         """Round bridge / old firmware: everything over v1, nothing breaks."""
@@ -497,6 +548,8 @@ class AddonTest(unittest.TestCase):
             hue(BRIDGE, "group", "1", "scene:Abend")
             puts = self.puts()
             self.assertEqual(puts[-1]["body"], {"scene": "AbCdEfGhIjKlMnO"})
+            hue(BRIDGE, "group", "1", "scene:guten_morgen")
+            self.assertEqual(self.puts()[-1]["body"], {"scene": "GutenMorgen0001"})
             self.assertIn("api=v1", self.hued_cmd("status"))
         finally:
             ctl("/_v2", {"enabled": True})

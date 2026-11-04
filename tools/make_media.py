@@ -90,7 +90,7 @@ def demo_routes(page, state):
             state["sysvars"] = True
             return route.fulfill(json={"created": 3})
         if path == "update/check":
-            return route.fulfill(json={"installed": "4.0.0", "latest": "4.0.0", "available": False, "url": ""})
+            return route.fulfill(json={"installed": "4.0.1", "latest": "4.0.1", "available": False, "url": ""})
         if path.startswith("bridges/") and path.endswith("/objects") and state.get("sysvars"):
             resp = route.fetch()
             data = resp.json()
@@ -263,8 +263,11 @@ def convert(src, name, width):
 
 
 def main():
-    shutil.rmtree(OUT, ignore_errors=True)
     OUT.mkdir(parents=True, exist_ok=True)
+    # Replace only generated files, keep hand-made ones like logo.svg
+    for f in OUT.iterdir():
+        if f.suffix in (".png", ".gif", ".mp4"):
+            f.unlink()
     tmp = OUT / ".video-tmp"
     with sync_playwright() as p:
         browser = p.chromium.launch()

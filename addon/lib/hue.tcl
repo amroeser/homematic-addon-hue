@@ -569,6 +569,8 @@ proc ::hue::hued_command {command {params {}}} {
 	set params [join $params " "]
 	hue::write_log 4 "Sending command to hued: ${command} ${params}"
 	set chan [socket $hued_address $hued_port]
+	# hued talks UTF-8; the CCU's system encoding is ISO-8859-1 (umlauts in names)
+	fconfigure $chan -encoding utf-8
 	puts $chan "${command} ${params}"
 	flush $chan
 	set res [read $chan]
@@ -1121,10 +1123,10 @@ proc ::hue::get_cuxd_device_map_cuxd_ps {} {
 	return [array get dmap]
 }
 
-proc ::hue::get_cuxd_device_map {} {
+# CUxD devices that run hue.tcl: list of {address bridge_id obj_type obj_id scene}
+proc ::hue::get_cuxd_device_details {} {
 	variable cuxd_xmlrpc_url
-	array set dmap {}
-	
+	set out [list]
 	set devices [xmlrpc $cuxd_xmlrpc_url listDevices]
 	foreach device $devices {
 		set address [lindex $device 1]
@@ -1150,11 +1152,21 @@ proc ::hue::get_cuxd_device_map {} {
 			unset ParamHash
 			if {$command != ""} {
 				if {[regexp ".*hue\\.tcl\\s+(\\S+)\\s+(light|group)\\s+(\[0-9a-fA-F\\-\]+)" $command match bridge_id obj num]} {
-					set dmap(${address}) "${bridge_id}_${obj}_${num}"
-					hue::write_log 4 "get_cuxd_device_map: device=${address} mapped=${bridge_id}_${obj}_${num}"
+					set scene ""
+					regexp {scene[:=]"?([^" ]+)} $command -> scene
+					lappend out [list $address $bridge_id $obj $num $scene]
+					hue::write_log 4 "get_cuxd_device_map: device=${address} mapped=${bridge_id}_${obj}_${num} scene=${scene}"
 				}
 			}
 		}
+	}
+	return $out
+}
+
+proc ::hue::get_cuxd_device_map {} {
+	array set dmap {}
+	foreach d [get_cuxd_device_details] {
+		set dmap([lindex $d 0]) "[lindex $d 1]_[lindex $d 2]_[lindex $d 3]"
 	}
 	return [array get dmap]
 }
@@ -1525,7 +1537,16 @@ proc ::hue::urlencode {string} {
 	return [subst -nocommand $string]
 }
 
-proc ::hue::create_cuxd_device {sid type serial name bridge_id obj_type obj_id {transitiontime ""}} {
+# type: switch | rgbw | scene. A scene device is a switch: long press (ON) recalls the
+# scene by name, short press (OFF) switches the room off.
+proc ::hue::create_cuxd_device {sid type serial name bridge_id obj_type obj_id {transitiontime ""} {scene ""}} {
+	set is_scene 0
+	if {$type == "scene"} {
+		set is_scene 1
+		set type "switch"
+		# No quoting in CUxD commands: spaces in scene names become "_"
+		set scene [string map {" " "_"} $scene]
+	}
 	variable cuxd_xmlrpc_url
 	set dtype 28
 	set dtype2 1
@@ -1565,6 +1586,7 @@ proc ::hue::create_cuxd_device {sid type serial name bridge_id obj_type obj_id {
 		set dbase "VIR-LG-ONOFF"
 		set dcontrol 1
 		set dname "${name} SWITCH"
+		if {$is_scene} { set dname $name }
 	} elseif {$type == "rgbw"} {
 		set dbase "VIR-LG-RGBW-DIM"
 		set dcontrol 4
@@ -1593,6 +1615,9 @@ proc ::hue::create_cuxd_device {sid type serial name bridge_id obj_type obj_id {
 	if {$type == "switch"} {
 		set command_short "/usr/local/addons/hue/hue.tcl ${bridge_id} ${obj_type} ${obj_id} on:false"
 		set command_long "/usr/local/addons/hue/hue.tcl ${bridge_id} ${obj_type} ${obj_id} on:true"
+		if {$is_scene} {
+			set command_long "/usr/local/addons/hue/hue.tcl ${bridge_id} ${obj_type} ${obj_id} scene:${scene}"
+		}
 		if {$transitiontime != ""} {
 			append command_short " transitiontime:${transitiontime}"
 			append command_long " transitiontime:${transitiontime}"

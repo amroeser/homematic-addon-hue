@@ -236,9 +236,9 @@ proc process {} {
 		}
 		get-cuxd-device-map {
 			set items [list]
-			foreach {cuxd_device o} [hue::get_cuxd_device_map] {
-				foreach {bridge_id type id} [split $o "_"] break
-				lappend items [jobj bridge_id [jstr $bridge_id] type [jstr $type] id [jstr $id] cuxd_device [jstr $cuxd_device]]
+			foreach d [hue::get_cuxd_device_details] {
+				foreach {cuxd_device bridge_id type id scene} $d break
+				lappend items [jobj bridge_id [jstr $bridge_id] type [jstr $type] id [jstr $id] cuxd_device [jstr $cuxd_device] scene [jstr $scene]]
 			}
 			return [jarr $items]
 		}
@@ -253,7 +253,11 @@ proc process {} {
 			set obj_type [arg obj_type]
 			set obj_id [arg obj_id]
 			set transitiontime [arg transitiontime]
-			if {[lsearch -exact {switch rgbw dimmer} $type] < 0 || [lsearch -exact {light group} $obj_type] < 0 \
+			set scene [arg scene]
+			if {[string equal $type "scene"] && ($scene == "" || ![string equal $obj_type "group"] || [regexp {["'\\;\n\r]} $scene])} {
+				error "Invalid scene" "Bad Request" 400
+			}
+			if {[lsearch -exact {switch rgbw dimmer scene} $type] < 0 || [lsearch -exact {light group} $obj_type] < 0 \
 					|| ![regexp {^[0-9a-fA-F\-]+$} $obj_id] || ![regexp {^[0-9a-zA-Z]+$} $bridge_id]} {
 				error "Invalid device type or object" "Bad Request" 400
 			}
@@ -274,7 +278,7 @@ proc process {} {
 				set color [is_true [arg color false]]
 				set res [hue::create_cuxd_dimmer_device $sid $serial $name $bridge_id $obj_type $obj_id [arg ct_min 153] [arg ct_max 500] $color $transitiontime]
 			} else {
-				set res [hue::create_cuxd_device $sid $type $serial $name $bridge_id $obj_type $obj_id $transitiontime]
+				set res [hue::create_cuxd_device $sid $type $serial $name $bridge_id $obj_type $obj_id $transitiontime $scene]
 			}
 			catch { hue::hued_command "reload" }
 			return [jobj device [jstr $res] created true]

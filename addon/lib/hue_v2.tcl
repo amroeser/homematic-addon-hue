@@ -560,6 +560,8 @@ proc ::hue::v2::rebuild_index {bridge_id} {
 		set name [string tolower [rget $b $rid metadata/name]]
 		if {$name != ""} {
 			set idx($b,scene_name,$name) $rid
+			# CUxD commands write spaces as "_" (scene:Abend_Essen)
+			set idx($b,scene_name,[string map {" " "_"} $name]) $rid
 		}
 	}
 	foreach rid [resources $b device] {

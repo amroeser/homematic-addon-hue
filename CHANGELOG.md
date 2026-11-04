@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.0.1
+
+- Szenen als Tasten: In den Raumdetails legst du für jede Szene eine CUxD-Taste an. Lang drücken ruft die Szene per Name auf, kurz drücken schaltet den Raum aus. Vorhandene Szenen-Tasten werden erkannt, auch solche mit Szenen-ID.
+- Szenen per Name funktionieren ohne Anführungszeichen: `scene:Guten_Morgen` ruft „Guten Morgen“ auf, Groß- und Kleinschreibung egal.
+- „Alle hinzufügen“ bezieht Zonen ein. Räume mit HomeMatic-Gerät sind markiert, Lampen in solchen Räumen gelten als abgedeckt.
+- Behoben: Umlaute in Namen wurden auf der CCU falsch angezeigt.
+- Behoben: CUxD-Befehle mit großgeschriebener Bridge-ID (aus älteren Versionen) führten zu einer doppelt geführten Bridge, die Diagnose zeigte „Echtzeit nicht verbunden“.
+
 ## 4.0.0
 
 - Hue API v2 neu geschrieben: echter JSON-Parser, zuverlässige Zuordnung von v1-IDs zu v2-IDs, HTTPS immer auf Port 443. Bisher lief v2 über den v1-Port und fiel deshalb meist still auf v1 zurück.

@@ -50,7 +50,8 @@ class Model:
             "2": ("zone", "Flurzone", ["3"]),
         }
         self.group_on = {"0": False, "1": True, "2": False}
-        self.scenes = {"AbCdEfGhIjKlMnO": ("Abend", "1", {"1": dict(on=True, bri=100, ct=400), "2": dict(on=True, bri=60, ct=450)})}
+        self.scenes = {"AbCdEfGhIjKlMnO": ("Abend", "1", {"1": dict(on=True, bri=100, ct=400), "2": dict(on=True, bri=60, ct=450)}),
+                       "GutenMorgen0001": ("Guten Morgen", "1", {"1": dict(on=True, bri=254, ct=250)})}
         self.motion = False
         self.demo = False
 

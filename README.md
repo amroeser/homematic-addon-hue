@@ -185,7 +185,11 @@ Das Addon legt drei Arten von CUxD-Geräten an:
 | **Getrennte Kanäle** (Multi-DIM) | Kanal 2 Helligkeit, 3 Weißton, 4 Farbton, 5 Sättigung, Kanal 1 liest den Status neu | Programme, die einzelne Werte setzen |
 | **Nur schalten** (`VIR-LG-ONOFF`) | An und aus | Steckdosen, einfache Lampen |
 
-In WebUI-Programmen verhalten sich die Geräte wie gewohnte HomeMatic-Geräte. Für Szenen, Effekte oder Sonnenaufgang nutzt du ein CUxD-Exec-Gerät:
+**Empfehlung:** Ein Gerät je Raum und je Zone, nicht je Lampe. Ein Raumbefehl schaltet alle Lampen gleichzeitig mit einem einzigen Funkbefehl. Einzelne Lampen nur dort, wo du sie einzeln brauchst. Was nur Licht betrifft (Hue-Schalter, Bewegungsmelder), regelt die Bridge selbst am schnellsten; HomeMatic übernimmt die Logik über Systemgrenzen hinweg.
+
+**Szenen als Tasten:** In den Details eines Raums legst du für jede Szene eine Taste an. Lang drücken ruft die Szene auf, kurz drücken schaltet den Raum aus. Die Szene wird per Name aufgerufen (`scene:Guten_Morgen`, Leerzeichen als `_`) und funktioniert weiter, wenn du sie in der Hue-App neu anlegst.
+
+In WebUI-Programmen verhalten sich die Geräte wie gewohnte HomeMatic-Geräte. Für Effekte oder Sonnenaufgang nutzt du ein CUxD-Exec-Gerät:
 
 ```
 ! Szene "Entspannen" im Wohnzimmer
@@ -231,7 +235,7 @@ Bridge-ID, Lampen-IDs und einen fertigen Befehl zum Kopieren findest du in der D
 | `transitiontime` | Zehntelsekunden | Übergang, `10` = 1 s |
 | `alert` | `select`, `lselect`, `none` | Blinken |
 | `effect` | `none`, `colorloop`, `candle`, `fire`, `sparkle`, `prism`, `glisten`, `opal`, `underwater`, `cosmos`, `sunbeam`, `enchant` | `colorloop` über API v1, die übrigen über API v2 |
-| `scene` | ID oder Name | Szene aufrufen |
+| `scene` | ID oder Name | Szene aufrufen. Leerzeichen im Namen als `_`, Groß- und Kleinschreibung egal. |
 | `sleep` | Millisekunden | Vorher warten |
 | `bri_mode` | `abs`, `inc` | `inc` erhält Helligkeitsunterschiede im Raum |
 | `group_mode` | `group`, `lights` | `lights` schickt Raumbefehle einzeln an jede Lampe |

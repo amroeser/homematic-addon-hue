@@ -106,23 +106,38 @@ proc update_cuxd_device_map {} {
 	}
 }
 
+# Bridge ids are handled in lower case. CUxD commands of older addon versions
+# may contain the id in upper case ("ECB5FAFFFE84F062"), so compare without case.
 proc get_cuxd_devices_from_map {bridge_id obj num} {
 	variable cuxd_device_map
+	set want [string tolower "${bridge_id}_${obj}_${num}"]
 	set cuxd_devices [list]
 	foreach { d o } [array get cuxd_device_map] {
-		if { $o == "${bridge_id}_${obj}_${num}" } {
+		if {[string equal [string tolower $o] $want]} {
 			lappend cuxd_devices $d
 		}
 	}
 	return $cuxd_devices
 }
 
+# Bridge id as written in the CUxD command (used for system variable names)
+proc get_bridge_id_as_mapped {bridge_id obj num} {
+	variable cuxd_device_map
+	set want [string tolower "${bridge_id}_${obj}_${num}"]
+	foreach { d o } [array get cuxd_device_map] {
+		if {[string equal [string tolower $o] $want]} {
+			return [lindex [split $o "_"] 0]
+		}
+	}
+	return $bridge_id
+}
+
 proc get_bridge_ids_from_map {} {
 	variable cuxd_device_map
 	set bridge_ids [list]
 	foreach { d o } [array get cuxd_device_map] {
-		set bridge_id [lindex [split $o "_"] 0]
-		if { [lsearch $bridge_ids $bridge_id] < 0 } {
+		set bridge_id [string tolower [lindex [split $o "_"] 0]]
+		if { [lsearch -exact $bridge_ids $bridge_id] < 0 } {
 			lappend bridge_ids $bridge_id
 		}
 	}
@@ -135,7 +150,7 @@ proc get_mapped_objects {bridge_id} {
 	set objs [list]
 	foreach { d o } [array get cuxd_device_map] {
 		foreach {b t i} [split $o "_"] break
-		if {[string equal $b $bridge_id] && [lsearch -exact $objs [list $t $i]] < 0} {
+		if {[string equal [string tolower $b] [string tolower $bridge_id]] && [lsearch -exact $objs [list $t $i]] < 0} {
 			lappend objs [list $t $i]
 		}
 	}
@@ -153,7 +168,8 @@ proc update_cuxd_device {cuxd_device bridge_id obj_type obj_id astate} {
 	hue::write_log 3 "Update of ${bridge_id} ${obj_type} ${obj_id} / ${cuxd_device} successful (reachable=$state(reachable) on=$state(on) colormode=$state(colormode) bri=$state(bri) ct=$state(ct) hue=$state(hue) sat=$state(sat) xy=$state(xy))"
 	if {$set_sysvars_reachable == 1} {
 		update_sysvars_reachable "Hue_reachable_${cuxd_device}" $state(reachable)
-		update_sysvars_reachable "Hue_reachable_${bridge_id}_${obj_type}_${obj_id}" $state(reachable)
+		# Name as the CUxD command writes the bridge id, like older versions did
+		update_sysvars_reachable "Hue_reachable_[get_bridge_id_as_mapped $bridge_id $obj_type $obj_id]_${obj_type}_${obj_id}" $state(reachable)
 	}
 }
 
@@ -162,6 +178,7 @@ proc process_object_state {bridge_id obj_type obj_id astate} {
 	variable object_states
 	variable forced_updates
 	variable scheduled_update_cuxd_device_map_time
+	set bridge_id [string tolower $bridge_id]
 	array set state $astate
 	# Fields that are not part of the CUxD state
 	foreach k {api rid ct_min ct_max color} { catch {unset state($k)} }
@@ -452,10 +469,16 @@ proc v1_object_action {bridge_id obj_type obj_id params} {
 			# Scene given by name
 			array set scene_map [hue::get_scene_name_id_map $bridge_id]
 			set sname [string trim $value "\""]
-			if {![info exists scene_map($sname)]} {
+			# Match without case; CUxD commands write spaces as "_"
+			set want [string tolower [string map {"_" " "} $sname]]
+			set found ""
+			foreach n [array names scene_map] {
+				if {[string equal [string tolower [string map {"_" " "} $n]] $want]} { set found $scene_map($n); break }
+			}
+			if {$found == ""} {
 				error "Failed to find scene with name ${sname}."
 			}
-			set value "\"$scene_map($sname)\""
+			set value "\"$found\""
 		}
 		append json "\"${name}\":${value},"
 	}
