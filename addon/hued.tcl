@@ -221,6 +221,9 @@ proc process_bridge_v2 {bridge_id} {
 	foreach {name value} [hue::v2::sensor_values $bridge_id] {
 		update_sysvar_value $name $value
 	}
+	if {[catch {scene_vars_for_bridge $bridge_id} err]} {
+		hue::write_log 1 "Scene variables of ${bridge_id}: ${err}"
+	}
 }
 
 # v1: poll lights and groups
@@ -259,8 +262,17 @@ proc check_update {} {
 	}
 
 	set bridge_ids [get_bridge_ids_from_map]
+	if {$hue::scene_sysvars} {
+		# Scene variables also work for bridges without mapped CUxD devices
+		foreach b [hue::get_config_bridge_ids] {
+			if {[lsearch -exact $bridge_ids $b] < 0} { lappend bridge_ids $b }
+		}
+	}
 	foreach bridge_id $bridge_ids {
 		ensure_eventstream $bridge_id
+	}
+	if {[catch {poll_scene_vars} err]} {
+		hue::write_log 1 "Scene variables: ${err}"
 	}
 
 	if {$scheduled_update_time < 0 || [clock seconds] < $scheduled_update_time} {
@@ -427,6 +439,7 @@ proc handle_events {bridge_id data} {
 	}
 	if {$structure} {
 		hue::write_log 3 "Resources of bridge ${bridge_id} were added or deleted"
+		catch {unset ::scenevar_synced($bridge_id)}
 	}
 	# Collect events for a moment, a scene change sends one event per lamp
 	if {[lsearch -exact $dirty_bridges $bridge_id] < 0} {
@@ -450,6 +463,230 @@ proc process_dirty_bridges {} {
 	}
 }
 
+
+# ---------------------------------------------------------------------------
+# Scenes as system variables
+#
+# Every room and zone with scenes gets a value list "Hue Szene <room>":
+#   entry 0 "Aus" switches the room off, the other entries recall a scene.
+# Programs pick a scene by name; nobody edits CUxD commands. hued keeps the
+# list current: new scenes are appended, deleted ones become "(entfernt)" so
+# the positions programs refer to never move. A scene chosen in the Hue app
+# shows up in the variable as well. Names are plain ASCII (ReGa is ISO-8859-1).
+# ---------------------------------------------------------------------------
+
+variable scenevars
+array set scenevars {}
+variable scenevar_last
+array set scenevar_last {}
+variable scenevar_synced
+array set scenevar_synced {}
+variable scenevar_polled 0
+
+proc rega_out {script} {
+	array set r [rega_script $script]
+	if {[info exists r(STDOUT)]} { return $r(STDOUT) }
+	return ""
+}
+
+proc scene_owners {b} {
+	set owners [list]
+	foreach rid [hue::v2::resources $b scene] {
+		set o [hue::v2::rget $b $rid group/rid]
+		if {$o != "" && [hue::v2::rexists $b $o] && [lsearch -exact $owners $o] < 0} { lappend owners $o }
+	}
+	return $owners
+}
+
+proc scenes_of {b owner} {
+	set pairs [list]
+	foreach rid [hue::v2::resources $b scene] {
+		if {[string equal [hue::v2::rget $b $rid group/rid] $owner]} {
+			lappend pairs [list [string tolower [hue::v2::rget $b $rid metadata/name]] $rid]
+		}
+	}
+	set out [list]
+	foreach p [lsort -index 0 $pairs] { lappend out [lindex $p 1] }
+	return $out
+}
+
+proc scene_label {b rid} {
+	set l [hue::v2::ascii [hue::v2::rget $b $rid metadata/name]]
+	if {$l == ""} { set l "Szene" }
+	return $l
+}
+
+proc same_name {a b} {
+	set fa [hue::v2::fold $a]
+	set fb [hue::v2::fold $b]
+	return [expr {[string equal [lindex $fa 0] [lindex $fb 0]] || [string equal [lindex $fa 1] [lindex $fb 1]]}]
+}
+
+# Index of the label in the entry list, -1 if missing
+proc entry_index {entries label} {
+	for {set i 1} {$i < [llength $entries]} {incr i} {
+		if {[same_name [lindex $entries $i] $label]} { return $i }
+	}
+	return -1
+}
+
+proc sync_scene_vars {b} {
+	variable scenevars
+	variable scenevar_last
+	variable scenevar_synced
+	hue::v2::aunset scenevars "$b|*"
+	set scenevar_synced($b) [hue::v2::loaded_at $b]
+	foreach owner [scene_owners $b] {
+		set name "Hue Szene [hue::v2::ascii [hue::v2::rget $b $owner metadata/name]]"
+		set labels [list]
+		foreach rid [scenes_of $b $owner] {
+			set l [scene_label $b $rid]
+			set n 2
+			set base $l
+			while {[lsearch -exact $labels $l] >= 0} { set l "$base $n"; incr n }
+			lappend labels $l
+		}
+		set out [rega_out "!hue:scenevar:get $name
+object sv = dom.GetObject(\"$name\");
+if (!sv) {
+  object svs = dom.GetObject(ID_SYSTEM_VARIABLES);
+  sv = dom.CreateObject(OT_VARDP);
+  svs.Add(sv.ID());
+  sv.Name(\"$name\");
+  sv.ValueType(ivtInteger);
+  sv.ValueSubType(istEnum);
+  sv.ValueList(\"Aus\");
+  sv.DPInfo(\"Philips Hue: Szene waehlen\");
+  sv.Internal(false);
+  sv.Visible(true);
+  sv.State(0);
+  dom.RTUpdate(0);
+}
+WriteLine(sv.ValueList());
+Write(sv.Value());"]
+		set lines [split [string map {"\r" ""} $out] "\n"]
+		set entries [split [lindex $lines 0] ";"]
+		set value [string trim [lindex $lines 1]]
+		if {[llength $entries] == 0} { set entries [list "Aus"] }
+		set new [lreplace $entries 0 0 "Aus"]
+		# Keep positions: missing scenes become "(entfernt)", new ones are appended
+		for {set i 1} {$i < [llength $new]} {incr i} {
+			set e [lindex $new $i]
+			if {[string equal $e "(entfernt)"]} { continue }
+			set keep 0
+			foreach l $labels { if {[same_name $e $l]} { set keep 1; break } }
+			if {!$keep} { set new [lreplace $new $i $i "(entfernt)"] }
+		}
+		foreach l $labels {
+			if {[entry_index $new $l] < 0} { lappend new $l }
+		}
+		if {![string equal [join $new ";"] [join $entries ";"]]} {
+			hue::write_log 3 "Scene list of ${name}: [join $new {;}]"
+			rega_out "!hue:scenevar:list $name
+object sv = dom.GetObject(\"$name\");
+if (sv) { sv.ValueList(\"[join $new {;}]\"); dom.RTUpdate(0); }"
+		}
+		set scenevars($b|$owner) [list $name $new]
+		if {[string is integer -strict $value]} { set scenevar_last($name) $value }
+	}
+}
+
+# A program or the WebUI changed a scene variable
+proc scene_var_changed {b owner idx} {
+	variable scenevars
+	set entries [lindex $scenevars($b|$owner) 1]
+	if {$idx == 0} {
+		set gl [hue::v2::lookup $b "gl_of,$owner"]
+		if {$gl != ""} {
+			hue::write_log 3 "Scene variable: switching off [hue::v2::rget $b $owner metadata/name]"
+			hue::v2::request "command" $b PUT "resource/grouped_light/${gl}" "\{\"on\":\{\"on\":false\}\}"
+		}
+		return
+	}
+	set label [lindex $entries $idx]
+	foreach rid [scenes_of $b $owner] {
+		if {[same_name [scene_label $b $rid] $label]} {
+			hue::write_log 3 "Scene variable: recalling ${label}"
+			hue::v2::request "command" $b PUT "resource/scene/${rid}" "\{\"recall\":\{\"action\":\"active\"\}\}"
+			return
+		}
+	}
+}
+
+# Read all scene variables at once and act on changes
+proc poll_scene_vars {} {
+	variable scenevars
+	variable scenevar_last
+	variable scenevar_polled
+	if {!$hue::scene_sysvars || [array size scenevars] == 0} { return }
+	if {[clock seconds] - $scenevar_polled < 2} { return }
+	set scenevar_polled [clock seconds]
+	set keys [array names scenevars]
+	set script "!hue:scenevar:read\n"
+	set i 0
+	foreach k $keys {
+		set name [lindex $scenevars($k) 0]
+		append script "!var $name\nobject o$i = dom.GetObject(\"$name\");\nif (o$i) { WriteLine(o$i.Value()); } else { WriteLine(\"-\"); }\n"
+		incr i
+	}
+	set values [split [string map {"\r" ""} [rega_out $script]] "\n"]
+	set i 0
+	foreach k $keys {
+		set v [string trim [lindex $values $i]]
+		incr i
+		set name [lindex $scenevars($k) 0]
+		if {![string is integer -strict $v]} { continue }
+		if {[info exists scenevar_last($name)] && $scenevar_last($name) == $v} { continue }
+		set first [expr {![info exists scenevar_last($name)]}]
+		set scenevar_last($name) $v
+		if {$first} { continue }
+		foreach {b owner} [split $k "|"] break
+		if {[catch {scene_var_changed $b $owner $v} err]} {
+			hue::write_log 1 "Scene variable ${name}: ${err}"
+		}
+	}
+}
+
+# Show the active scene (or "Aus") of each room in its variable
+proc update_scene_vars_from_state {b} {
+	variable scenevars
+	variable scenevar_last
+	foreach k [array names scenevars "$b|*"] {
+		set owner [lindex [split $k "|"] 1]
+		set name [lindex $scenevars($k) 0]
+		set entries [lindex $scenevars($k) 1]
+		set gl [hue::v2::lookup $b "gl_of,$owner"]
+		set target -1
+		if {$gl != "" && ![string equal [hue::v2::rget $b $gl on/on] "true"]} {
+			set target 0
+		} else {
+			foreach rid [scenes_of $b $owner] {
+				set st [hue::v2::rget $b $rid status/active]
+				if {$st != "" && ![string equal $st "inactive"]} {
+					set target [entry_index $entries [scene_label $b $rid]]
+					break
+				}
+			}
+		}
+		if {$target < 0} { continue }
+		if {[info exists scenevar_last($name)] && $scenevar_last($name) == $target} { continue }
+		set scenevar_last($name) $target
+		hue::write_log 3 "Scene variable ${name} = ${target}"
+		rega_out "!hue:scenevar:set $name $target
+object sv = dom.GetObject(\"$name\");
+if (sv) { sv.State($target); }"
+	}
+}
+
+proc scene_vars_for_bridge {b} {
+	variable scenevar_synced
+	if {!$hue::scene_sysvars} { return }
+	if {![info exists scenevar_synced($b)] || $scenevar_synced($b) != [hue::v2::loaded_at $b]} {
+		sync_scene_vars $b
+	}
+	update_scene_vars_from_state $b
+}
+
 # ---------------------------------------------------------------------------
 # Commands from hue.tcl and the web UI
 # ---------------------------------------------------------------------------
@@ -469,11 +706,12 @@ proc v1_object_action {bridge_id obj_type obj_id params} {
 			# Scene given by name
 			array set scene_map [hue::get_scene_name_id_map $bridge_id]
 			set sname [string trim $value "\""]
-			# Match without case; CUxD commands write spaces as "_"
-			set want [string tolower [string map {"_" " "} $sname]]
+			# Tolerant match: case, spaces ("_"), umlauts and broken encodings do not matter
+			set want [hue::v2::fold [string map {"_" " "} $sname]]
 			set found ""
 			foreach n [array names scene_map] {
-				if {[string equal [string tolower [string map {"_" " "} $n]] $want]} { set found $scene_map($n); break }
+				set have [hue::v2::fold $n]
+				if {[string equal [lindex $have 0] [lindex $want 0]] || [string equal [lindex $have 1] [lindex $want 1]]} { set found $scene_map($n); break }
 			}
 			if {$found == ""} {
 				error "Failed to find scene with name ${sname}."
@@ -559,6 +797,7 @@ proc read_from_channel {channel} {
 			hue::write_log 3 "Hue daemon reload"
 			hue::read_global_config
 			hue::v2::forget_all
+			foreach k [array names ::scenevar_synced] { unset ::scenevar_synced($k) }
 			foreach key [array names stream "*,chan"] {
 				set b [lindex [split $key ","] 0]
 				stop_eventstream $b

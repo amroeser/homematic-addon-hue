@@ -36,14 +36,14 @@ Schaltest du in der Hue-App oder am Hue-Schalter, weiß HomeMatic es sofort. Bew
 
 ### In einer Minute eingerichtet
 
-Bridge auswählen, Knopf drücken, „Alle hinzufügen“. Jede Lampe und jeder Raum bekommt ein CUxD-Gerät, das schalten, dimmen und färben kann.
+Bridge auswählen, Knopf drücken, „Alle hinzufügen“. Jeder Raum und jede Zone bekommt ein CUxD-Gerät, das schalten, dimmen und färben kann. Eine Kurzanleitung erklärt beim ersten Start alles Wichtige.
 
 </td>
 <td width="33%" valign="top">
 
-### Alles bleibt, wie es ist
+### Szenen ohne Befehle
 
-Deine CUxD-Geräte, Programme und Skripte vom alten Addon laufen unverändert weiter. Bridges und Einstellungen werden beim Update übernommen.
+Jeder Raum bekommt eine Auswahlliste mit seinen Szenen. In Programmen wählst du einfach „Entspannen“. Das Addon hält die Liste aktuell, du pflegst keine CUxD-Befehle. Deine bisherigen Geräte und Programme laufen unverändert weiter.
 
 </td>
 </tr>
@@ -104,6 +104,19 @@ Helligkeit, Weißton, Farbe und Effekte. Darunter das passende HomeMatic-Gerät:
 ### Sofort sehen, ob alles läuft
 
 Die Diagnose prüft Dienst, Bridge, Echtzeit-Verbindung und Version. Befehle probierst du direkt aus.
+
+</td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td width="58%"><img src="docs/media/demo-guide.gif" alt="Interaktive Kurzanleitung"></td>
+<td valign="middle">
+
+### Verstehen in zwei Minuten
+
+Eine kurze, interaktive Anleitung zeigt beim ersten Start, wie Hue-App, Addon und HomeMatic zusammenspielen. Szenen-Auswahllisten schaltest du dort direkt ein.
 
 </td>
 </tr>
@@ -187,7 +200,9 @@ Das Addon legt drei Arten von CUxD-Geräten an:
 
 **Empfehlung:** Ein Gerät je Raum und je Zone, nicht je Lampe. Ein Raumbefehl schaltet alle Lampen gleichzeitig mit einem einzigen Funkbefehl. Einzelne Lampen nur dort, wo du sie einzeln brauchst. Was nur Licht betrifft (Hue-Schalter, Bewegungsmelder), regelt die Bridge selbst am schnellsten; HomeMatic übernimmt die Logik über Systemgrenzen hinweg.
 
-**Szenen als Tasten:** In den Details eines Raums legst du für jede Szene eine Taste an. Lang drücken ruft die Szene auf, kurz drücken schaltet den Raum aus. Die Szene wird per Name aufgerufen (`scene:Guten_Morgen`, Leerzeichen als `_`) und funktioniert weiter, wenn du sie in der Hue-App neu anlegst.
+**Szenen in Programmen:** Schalte unter *Einstellungen* „Szenen als Systemvariablen“ ein, oder direkt in der Kurzanleitung. Jeder Raum und jede Zone bekommt die Variable „Hue Szene <Raum>“ als Werteliste: Eintrag „Aus“ schaltet den Raum aus, die übrigen rufen die Szene auf. Wählst du in der Hue-App eine Szene, steht sie auch hier, sodass Programme darauf reagieren können. Das Addon hängt neue Szenen an und markiert gelöschte als „(entfernt)“, damit sich die Positionen in deinen Programmen nie verschieben. Namen werden in ASCII geschrieben (`Kueche`), weil die CCU intern ISO-8859-1 nutzt. Benötigt API v2.
+
+**Szenen als Tasten:** Für Fernbedienungen und Wandtaster legst du in den Details eines Raums je Szene eine CUxD-Taste an. Lang drücken ruft die Szene auf, kurz drücken schaltet den Raum aus. Die Taste speichert die Szenen-ID und ist damit unempfindlich gegen Umlaute und Umbenennen.
 
 In WebUI-Programmen verhalten sich die Geräte wie gewohnte HomeMatic-Geräte. Für Effekte oder Sonnenaufgang nutzt du ein CUxD-Exec-Gerät:
 
@@ -235,7 +250,7 @@ Bridge-ID, Lampen-IDs und einen fertigen Befehl zum Kopieren findest du in der D
 | `transitiontime` | Zehntelsekunden | Übergang, `10` = 1 s |
 | `alert` | `select`, `lselect`, `none` | Blinken |
 | `effect` | `none`, `colorloop`, `candle`, `fire`, `sparkle`, `prism`, `glisten`, `opal`, `underwater`, `cosmos`, `sunbeam`, `enchant` | `colorloop` über API v1, die übrigen über API v2 |
-| `scene` | ID oder Name | Szene aufrufen. Leerzeichen im Namen als `_`, Groß- und Kleinschreibung egal. |
+| `scene` | ID oder Name | Szene aufrufen. Die ID ist am robustesten. Namen werden tolerant gefunden: Groß- und Kleinschreibung, Leerzeichen (`_`) und Umlaute spielen keine Rolle. |
 | `sleep` | Millisekunden | Vorher warten |
 | `bri_mode` | `abs`, `inc` | `inc` erhält Helligkeitsunterschiede im Raum |
 | `group_mode` | `group`, `lights` | `lights` schickt Raumbefehle einzeln an jede Lampe |
@@ -299,6 +314,7 @@ Existiert eine Systemvariable mit passendem Namen, schreibt das Addon den Wert h
 | `Hue_lux_<bridge>_<id>` | Zahl | Helligkeit in Lux |
 | `Hue_temp_<bridge>_<id>` | Zahl | Temperatur in °C |
 | `Hue_button_<bridge>_<id>` | Zeichenkette | Letztes Tastenereignis, z. B. `short_release` |
+| `Hue Szene <Raum>` | Werteliste | Szene des Raums, siehe *Lampen in Programmen und Skripten* |
 
 <img src="docs/media/sensors.png" width="720" alt="Sensoren mit Werten und Systemvariablen">
 
@@ -313,6 +329,7 @@ Existiert eine Systemvariable mit passendem Namen, schreibt das Addon den Wert h
 |---|---|---|
 | Schnittstelle | Automatisch | API v2, wenn die Bridge sie kann, sonst v1 |
 | Echtzeit-Updates | an | Event-Stream der API v2 |
+| Szenen als Systemvariablen | aus | Je Raum und Zone eine automatisch gepflegte Szenen-Auswahlliste |
 | Abfrageintervall | 5 s | Bei Echtzeit nur Sicherheitsnetz, mindestens 300 s |
 | Bridge-Schlüssel prüfen | an | Speichert den Schlüssel der Bridge beim ersten Kontakt |
 | Nicht erreichbare Lampen | Wie erreichbar | Oder als aus anzeigen, oder unverändert lassen |

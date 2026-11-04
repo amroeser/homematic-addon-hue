@@ -54,6 +54,8 @@ class Model:
                        "GutenMorgen0001": ("Guten Morgen", "1", {"1": dict(on=True, bri=254, ct=250)})}
         self.motion = False
         self.demo = False
+        self.active_scene = {}   # group id -> scene id
+        self.recalling = False
 
     def load_demo(self):
         """A realistic home for screenshots and demo videos."""
@@ -183,7 +185,8 @@ class Model:
                         "alert": {"action_values": ["breathe"]}})
         for s, (name, g, _) in self.scenes.items():
             out.append({"id": self.scene_rid(s), "id_v1": f"/scenes/{s}", "type": "scene",
-                        "metadata": {"name": name}, "group": {"rid": self.group_owner_rid(g), "rtype": "room"}})
+                        "metadata": {"name": name}, "group": {"rid": self.group_owner_rid(g), "rtype": "room"},
+                        "status": {"active": "static" if self.active_scene.get(g) == s else "inactive"}})
         out.append({"id": rid("bridge"), "id_v1": "", "type": "bridge", "bridge_id": "001788fffe000000",
                     "owner": {"rid": rid("bridge-device"), "rtype": "device"}})
         if self.demo:
@@ -239,6 +242,12 @@ class Model:
                 l["colormode"] = "xy"
         if json.dumps(l, sort_keys=True) != before:
             self.emit_light(n)
+            if not self.recalling:
+                # A manual change ends the active scene of the rooms of this lamp
+                for g, s in list(self.active_scene.items()):
+                    if n in self.group_lights(g):
+                        del self.active_scene[g]
+                        self.emit([{"id": self.scene_rid(s), "type": "scene", "status": {"active": "inactive"}}])
 
     def emit_light(self, n):
         l = self.lights[n]
@@ -364,6 +373,18 @@ class Handler(BaseHTTPRequestHandler):
                 M.motion = bool(req["motion"])
                 M.emit([{"id": rid("motion-1"), "type": "motion", "motion": {"motion": M.motion, "motion_report": {"motion": M.motion}}}])
                 return self.send_json({"ok": True})
+            if p == "/_scene_add":
+                M.scenes[req["id"]] = (req["name"], req["group"], {})
+                res = [r for r in M.v2_resources() if r["id"] == M.scene_rid(req["id"])]
+                M.emit(res, "add")
+                return self.send_json({"ok": True})
+            if p == "/_scene_delete":
+                del M.scenes[req["id"]]
+                M.emit([{"id": M.scene_rid(req["id"]), "type": "scene"}], "delete")
+                return self.send_json({"ok": True})
+            if p == "/_recall":
+                Handler.recall(self, req["scene"])
+                return self.send_json({"ok": True})
             if p == "/_state":
                 return self.send_json({"lights": M.lights})
         self.send_json({"error": "unknown"}, 404)
@@ -406,8 +427,18 @@ class Handler(BaseHTTPRequestHandler):
         M.set_light(n, ch)
 
     def recall(self, s):
-        for n, st in M.scenes[s][2].items():
-            M.set_light(n, st)
+        M.recalling = True
+        try:
+            for n, st in M.scenes[s][2].items():
+                M.set_light(n, st)
+        finally:
+            M.recalling = False
+        g = M.scenes[s][1]
+        old = M.active_scene.get(g)
+        M.active_scene[g] = s
+        if old and old != s:
+            M.emit([{"id": M.scene_rid(old), "type": "scene", "status": {"active": "inactive"}}])
+        M.emit([{"id": M.scene_rid(s), "type": "scene", "status": {"active": "static"}}])
 
     # ------------------------------------------------------------------
     def v2(self, method, path, body):

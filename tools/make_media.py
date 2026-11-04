@@ -90,7 +90,7 @@ def demo_routes(page, state):
             state["sysvars"] = True
             return route.fulfill(json={"created": 3})
         if path == "update/check":
-            return route.fulfill(json={"installed": "4.0.1", "latest": "4.0.1", "available": False, "url": ""})
+            return route.fulfill(json={"installed": "4.0.2", "latest": "4.0.2", "available": False, "url": ""})
         if path.startswith("bridges/") and path.endswith("/objects") and state.get("sysvars"):
             resp = route.fetch()
             data = resp.json()
@@ -119,6 +119,9 @@ def new_page(browser, scheme="light", mobile=False, video=None, state=None):
         opts["record_video_size"] = opts["viewport"]
         opts["device_scale_factor"] = 1
     ctx = browser.new_context(**opts)
+    if not (state or {}).get("guide"):
+        # The quick guide opens on the first visit; most shots show the app itself
+        ctx.add_init_script("try { localStorage.setItem('hue-guide-1', '1'); } catch (e) {}")
     if video:
         ctx.add_init_script(CURSOR_JS)
     page = ctx.new_page()
@@ -191,6 +194,13 @@ def screenshots(browser):
     open_app(page, ".onboard .found button")
     page.screenshot(path=OUT / "onboarding.png")
     ctx.close()
+    ctx, page = new_page(browser, "light", state={"guide": True})
+    open_app(page, "#sheet[open] .tour")
+    for i in range(1, 4):
+        page.wait_for_timeout(500)
+        page.screenshot(path=OUT / f"guide-{i}.png")
+        page.locator("#sheet .sheet-foot .btn.primary").click()
+    ctx.close()
 
 
 # ---------------------------------------------------------------------------- videos
@@ -209,6 +219,21 @@ def video_onboarding(browser, tmp):
     page.wait_for_timeout(5200)
     tidy(page)
     page.wait_for_timeout(1500)
+    path = page.video.path()
+    ctx.close()
+    return path
+
+
+def video_guide(browser, tmp):
+    ctx, page = new_page(browser, "light", video=tmp, state={"guide": True})
+    open_app(page, "#sheet[open] .tour")
+    page.mouse.move(640, 400)
+    page.wait_for_timeout(1800)
+    for i in range(4):
+        click(page, page.locator("#sheet .sheet-foot .btn.primary"), 2300 if i != 1 else 900)
+        if i == 1:
+            click(page, page.locator("#sheet .tour .switch"), 1800)
+    click(page, page.locator("#sheet .sheet-foot .btn.primary"), 1000)
     path = page.video.path()
     ctx.close()
     return path
@@ -273,6 +298,7 @@ def main():
         browser = p.chromium.launch()
         screenshots(browser)
         videos = {"demo-onboarding": (video_onboarding(browser, tmp), 960),
+                  "demo-guide": (video_guide(browser, tmp), 960),
                   "demo-control": (video_control(browser, tmp), 960),
                   "demo-mobile": (video_mobile(browser, tmp), 390)}
         browser.close()

@@ -205,6 +205,11 @@ class AddonTest(unittest.TestCase):
                     target = code_nostr if "eq/ne" in what else code
                     if what and re.search(pat, target):
                         problems.append(f"{f.relative_to(ROOT)}:{n}: {what}: {line.strip()[:100]}")
+        # Tcl reads sources in the system encoding (ISO-8859-1 on the CCU): no UTF-8 literals in new code
+        for f in [ADDON / "hued.tcl", ADDON / "lib" / "hue_v2.tcl", ADDON / "lib" / "json.tcl", ADDON / "lib" / "update.tcl", ADDON / "www" / "rest.cgi"]:
+            for n, line in enumerate(f.read_text().splitlines(), 1):
+                if not line.lstrip().startswith("#") and re.search(r"[^\x00-\x7f]", line):
+                    problems.append(f"{f.relative_to(ROOT)}:{n}: non-ASCII character in code: {line.strip()[:80]}")
         self.assertEqual(problems, [], "\n".join(problems))
 
     def test_01_status_uses_v2(self):
@@ -535,6 +540,43 @@ class AddonTest(unittest.TestCase):
             self.assertEqual((entry["type"], entry["id"], entry["scene"]), ("group", "1", "Guten_Morgen"))
         finally:
             devices.write_text(old)
+
+    def test_56_scene_variables(self):
+        """Scenes as value-list system variables, kept up to date by hued in both directions."""
+        conf = RUN / "hue.conf"
+        old = conf.read_text()
+        conf.write_text(old.replace("[global]\n", "[global]\nscene_sysvars=1\n"))
+        var = RUN / "scenevar_Hue_Szene_Wohnzimmer.txt"
+        try:
+            self.hued_cmd("reload")
+            ok = until(lambda: var.exists() and var.read_text().split("\n")[0] == "Aus;Abend;Guten Morgen", 15)
+            self.assertTrue(ok, var.read_text() if var.exists() else "no variable")
+            until(lambda: "stream_connected=1" in self.hued_cmd("status"))
+            # The Hue app recalls "Abend": the variable follows (position 1)
+            ctl("/_recall", {"scene": "AbCdEfGhIjKlMnO"})
+            ok = until(lambda: var.read_text().split("\n")[1] == "1", 10)
+            self.assertTrue(ok, var.read_text())
+            # A program selects "Guten Morgen" (position 2): the scene is recalled
+            ctl("/_log")
+            var.write_text("Aus;Abend;Guten Morgen\n2\n")
+            scene_path = "/clip/v2/resource/scene/" + str(__import__("uuid").uuid5(__import__("uuid").NAMESPACE_DNS, "scene-GutenMorgen0001"))
+            ok = until(lambda: any(p["method"] == "PUT" and p["path"] == scene_path for p in ctl("/_log")), 10)
+            self.assertTrue(ok, "scene not recalled")
+            # A program selects "Aus": the room switches off
+            ctl("/_log")
+            var.write_text("Aus;Abend;Guten Morgen\n0\n")
+            ok = until(lambda: any(p["method"] == "PUT" and "/grouped_light/" in p["path"] and p["body"] == {"on": {"on": False}} for p in ctl("/_log")), 10)
+            self.assertTrue(ok, "room not switched off")
+            # Scenes deleted / added in the Hue app: positions of the others stay
+            ctl("/_scene_delete", {"id": "AbCdEfGhIjKlMnO"})
+            ctl("/_scene_add", {"id": "Kueche000000001", "name": "Früh Stück", "group": "1"})
+            ok = until(lambda: var.read_text().split("\n")[0] == "Aus;(entfernt);Guten Morgen;Frueh Stueck", 15)
+            self.assertTrue(ok, var.read_text())
+        finally:
+            conf.write_text(old)
+            M_restore = ctl("/_scene_add", {"id": "AbCdEfGhIjKlMnO", "name": "Abend", "group": "1"})
+            ctl("/_scene_delete", {"id": "Kueche000000001"})
+            self.hued_cmd("reload")
 
     def test_30_v1_bridge_fallback(self):
         """Round bridge / old firmware: everything over v1, nothing breaks."""

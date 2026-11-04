@@ -86,6 +86,9 @@ namespace eval hue {
 	# Receive state changes from the CLIP v2 event stream instead of waiting for the next poll
 	variable eventstream_default 1
 	variable eventstream $eventstream_default
+	# One system variable per room / zone to choose its scene, kept up to date by hued
+	variable scene_sysvars_default 0
+	variable scene_sysvars $scene_sysvars_default
 	variable update_repo "amroeser/homematic-addon-hue"
 	if {[info exists ::env(HUE_CONF)]} { set ini_file $::env(HUE_CONF) }
 	if {[info exists ::env(HUE_LOG_FILE)]} { set log_file $::env(HUE_LOG_FILE) }
@@ -652,6 +655,7 @@ proc ::hue::global_config_keys {} {
 		api_version {enum {auto v1 v2}}
 		https_verify {enum {none fingerprint strict}}
 		eventstream {bool {}}
+		scene_sysvars {bool {}}
 	}
 }
 
@@ -712,6 +716,7 @@ proc ::hue::read_global_config {} {
 	variable api_version
 	variable https_verify
 	variable eventstream
+	variable scene_sysvars
 	
 	write_log 4 "Reading global config"
 	acquire_lock $lock_id_ini_file
@@ -730,6 +735,7 @@ proc ::hue::read_global_config {} {
 		set api_version [::ini::value $ini "global" "api_version" $api_version]
 		set https_verify [::ini::value $ini "global" "https_verify" $https_verify]
 		set eventstream [expr { 0 + [::ini::value $ini "global" "eventstream" $eventstream] }]
+		set scene_sysvars [expr { 0 + [::ini::value $ini "global" "scene_sysvars" $scene_sysvars] }]
 	}
 	ini::close $ini
 	release_lock $lock_id_ini_file
@@ -762,6 +768,8 @@ proc ::hue::get_config_json {} {
 	variable https_verify
 	variable eventstream_default
 	variable eventstream
+	variable scene_sysvars_default
+	variable scene_sysvars
 	
 	set cuxd_version ""
 	catch { set cuxd_version [get_cuxd_version] }
@@ -782,6 +790,7 @@ proc ::hue::get_config_json {} {
 	append json "\"api_version\":\{\"default\":\"${api_version_default}\",\"value\":\"${api_version}\"\},"
 	append json "\"https_verify\":\{\"default\":\"${https_verify_default}\",\"value\":\"${https_verify}\"\},"
 	append json "\"eventstream\":\{\"default\":[json_bool $eventstream_default],\"value\":[json_bool $eventstream]\},"
+	append json "\"scene_sysvars\":\{\"default\":[json_bool $scene_sysvars_default],\"value\":[json_bool $scene_sysvars]\},"
 	append json "\"remove_transitiontime_when_turning_off\":\{\"default\":\"${remove_transitiontime_when_turning_off_default}\",\"value\":\"${remove_transitiontime_when_turning_off}\"\}"
 	append json "\},"
 	append json "\"bridges\":\["
@@ -1825,7 +1834,8 @@ proc ::hue::create_sysvar {name kind info} {
 	if {![regexp {^Hue_[A-Za-z0-9_\-]+$} $name]} {
 		error "Invalid system variable name ${name}"
 	}
-	set info [string map {"\"" "" "\\" "" "\n" " "} $info]
+	# ReGa text: plain ASCII avoids encoding trouble between Tcl and ReGa
+	set info [hue::v2::ascii $info]
 	switch -- $kind {
 		bool {
 			set type "sv.ValueType(ivtBinary); sv.ValueSubType(istBool); sv.ValueName0('nein'); sv.ValueName1('ja'); sv.State(false);"

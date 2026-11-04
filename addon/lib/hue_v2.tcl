@@ -79,6 +79,25 @@ proc ::hue::v2::luniq {l} {
 	return $out
 }
 
+# Plain ASCII form of a name: umlauts transliterated, ";" and quotes removed.
+# Used for system variable names and value lists (ReGa works in ISO-8859-1).
+proc ::hue::v2::ascii {s} {
+	set s [string map {"\u00e4" "ae" "\u00f6" "oe" "\u00fc" "ue" "\u00c4" "Ae" "\u00d6" "Oe" "\u00dc" "Ue" "\u00df" "ss" "\u00e9" "e" "\u00e8" "e" "\u00ea" "e" "\u00e1" "a" "\u00e0" "a" "\u00e2" "a" "\u00f3" "o" "\u00f2" "o" "\u00f4" "o" "\u00ed" "i" "\u00ec" "i" "\u00fa" "u" "\u00f9" "u" "\u00e7" "c" "\u00f1" "n"} $s]
+	regsub -all {[^A-Za-z0-9 ._()+-]} $s "" s
+	regsub -all {  +} $s " " s
+	return [string trim $s]
+}
+
+# Keys for tolerant name matching: transliterated, and with every non-ASCII letter dropped
+# (the second form also matches names that went through a wrong encoding, "KÃ¼che")
+proc ::hue::v2::fold {s} {
+	set a [string tolower [ascii $s]]
+	regsub -all {[^a-z0-9]} $a "" a
+	set b [string tolower $s]
+	regsub -all {[^a-z0-9]} $b "" b
+	return [list $a $b]
+}
+
 # Remove array elements matching a glob pattern (array unset is Tcl 8.3+)
 proc ::hue::v2::aunset {arrName pattern} {
 	upvar 1 $arrName A
@@ -430,6 +449,12 @@ proc ::hue::v2::load {bridge_id} {
 	return [::hue::json::len P data]
 }
 
+proc ::hue::v2::loaded_at {bridge_id} {
+	variable loaded
+	if {[info exists loaded($bridge_id)]} { return $loaded($bridge_id) }
+	return 0
+}
+
 # Load the cache if it is missing or old
 proc ::hue::v2::ensure_loaded {bridge_id} {
 	variable loaded
@@ -446,7 +471,8 @@ proc ::hue::v2::refresh_state {bridge_id} {
 		load $bridge_id
 		return
 	}
-	foreach t {light grouped_light zigbee_connectivity} {
+	# Scenes too: their status shows which scene is active (missed events while reconnecting)
+	foreach t {light grouped_light zigbee_connectivity scene} {
 		catch {unset P}
 		request "status" $bridge_id GET "resource/${t}" "" P
 		store_parsed $bridge_id P
@@ -560,8 +586,10 @@ proc ::hue::v2::rebuild_index {bridge_id} {
 		set name [string tolower [rget $b $rid metadata/name]]
 		if {$name != ""} {
 			set idx($b,scene_name,$name) $rid
-			# CUxD commands write spaces as "_" (scene:Abend_Essen)
-			set idx($b,scene_name,[string map {" " "_"} $name]) $rid
+			# Tolerant forms: case, spaces, umlauts and broken encodings do not matter
+			foreach f [fold [rget $b $rid metadata/name]] {
+				if {$f != ""} { set idx($b,scene_fold,$f) $rid }
+			}
 		}
 	}
 	foreach rid [resources $b device] {
@@ -619,6 +647,12 @@ proc ::hue::v2::scene_rid {bridge_id scene} {
 	set rid [lookup $bridge_id "scene,$scene"]
 	if {$rid == ""} {
 		set rid [lookup $bridge_id "scene_name,[string tolower $scene]"]
+	}
+	if {$rid == ""} {
+		foreach f [fold [string map {"_" " "} $scene]] {
+			set rid [lookup $bridge_id "scene_fold,$f"]
+			if {$rid != ""} { break }
+		}
 	}
 	return $rid
 }

@@ -368,6 +368,23 @@ dialog.closing::backdrop { animation: fade-out 200ms ease-in forwards; }
 .big-mark { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; background: var(--ok-soft); color: var(--ok); }
 .big-mark svg { width: 26px; height: 26px; }
 
+/* ------------------------------------------------------------------ guide */
+.tour { text-align: left; }
+.tour-art { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 18px 0 22px; flex-wrap: wrap; }
+.tour-node { padding: 10px 12px; border-radius: var(--r-md); background: var(--fill); font-weight: 600; font-size: .8125rem; text-align: center; }
+.tour-node.addon { background: var(--amber-soft); }
+.tour-arrow { color: var(--ink-3); font-size: 1.2rem; }
+.tour-room { display: grid; grid-template-columns: repeat(3, 34px); gap: 8px; padding: 14px; border-radius: var(--r-md); background: var(--fill); }
+.tour-room span { width: 34px; height: 34px; border-radius: 50%; background: #ffd08a; box-shadow: 0 0 16px #ffb85c; }
+.tour-list { display: grid; gap: 6px; padding: 12px 14px; border-radius: var(--r-md); background: var(--fill); min-width: 230px; font-size: .875rem; }
+.tour-list b { font-weight: 600; }
+.tour-list .sel { padding: 4px 8px; border-radius: 8px; background: var(--amber-soft); }
+.tour p { margin: 0 0 12px; }
+.tour .example { padding: 10px 12px; border-left: 3px solid var(--amber); background: var(--fill); border-radius: 0 var(--r-sm) var(--r-sm) 0; margin-bottom: 8px; font-size: .9375rem; }
+.dots { display: flex; gap: 6px; margin-right: auto; align-items: center; }
+.dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--fill-2); }
+.dots i.on { background: var(--amber); width: 20px; border-radius: 4px; }
+
 /* ------------------------------------------------------------------ toast */
 #toast { position: fixed; left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 50; display: grid; gap: 8px; justify-items: center; pointer-events: none; width: max-content; max-width: calc(100vw - 32px); }
 #toast div { pointer-events: auto; padding: 10px 16px; border-radius: 999px; background: var(--ink); color: var(--canvas); font-weight: 520; box-shadow: 0 10px 30px rgba(0,0,0,.25); animation: rise 300ms var(--ease); }
@@ -399,6 +416,9 @@ dialog.closing::backdrop { animation: fade-out 200ms ease-in forwards; }
 		<button class="nav-item" data-page="diagnose">
 			<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l2.5-6 5 12L17 12h4"/></svg>
 			<span data-t="nav_diagnose"></span><span class="badge bad" id="nav-problems" hidden>!</span></button>
+		<button class="nav-item" id="open-guide">
+			<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17h.01"/></svg>
+			<span data-t="guide"></span></button>
 		<div class="rail-foot">
 			<select id="lang" aria-label="Sprache / Language"><option value="de">Deutsch</option><option value="en">English</option></select>
 		</div>
@@ -429,7 +449,24 @@ const I18N = {
 		details: "Details zu {{name}}", not_in_hm: "Nicht in HomeMatic",
 		unlinked_title: "{{n}} Räume, Zonen oder Lampen sind noch nicht in HomeMatic",
 		unlinked_text: "Mit einem Klick bekommt jeder Raum und jede Zone ein CUxD-Gerät, das schalten, dimmen und färben kann. Einzelne Lampen fügst du über ihre Details hinzu.",
-		scene_keys: "Szenen als Tasten", scene_keys_text: "Eine Taste je Szene: lang drücken ruft die Szene auf, kurz drücken schaltet den Raum aus. Die Szene wird per Name aufgerufen und funktioniert auch, wenn du sie in der Hue-App neu anlegst.",
+		scene_keys: "Szenen als Tasten", scene_keys_text: "Für Fernbedienungen und Wandtaster: eine CUxD-Taste je Szene. Lang drücken ruft die Szene auf, kurz drücken schaltet den Raum aus.",
+		scene_var: "Szenen in Programmen", scene_var_on: "Systemvariable „{{name}}“", scene_var_on_text: "Wähle in Programmen einfach die Szene aus der Liste. „Aus“ schaltet den Raum aus. Neue Szenen aus der Hue-App erscheinen automatisch.",
+		scene_var_off: "Szenen als Auswahlliste", scene_var_off_text: "Das Addon legt je Raum eine Systemvariable mit allen Szenen an und hält sie aktuell. Keine CUxD-Befehle nötig.",
+		enable: "Einschalten", scene_vars_enabled: "Szenen-Variablen sind eingeschaltet. Sie erscheinen in wenigen Sekunden in der CCU.",
+		scene_vars: "Szenen als Systemvariablen", scene_vars_text: "Eine Auswahlliste je Raum und Zone, in Programmen nutzbar. Das Addon hält sie automatisch aktuell.",
+		homematic: "HomeMatic", guide: "Kurzanleitung",
+		tour_next: "Weiter", tour_back: "Zurück", tour_done: "Los geht’s", tour_skip: "Überspringen",
+		tour1_t: "So arbeitet das Addon", tour1_x: "Deine Lampen, Räume und Szenen richtest du wie gewohnt in der Hue-App ein. Das Addon bringt sie in die HomeMatic-Zentrale und hält beide Seiten in Echtzeit abgeglichen.",
+		tour_node_hue: "Hue-App und Bridge", tour_node_addon: "Dieses Addon", tour_node_hm: "HomeMatic-Zentrale",
+		tour2_t: "Räume und Zonen", tour2_x: "Jeder Raum und jede Zone wird ein Gerät in HomeMatic. Ein Raumbefehl schaltet alle Lampen gleichzeitig, das ist schneller und zuverlässiger als einzelne Lampen. Einzelne Lampen fügst du nur hinzu, wo du sie wirklich brauchst.",
+		tour2_ok: "Alle Räume und Zonen sind schon in HomeMatic.", tour2_add: "{{n}} jetzt hinzufügen",
+		tour3_t: "Szenen", tour3_x: "Szenen bleiben in der Hue-App. In HomeMatic wählst du sie über eine Auswahlliste je Raum, zum Beispiel „Hue Szene Wohnzimmer = Entspannen“. Neue Szenen erscheinen dort automatisch.",
+		tour3_switch: "Szenen-Auswahllisten anlegen und pflegen",
+		tour4_t: "Schalter und Bewegungsmelder", tour4_x: "Was nur Licht betrifft, erledigt die Hue Bridge selbst, das ist am schnellsten und funktioniert auch, wenn die CCU neu startet. Bewegung, Helligkeit, Temperatur und Tastendrücke stehen zusätzlich als Systemvariablen bereit, für alles, was HomeMatic darüber hinaus tun soll.",
+		tour5_t: "In Programmen nutzen", tour5_x: "Zwei Beispiele, wie es in der HomeMatic-Oberfläche aussieht:",
+		tour5_a: "Wenn: Fenster Wohnzimmer geöffnet. Dann: Hue Wohnzimmer aus.",
+		tour5_b: "Wenn: Zeit 7:00. Dann: Systemvariable „Hue Szene Schlafzimmer“ auf „Guten Morgen“.",
+		tour5_c: "Lampen steuerst du hier auf der Seite direkt, auch vom Handy.",
 		scene_add: "Als Taste anlegen", scene_added: "Taste {{dev}} für „{{name}}“ angelegt. Bestätige sie im Posteingang.",
 		room_in_hm: "In HomeMatic", room_in_hm_n: "{{n}} Geräte in HomeMatic",
 		add_all: "Alle hinzufügen", adding: "Füge {{i}} von {{n}} hinzu …",
@@ -502,7 +539,24 @@ const I18N = {
 		details: "Details for {{name}}", not_in_hm: "Not in HomeMatic",
 		unlinked_title: "{{n}} rooms, zones or lights are not in HomeMatic yet",
 		unlinked_text: "One click gives every room and zone a CUxD device that can switch, dim and colour. Add single lights from their details.",
-		scene_keys: "Scenes as buttons", scene_keys_text: "One button per scene: long press recalls the scene, short press switches the room off. The scene is recalled by name and keeps working if you recreate it in the Hue app.",
+		scene_keys: "Scenes as buttons", scene_keys_text: "For remotes and wall switches: one CUxD button per scene. Long press recalls the scene, short press switches the room off.",
+		scene_var: "Scenes in programs", scene_var_on: "System variable “{{name}}”", scene_var_on_text: "Pick the scene from the list in programs. “Aus” switches the room off. New scenes from the Hue app appear automatically.",
+		scene_var_off: "Scenes as a selection list", scene_var_off_text: "The addon creates one system variable per room with all scenes and keeps it current. No CUxD commands needed.",
+		enable: "Turn on", scene_vars_enabled: "Scene variables are on. They appear in the CCU within seconds.",
+		scene_vars: "Scenes as system variables", scene_vars_text: "One selection list per room and zone, usable in programs. The addon keeps it current.",
+		homematic: "HomeMatic", guide: "Quick guide",
+		tour_next: "Next", tour_back: "Back", tour_done: "Get started", tour_skip: "Skip",
+		tour1_t: "How the addon works", tour1_x: "Set up your lights, rooms and scenes in the Hue app as usual. The addon brings them into the HomeMatic hub and keeps both sides in sync in real time.",
+		tour_node_hue: "Hue app and bridge", tour_node_addon: "This addon", tour_node_hm: "HomeMatic hub",
+		tour2_t: "Rooms and zones", tour2_x: "Every room and zone becomes one device in HomeMatic. A room command switches all lights at once, faster and more reliable than single lights. Add single lights only where you really need them.",
+		tour2_ok: "All rooms and zones are in HomeMatic already.", tour2_add: "Add {{n}} now",
+		tour3_t: "Scenes", tour3_x: "Scenes stay in the Hue app. In HomeMatic you pick them from a selection list per room, for example “Hue Szene Wohnzimmer = Relax”. New scenes appear there automatically.",
+		tour3_switch: "Create and maintain scene selection lists",
+		tour4_t: "Switches and motion sensors", tour4_x: "Anything that only concerns light is handled by the Hue bridge itself: fastest, and it keeps working while the CCU restarts. Motion, light level, temperature and button presses are also available as system variables for everything else HomeMatic should do.",
+		tour5_t: "Use it in programs", tour5_x: "Two examples as they look in the HomeMatic web UI:",
+		tour5_a: "If: living room window opened. Then: Hue Wohnzimmer off.",
+		tour5_b: "If: time 7:00. Then: system variable “Hue Szene Schlafzimmer” to “Good morning”.",
+		tour5_c: "Control your lights right here on this page, also from your phone.",
 		scene_add: "Add as button", scene_added: "Button {{dev}} for “{{name}}” added. Confirm it in the inbox.",
 		room_in_hm: "In HomeMatic", room_in_hm_n: "{{n}} devices in HomeMatic",
 		add_all: "Add all", adding: "Adding {{i}} of {{n}} …",
@@ -674,7 +728,7 @@ function throttle(fn, ms) {
 function refreshSoon() { setTimeout(() => loadObjects(true).then(c => { if (c && !S.busy) render(); }).catch(() => {}), 700); }
 
 /* ====================================================================== navigation */
-document.querySelectorAll(".nav-item").forEach(b => b.addEventListener("click", () => go(b.dataset.page)));
+document.querySelectorAll(".nav-item[data-page]").forEach(b => b.addEventListener("click", () => go(b.dataset.page)));
 function setNav() {
 	document.querySelectorAll(".nav-item").forEach(b => { if (b.dataset.page === S.page) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
 	document.querySelectorAll("main > section").forEach(s => s.hidden = s.id !== "page-" + S.page);
@@ -990,7 +1044,7 @@ function openControl(type, obj, members) {
 		sections.push(hmSection(type, obj));
 		if (type === "group") {
 			const sc = (S.objects.scenes || []).filter(s => String(s.group) === String(id));
-			if (sc.length) sections.push(sceneKeySection(obj, sc));
+			if (sc.length) { sections.push(sceneVarSection(obj)); sections.push(sceneKeySection(obj, sc)); }
 		}
 		sections.push(techSection(type, obj));
 		return [sheetHead(obj.name, sub), h("div", { class: "sheet-body" }, sections)];
@@ -1034,10 +1088,30 @@ function hmSection(type, obj) {
 	return box;
 }
 
-// Scene buttons: one CUxD switch per scene, matched by scene id or by name
+// Scenes in programs: one value-list system variable per room, maintained by the addon
+function asciiName(s) {
+	const map = { "ä": "ae", "ö": "oe", "ü": "ue", "Ä": "Ae", "Ö": "Oe", "Ü": "Ue", "ß": "ss" };
+	return String(s).replace(/[äöüÄÖÜß]/g, c => map[c]).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9 ._()+-]/g, "").replace(/ +/g, " ").trim();
+}
+function sceneVarSection(room) {
+	const on = !!(S.config.global.scene_sysvars && S.config.global.scene_sysvars.value);
+	const name = "Hue Szene " + asciiName(room.name);
+	return h("div", { class: "section" }, h("div", { class: "t-h3" }, t("scene_var")),
+		on ? h("div", { class: "big-toggle" }, h("span", { style: "color:var(--ok)" }, icon("check")),
+				h("div", { class: "grow" }, h("div", { style: "font-weight:600" }, t("scene_var_on", { name })), h("div", { class: "muted t-small" }, t("scene_var_on_text"))))
+			: h("div", { class: "big-toggle" }, h("div", { class: "grow" }, h("div", { style: "font-weight:600" }, t("scene_var_off")), h("div", { class: "muted t-small" }, t("scene_var_off_text"))),
+				h("button", { class: "btn primary sm", onclick: async e => { e.currentTarget.disabled = true; await setSceneVars(true); closeSheet(); } }, t("enable"))));
+}
+async function setSceneVars(on) {
+	try { await rest("PUT", "config/global", { scene_sysvars: on }); await loadConfig(); toast(on ? t("scene_vars_enabled") : t("saved")); }
+	catch (e) { fail(e); }
+}
+
+// Scene buttons: one CUxD switch per scene (stored with the scene ID), matched by ID or tolerant name
 function sceneKeySection(room, scenes) {
 	const box = h("div", { class: "section" });
-	const norm = v => String(v || "").toLowerCase().split("_").join(" ");
+	// Same idea as the addon's tolerant match: case, spaces, umlauts and broken encodings do not matter
+	const norm = v => String(v || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 	const draw = () => {
 		const keys = S.map.filter(m => m.bridge_id.toLowerCase() === S.bridge && m.type === "group" && String(m.id) === String(room.id) && m.scene);
 		box.replaceChildren(h("div", { class: "t-h3" }, t("scene_keys")), h("p", { class: "muted t-small", style: "margin:0 0 10px" }, t("scene_keys_text")),
@@ -1050,7 +1124,7 @@ function sceneKeySection(room, scenes) {
 							e.currentTarget.disabled = true;
 							try {
 								const r = await rest("POST", "create-cuxd-device", { type: "scene", serial: 0, name: ("Hue " + room.name + " " + s.name).replace(/["'\\]/g, ""),
-									bridge_id: S.bridge, obj_type: "group", obj_id: String(room.id), scene: s.name.replace(/["'\\;]/g, ""), transitiontime: null });
+									bridge_id: S.bridge, obj_type: "group", obj_id: String(room.id), scene: String(s.id), transitiontime: null });
 								S.map = await rest("GET", "get-cuxd-device-map").catch(() => S.map);
 								toast(t("scene_added", { dev: r.device, name: s.name }));
 								draw();
@@ -1159,6 +1233,7 @@ function renderSettings() {
 		h("section", { class: "panel" }, h("div", { class: "panel-head" }, h("h2", { class: "t-h3" }, t("connection"))),
 			row(t("api"), t("api_text"), seg("api_version", [["auto", t("api_auto")], ["v2", "API v2"], ["v1", "API v1"]])),
 			row(t("realtime"), t("realtime_text"), sw("eventstream")),
+			row(t("scene_vars"), t("scene_vars_text"), sw("scene_sysvars")),
 			row(t("poll"), t("poll_text"), num("poll_state_interval", 1)),
 			row(t("tls"), t("tls_text"), h("input", { type: "checkbox", class: "switch", role: "switch", checked: draft.https_verify !== "none",
 				onchange: e => set("https_verify", e.target.checked ? "fingerprint" : "none") }))),
@@ -1351,6 +1426,50 @@ async function pairingStep2(body, setStep, ip, port, inSheet) {
 			} }, t("ob_add")))));
 }
 
+/* ====================================================================== guide */
+const TOUR_KEY = "hue-guide-1";
+function seenGuide() { try { return localStorage.getItem(TOUR_KEY) === "1"; } catch (e) { return true; } }
+function markGuide() { try { localStorage.setItem(TOUR_KEY, "1"); } catch (e) {} }
+$("#open-guide").addEventListener("click", () => openGuide(0));
+
+function guideStep(i) {
+	const un = unlinked().filter(x => x.type === "group");
+	const sceneOn = !!(S.config.global.scene_sysvars && S.config.global.scene_sysvars.value);
+	const steps = [
+		() => [h("div", { class: "tour-art", "aria-hidden": "true" },
+				h("div", { class: "tour-node" }, t("tour_node_hue")), h("span", { class: "tour-arrow" }, "⇄"),
+				h("div", { class: "tour-node addon" }, t("tour_node_addon")), h("span", { class: "tour-arrow" }, "⇄"),
+				h("div", { class: "tour-node" }, t("tour_node_hm"))),
+			h("p", {}, t("tour1_x"))],
+		() => [h("div", { class: "tour-art", "aria-hidden": "true" }, h("div", { class: "tour-room" }, h("span"), h("span"), h("span")), h("span", { class: "tour-arrow" }, "→"), h("div", { class: "tour-node" }, "Hue Wohnzimmer")),
+			h("p", {}, t("tour2_x")),
+			un.length ? h("button", { class: "btn primary", onclick: async e => { closeSheet(); setTimeout(() => { const b = $("#unlinked-notice .btn.primary"); if (b) addAll(b); }, 350); } }, t("tour2_add", { n: un.length }))
+				: h("p", { class: "muted" }, t("tour2_ok"))],
+		() => [h("div", { class: "tour-art", "aria-hidden": "true" }, h("div", { class: "tour-list" }, h("b", {}, "Hue Szene Wohnzimmer"), h("span", {}, "Aus"), h("span", { class: "sel" }, "Entspannen"), h("span", {}, "Konzentrieren"))),
+			h("p", {}, t("tour3_x")),
+			h("label", { class: "big-toggle" }, h("span", { class: "grow", style: "font-weight:600" }, t("tour3_switch")),
+				h("input", { type: "checkbox", class: "switch", role: "switch", checked: sceneOn, onchange: e => setSceneVars(e.target.checked) }))],
+		() => [h("p", {}, t("tour4_x")),
+			h("button", { class: "btn", onclick: () => { closeSheet(); go("sensors"); } }, t("nav_sensors"))],
+		() => [h("p", {}, t("tour5_x")), h("div", { class: "example" }, t("tour5_a")), h("div", { class: "example" }, t("tour5_b")), h("p", { class: "muted", style: "margin-top:12px" }, t("tour5_c"))]
+	];
+	return steps[i]();
+}
+function openGuide(i) {
+	const n = 5;
+	const titles = ["tour1_t", "tour2_t", "tour3_t", "tour4_t", "tour5_t"];
+	openSheet(() => [
+		sheetHead(t(titles[i])),
+		h("div", { class: "sheet-body tour" }, guideStep(i)),
+		h("div", { class: "sheet-foot" },
+			h("div", { class: "dots", "aria-label": (i + 1) + " / " + n }, [...Array(n)].map((_, k) => h("i", { class: k === i ? "on" : "" }))),
+			i > 0 ? h("button", { class: "btn quiet", onclick: () => openGuide(i - 1) }, t("tour_back")) : h("button", { class: "btn quiet", onclick: () => { markGuide(); closeSheet(); } }, t("tour_skip")),
+			i < n - 1 ? h("button", { class: "btn primary", onclick: () => openGuide(i + 1) }, t("tour_next"))
+				: h("button", { class: "btn primary", onclick: () => { markGuide(); closeSheet(); } }, t("tour_done")))
+	]);
+	markGuide();
+}
+
 /* ====================================================================== login, start */
 function showLogin() {
 	openSheet(() => {
@@ -1375,6 +1494,7 @@ async function boot() {
 		...S.bridges.map(b => rest("GET", "bridges/" + b.id + "/info").then(i => { S.apiInfo[b.id] = i.api_available; }).catch(() => { S.apiInfo[b.id] = "error"; }))
 	]);
 	render();
+	if (!seenGuide() && S.objects) openGuide(0);
 	checkUpdate().then(() => { if (S.page === "diagnose") render(); });
 	startPolling();
 	clearInterval(S.huedTimer);

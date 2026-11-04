@@ -18,10 +18,53 @@ proc ::hue_test_read {file} {
 	return $d
 }
 
+# Scene variables: one file per variable, "value list" and "value" on two lines
+proc ::hue_test_var_file {name} {
+	return [file join $::hue_test_dir "scenevar_[string map {" " "_"} $name].txt"]
+}
+proc ::hue_test_var_read {name} {
+	set f [::hue_test_var_file $name]
+	if {![file exists $f]} { return "" }
+	set fd [open $f r]
+	set d [read $fd]
+	close $fd
+	return [split [string trim $d] "\n"]
+}
+proc ::hue_test_var_write {name list value} {
+	set fd [open [::hue_test_var_file $name] w]
+	puts $fd $list
+	puts $fd $value
+	close $fd
+}
+
 # ReGa script: logged, system variables listed in sysvars.txt exist
 proc rega_script {script} {
 	::hue_test_append rega.log [string map {"\n" " " "\t" " "} $script]
 	set out ""
+	if {[regexp {^!hue:scenevar:get ([^\n]+)} $script -> name]} {
+		set v [::hue_test_var_read $name]
+		if {[llength $v] == 0} { ::hue_test_var_write $name "Aus" 0; set v [list "Aus" 0] }
+		return [list STDOUT "[lindex $v 0]\n[lindex $v 1]"]
+	}
+	if {[regexp {^!hue:scenevar:list ([^\n]+)} $script -> name] && [regexp {ValueList\("([^"]*)"\)} $script -> list]} {
+		set v [::hue_test_var_read $name]
+		::hue_test_var_write $name $list [lindex $v 1]
+		return [list STDOUT ""]
+	}
+	if {[regexp {^!hue:scenevar:set ([^\n]+) ([0-9]+)\n} $script -> name value]} {
+		set v [::hue_test_var_read $name]
+		::hue_test_var_write $name [lindex $v 0] $value
+		return [list STDOUT ""]
+	}
+	if {[regexp {^!hue:scenevar:read} $script]} {
+		foreach line [split $script "\n"] {
+			if {[regexp {^!var (.+)$} $line -> name]} {
+				set v [::hue_test_var_read $name]
+				if {[llength $v] == 0} { append out "-\n" } else { append out "[lindex $v 1]\n" }
+			}
+		}
+		return [list STDOUT $out]
+	}
 	if {[regexp {dom\.GetObject\(\"([^\"]+)\"\); if \(s\) \{ Write\('1'\);} $script -> name]} {
 		set out [expr {[lsearch -exact [split [::hue_test_read sysvars.txt] "\n"] $name] >= 0 ? "1" : "0"}]
 	} elseif {[string match "*HssType()*" $script]} {

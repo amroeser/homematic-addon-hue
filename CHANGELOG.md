@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.0.2
+
+- Szenen als Auswahlliste: Auf Wunsch legt das Addon je Raum und Zone eine Systemvariable „Hue Szene <Raum>“ an und hält sie automatisch aktuell. In Programmen wählst du die Szene einfach aus, „Aus“ schaltet den Raum aus. Wählst du in der Hue-App eine Szene, steht sie auch in HomeMatic. Neue Szenen werden angehängt, gelöschte als „(entfernt)“ markiert, damit sich die Positionen in Programmen nie verschieben. Keine CUxD-Befehle nötig.
+- Kurzanleitung: Beim ersten Öffnen erklärt eine interaktive Anleitung in fünf Schritten, wie Hue-App, Addon und HomeMatic zusammenspielen, mit Räumen, Zonen, Szenen, Sensoren und Programm-Beispielen. Jederzeit erneut aufrufbar.
+- Szenen-Tasten speichern die Szenen-ID statt des Namens: robust gegen Umlaute, Sonderzeichen und Umbenennen.
+- Szenen per Name werden tolerant gefunden: Groß- und Kleinschreibung, Leerzeichen (`_`), Umlaute und falsch kodierte Zeichen spielen keine Rolle.
+- Namen von Systemvariablen und Listeneinträgen nur in ASCII (`Kueche`), weil die CCU intern ISO-8859-1 nutzt.
+- Behoben: Nach einer Unterbrechung des Event-Streams wurde der Status der Szenen nicht nachgeladen.
+
 ## 4.0.1
 
 - Szenen als Tasten: In den Raumdetails legst du für jede Szene eine CUxD-Taste an. Lang drücken ruft die Szene per Name auf, kurz drücken schaltet den Raum aus. Vorhandene Szenen-Tasten werden erkannt, auch solche mit Szenen-ID.
