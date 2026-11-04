@@ -205,12 +205,20 @@ Kommst du vom alten Hue-Addon, installierst du einfach darüber. Alles Bestehend
 
 ## Kompatibilität
 
-| Zentrale | | Hue Bridge | |
-|---|---|---|---|
-| CCU3, Original-Firmware | ✓ getestet | Bridge v2 (eckig), aktuelle Firmware | API v2, Echtzeit |
-| OpenCCU | ✓ getestet | Bridge v2, ältere Firmware | API v1 |
-| RaspberryMatic | ✓ | Bridge v1 (rund) | API v1 |
-| piVCCU, debmatic | ungetestet | | |
+| Zentrale | |
+|---|---|
+| CCU3, Original-Firmware | ✓ getestet (Tcl 8.2) |
+| OpenCCU | ✓ getestet, im Alltag im Einsatz |
+| RaspberryMatic | ✓ (Vorgänger von OpenCCU, gleiche Basis) |
+| piVCCU, debmatic | ungetestet |
+
+| Hue Bridge | Schnittstelle |
+|---|---|
+| Bridge v2 (eckig), aktuelle Firmware | API v2 mit Echtzeit, Szenen-Status, Lampen ohne Hue |
+| Bridge v2 mit sehr alter Firmware | API v1, nach Firmware-Update in der Hue-App automatisch v2 |
+| Bridge v1 (rund) | API v1 |
+
+Die Schnittstelle hängt nur von der Bridge ab, nicht von der Zentrale. „Automatisch“ in den Einstellungen wählt sie selbst.
 
 Voraussetzung: [CUxD](https://homematic-forum.de/forum/viewforum.php?f=37).
 
