@@ -120,7 +120,7 @@ class AddonTest(unittest.TestCase):
         (RUN / "cuxd_devices.txt").write_text(
             f"CUX2801001 /usr/local/addons/hue/hue.tcl {BRIDGE} light 1\n"
             f"CUX2801002 /usr/local/addons/hue/hue.tcl {BRIDGE} group 1\n")
-        (RUN / "sysvars.txt").write_text(f"Hue_reachable_CUX2801001\nHue_motion_{BRIDGE}_" + __import__("uuid").uuid5(__import__("uuid").NAMESPACE_DNS, "motion-1").__str__() + "\n")
+        (RUN / "sysvars.txt").write_text(f"Hue_reachable_CUX2801001\nHue_motion_{BRIDGE}_" + __import__("uuid").uuid5(__import__("uuid").NAMESPACE_DNS, "motion-1").__str__() + "\n" + f"Hue_motionarea_{BRIDGE}_" + __import__("uuid").uuid5(__import__("uuid").NAMESPACE_DNS, "area-conv-1").__str__() + "\n")
         write_conf()
         cls.start_hued()
 
@@ -336,6 +336,29 @@ class AddonTest(unittest.TestCase):
         until(lambda: "stream_connected=1" in self.hued_cmd("status"))
         ctl("/_motion", {"motion": True})
         ok = until(lambda: "s.State(true)" in (RUN / "rega.log").read_text() and "Hue_motion_" in (RUN / "rega.log").read_text())
+        self.assertTrue(ok, (RUN / "rega.log").read_text())
+
+    def test_19b_motionaware_areas(self):
+        """MotionAware (Bridge Pro): areas become motion sensors named after their configuration."""
+        import uuid
+        conv = f"Hue_motionarea_{BRIDGE}_{uuid.uuid5(uuid.NAMESPACE_DNS, 'area-conv-1')}"
+        st, o = self.rest("GET", f"bridges/{BRIDGE}/objects")
+        self.assertEqual(st, 200, o)
+        areas = {s["sysvar"]: s for s in o["sensors"] if "area_" in s["sysvar"]}
+        self.assertEqual(areas[conv]["name"], "MotionAware Wohnzimmer")
+        self.assertEqual(areas[conv]["kind"], "bool")
+        self.assertTrue(areas[conv]["exists"])
+        sec = f"Hue_securityarea_{BRIDGE}_{uuid.uuid5(uuid.NAMESPACE_DNS, 'area-sec-1')}"
+        self.assertEqual(areas[sec]["name"], "Hue Secure Wohnzimmer")
+        # Without "motion" and without configuration: listed, no motion, fallback name
+        gone = f"Hue_securityarea_{BRIDGE}_{uuid.uuid5(uuid.NAMESPACE_DNS, 'area-sec-2')}"
+        self.assertEqual(areas[gone]["value"], "false")
+        self.assertEqual(areas[gone]["name"], "Hue Secure " + str(uuid.uuid5(uuid.NAMESPACE_DNS, 'area-sec-2'))[:8])
+        # Event stream: motion reaches the existing system variable
+        until(lambda: "stream_connected=1" in self.hued_cmd("status"))
+        ctl("/_area_motion", {"motion": True})
+        ok = until(lambda: f'dom.GetObject("{conv}"); if (s) {{ s.State(true)' in (RUN / "rega.log").read_text())
+        ctl("/_area_motion", {"motion": False})
         self.assertTrue(ok, (RUN / "rega.log").read_text())
 
     def test_20_request_v2_cli(self):

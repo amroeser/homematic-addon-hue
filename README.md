@@ -224,6 +224,7 @@ Kommst du vom alten Hue-Addon, installierst du einfach darüber. Alles Bestehend
 
 | Hue Bridge | Schnittstelle |
 |---|---|
+| Bridge Pro | API v2 wie Bridge v2, dazu MotionAware-Bereiche als Bewegungsmelder (nur mit Testbridge geprüft) |
 | Bridge v2 (eckig), aktuelle Firmware | API v2 mit Echtzeit, Szenen-Status, Lampen ohne Hue |
 | Bridge v2 mit sehr alter Firmware | API v1, nach Firmware-Update in der Hue-App automatisch v2 |
 | Bridge v1 (rund) | API v1 |
@@ -370,6 +371,8 @@ Existiert eine Systemvariable mit passendem Namen, schreibt das Addon den Wert h
 |---|---|---|
 | `Hue_reachable_<CUxD-Gerät>` | Logikwert | Lampe erreichbar |
 | `Hue_motion_<bridge>_<id>` | Logikwert | Bewegung |
+| `Hue_motionarea_<bridge>_<id>` | Logikwert | Bewegung in einem MotionAware-Bereich (Bridge Pro): die Lampen selbst erkennen Bewegung |
+| `Hue_securityarea_<bridge>_<id>` | Logikwert | Bewegung im selben Bereich für Hue Secure |
 | `Hue_lux_<bridge>_<id>` | Zahl | Helligkeit in Lux |
 | `Hue_temp_<bridge>_<id>` | Zahl | Temperatur in °C |
 | `Hue_button_<bridge>_<id>` | Zeichenkette | Letztes Tastenereignis, z. B. `short_release` |

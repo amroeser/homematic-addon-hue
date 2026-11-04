@@ -1194,6 +1194,18 @@ proc ::hue::v2::device_name {bridge_id rid} {
 	return $name
 }
 
+# Name of a MotionAware area: its configuration, else the room it watches,
+# else the start of the service id (configuration missing from the cache)
+proc ::hue::v2::area_name {bridge_id rid} {
+	set cfg [rget $bridge_id $rid owner/rid]
+	set name [rget $bridge_id $cfg name]
+	if {$name == ""} {
+		set name [rget $bridge_id [rget $bridge_id $cfg group/rid] metadata/name]
+	}
+	if {$name == ""} { set name [string range $rid 0 7] }
+	return $name
+}
+
 # Sensors as list of {sysvar value kind label}
 #   kind: bool | lux | temp | button ; value in ReGa syntax
 proc ::hue::v2::sensor_list {bridge_id} {
@@ -1203,6 +1215,16 @@ proc ::hue::v2::sensor_list {bridge_id} {
 		set v [rget $b $rid motion/motion_report/motion]
 		if {$v == ""} { set v [rget $b $rid motion/motion false] }
 		lappend out [list "Hue_motion_${b}_${rid}" $v bool [device_name $b $rid]]
+	}
+	# MotionAware (Bridge Pro): lights as motion sensors. One area per
+	# motion_area_configuration, with a convenience and a security service.
+	# The bridge omits "motion" on some firmware versions: report "no motion".
+	foreach {rtype prefix label} {convenience_area_motion Hue_motionarea_ MotionAware security_area_motion Hue_securityarea_ "Hue Secure"} {
+		foreach rid [resources $b $rtype] {
+			set v [rget $b $rid motion/motion_report/motion]
+			if {$v == ""} { set v [rget $b $rid motion/motion false] }
+			lappend out [list "${prefix}${b}_${rid}" $v bool "${label} [area_name $b $rid]"]
+		}
 	}
 	foreach rid [resources $b light_level] {
 		set v [rget $b $rid light/light_level_report/light_level]

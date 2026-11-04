@@ -10,6 +10,7 @@ Test control endpoints (HTTP port):
   POST /_set            {"light": "1", "on": true, "bri": 100}  change state like the Hue app would
   POST /_connectivity   {"light": "1", "status": "disconnected"}
   POST /_v2             {"enabled": false}  switch CLIP v2 on/off (round bridge simulation)
+  POST /_area_motion    {"motion": true}  MotionAware area "Wohnzimmer" (Bridge Pro) detects motion
 """
 import argparse
 import json
@@ -59,6 +60,7 @@ class Model:
         self.scenes = {"AbCdEfGhIjKlMnO": ("Abend", "1", {"1": dict(on=True, bri=100, ct=400), "2": dict(on=True, bri=60, ct=450)}),
                        "GutenMorgen0001": ("Guten Morgen", "1", {"1": dict(on=True, bri=254, ct=250)})}
         self.motion = False
+        self.area_motion = False
         self.demo = False
         self.active_scene = {}   # group id -> scene id
         self.recalling = False
@@ -210,6 +212,23 @@ class Model:
         out.append({"id": rid("motion-1"), "type": "motion", "owner": {"rid": rid("sensor-dev"), "rtype": "device"},
                     "motion": {"motion": self.motion, "motion_valid": True,
                                "motion_report": {"changed": "2026-11-05T10:00:00.000Z", "motion": self.motion}}})
+        # MotionAware (Bridge Pro): an area over room 1 with a convenience and a security service.
+        # A second area has no "motion" field, as some bridge firmware sends it.
+        area_motion = {"motion": self.area_motion, "motion_valid": True,
+                       "motion_report": {"changed": "2026-11-05T10:00:00.000Z", "motion": self.area_motion}}
+        out.append({"id": rid("area-cfg-1"), "type": "motion_area_configuration", "name": "Wohnzimmer",
+                    "group": {"rid": self.group_owner_rid("1"), "rtype": "room"}, "enabled": True, "health": "healthy",
+                    "participants": [{"resource": {"rid": rid("light-dev-1"), "rtype": "device"}, "status": {"health": "healthy"}}],
+                    "services": [{"rid": rid("area-conv-1"), "rtype": "convenience_area_motion"},
+                                 {"rid": rid("area-sec-1"), "rtype": "security_area_motion"}]})
+        out.append({"id": rid("area-conv-1"), "type": "convenience_area_motion", "enabled": True,
+                    "owner": {"rid": rid("area-cfg-1"), "rtype": "motion_area_configuration"},
+                    "motion": area_motion, "sensitivity": {"sensitivity": 2, "sensitivity_max": 4}})
+        out.append({"id": rid("area-sec-1"), "type": "security_area_motion", "enabled": True,
+                    "owner": {"rid": rid("area-cfg-1"), "rtype": "motion_area_configuration"},
+                    "motion": area_motion, "sensitivity": {"sensitivity": 2, "sensitivity_max": 4}})
+        out.append({"id": rid("area-sec-2"), "type": "security_area_motion", "enabled": False,
+                    "owner": {"rid": rid("area-cfg-gone"), "rtype": "motion_area_configuration"}})
         out.append({"id": rid("temp-1"), "type": "temperature", "owner": {"rid": rid("sensor-dev"), "rtype": "device"},
                     "temperature": {"temperature": 21.37, "temperature_valid": True,
                                     "temperature_report": {"changed": "2026-11-05T10:00:00.000Z", "temperature": 21.37}}})
@@ -388,6 +407,12 @@ class Handler(BaseHTTPRequestHandler):
             if p == "/_motion":
                 M.motion = bool(req["motion"])
                 M.emit([{"id": rid("motion-1"), "type": "motion", "motion": {"motion": M.motion, "motion_report": {"motion": M.motion}}}])
+                return self.send_json({"ok": True})
+            if p == "/_area_motion":
+                M.area_motion = bool(req["motion"])
+                m = {"motion": M.area_motion, "motion_report": {"motion": M.area_motion}}
+                M.emit([{"id": rid("area-conv-1"), "type": "convenience_area_motion", "motion": m},
+                        {"id": rid("area-sec-1"), "type": "security_area_motion", "motion": m}])
                 return self.send_json({"ok": True})
             if p == "/_scene_add":
                 M.scenes[req["id"]] = (req["name"], req["group"], {})
