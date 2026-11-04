@@ -33,7 +33,9 @@
 # $env(CUXD_MAXVALUE4)
 # $env(CUXD_MAXVALUE5)
 
-source /usr/local/addons/hue/lib/hue.tcl
+set addon_dir "/usr/local/addons/hue"
+if {[info exists ::env(HUE_ADDON_DIR)]} { set addon_dir $::env(HUE_ADDON_DIR) }
+source [file join $addon_dir lib hue.tcl]
 
 variable object_states
 
@@ -54,7 +56,8 @@ proc usage {} {
 		puts stderr "Verfügbare Bridge-IDs: ${bridge_ids}"
 		puts stderr ""
 		puts stderr "Verfügbare Befehle:"
-		puts stderr "  request <Methode> <Ressource> \[Daten\]     Eine Anfrage an die Rest-API senden"
+		puts stderr "  request <Methode> <Ressource> \[Daten\]     Eine Anfrage an die Rest-API (v1) senden"
+		puts stderr "  request_v2 <Methode> <Ressource> \[Daten\]  Eine Anfrage an die CLIP-v2-API senden, z.B. GET resource/light"
 		puts stderr "    Methode   : GET,POST,PUT oder DELETE"
 		puts stderr "    Ressource : URL-Pfad"
 		puts stderr "    Daten     : optionale JSON-Daten"
@@ -62,19 +65,22 @@ proc usage {} {
 		puts stderr "  light <Lampen-ID> \[Parameter:Wert\]...     Eine Lampe steuern"
 		puts stderr "    Lampen-ID      : ID der Lampe die gesteuert werden soll"
 		puts stderr "    Parameter:Wert : Komma-getrennte Parameter:Wert-Paare"
-		puts stderr "                     Mögliche Parameter sind: on,sat,bri,bri_inc,hue,hue_inc,xy,ct,rgb,rgb_bri,transitiontime,bri_mode,sleep,ct_min"
+		puts stderr "                     Mögliche Parameter sind: on,sat,bri,bri_inc,hue,hue_inc,xy,ct,ct_inc,rgb,rgb_bri,transitiontime,alert,effect,bri_mode,sleep,ct_min"
+		puts stderr "                     Nur API v2: gradient,gradient_mode,timed_effect,speed,signal,signal_duration,signal_color,identify"
 		puts stderr ""
 		puts stderr "  group <Gruppen-ID> \[Parameter:Wert\]...    Eine Gruppe steuern"
 		puts stderr "    Gruppen-ID     : ID der Gruppe die gesteuert werden soll"
 		puts stderr "    Parameter:Wert : Komma-getrennte Parameter:Wert-Paare"
-		puts stderr "                     Mögliche Parameter sind: on,sat,bri,bri_inc,hue,hue_inc,xy,ct,rgb,rgb_bri,scene,transitiontime,bri_mode,sleep,ct_min,group_mode"
+		puts stderr "                     Mögliche Parameter sind: on,sat,bri,bri_inc,hue,hue_inc,xy,ct,ct_inc,rgb,rgb_bri,scene,transitiontime,alert,effect,bri_mode,sleep,ct_min,group_mode"
+		puts stderr "                     Nur API v2: speed,signal,signal_duration,signal_color,identify"
 	} else {
 		puts stderr "usage: ${argv0} <bridge-id> <command>"
 		puts stderr ""
 		puts stderr "available bridge ids: ${bridge_ids}"
 		puts stderr ""
 		puts stderr "possible commands:"
-		puts stderr "  request <method> <resource> \[data\]     send a request to rest api"
+		puts stderr "  request <method> <resource> \[data\]     send a request to rest api (v1)"
+		puts stderr "  request_v2 <method> <resource> \[data\]  send a request to the CLIP v2 api, e.g. GET resource/light"
 		puts stderr "    method   : one of GET,POST,PUT,DELETE"
 		puts stderr "    resource : URL path"
 		puts stderr "    data     : optional json data"
@@ -82,13 +88,23 @@ proc usage {} {
 		puts stderr "  light <light-id> \[parm:val\]...         control a light"
 		puts stderr "    light-id : id of the light to control"
 		puts stderr "    parm:val : parameter:value pairs separated by a colon"
-		puts stderr "               some of the possible paramers are: on,sat,bri,bri_inc,hue,hue_inc,xy,ct,rgb,rgb_bri,transitiontime,bri_mode,sleep,ct_min"
+		puts stderr "               some of the possible parameters are: on,sat,bri,bri_inc,hue,hue_inc,xy,ct,ct_inc,rgb,rgb_bri,transitiontime,alert,effect,bri_mode,sleep,ct_min"
+		puts stderr "               API v2 only: gradient,gradient_mode,timed_effect,speed,signal,signal_duration,signal_color,identify"
 		puts stderr ""
 		puts stderr "  group <group-id> \[parm:val\]...         control a group"
 		puts stderr "    group-id : id of the group to control"
 		puts stderr "    parm:val : parameter and value pairs separated by a colon"
-		puts stderr "               some of the possible paramers are: on,sat,bri,bri_inc,hue,hue_inc,xy,ct,rgb,rgb_bri,scene,transitiontime,bri_mode,sleep,ct_min,group_mode"
+		puts stderr "               some of the possible parameters are: on,sat,bri,bri_inc,hue,hue_inc,xy,ct,ct_inc,rgb,rgb_bri,scene,transitiontime,alert,effect,bri_mode,sleep,ct_min,group_mode"
+		puts stderr "               API v2 only: speed,signal,signal_duration,signal_color,identify"
 	}
+}
+
+# hued reports failures as "ERROR: ..."
+proc check_response {response} {
+	if {[string match "ERROR: *" $response]} {
+		error [string range $response 7 end]
+	}
+	return $response
 }
 
 proc get_object_state {bridge_id obj_type obj_id} {
@@ -96,7 +112,7 @@ proc get_object_state {bridge_id obj_type obj_id} {
 	
 	set full_id "${bridge_id}_${obj_type}_${obj_id}"
 	if { ![info exists object_states($full_id)] } {
-		set response [string trim [hue::hued_command "object_state" [list $bridge_id $obj_type $obj_id]]]
+		set response [check_response [string trim [hue::hued_command "object_state" [list $bridge_id $obj_type $obj_id]]]]
 		if {$response != ""} {
 			set object_states($full_id) $response
 		} else {
@@ -159,6 +175,14 @@ proc main {} {
 		puts [hue::request "command" $bridge_id [lindex $argv 2] [lindex $argv 3] [lindex $argv 4]]
 		return
 	}
+	if {[string tolower [lindex $argv 1]] == "request_v2"} {
+		if {$argc < 4} {
+			usage
+			exit 1
+		}
+		puts [hue::v2::request_raw "command" $bridge_id [lindex $argv 2] [lindex $argv 3] [lindex $argv 4]]
+		return
+	}
 	
 	set obj_type [string tolower [lindex $argv 1]]
 	if {$obj_type != "light" && $obj_type != "group"} {
@@ -168,7 +192,7 @@ proc main {} {
 	
 	set obj_id  [lindex $argv 2]
 	set bri_mode "abs"
-	set group_mode "lights"
+	set group_mode "auto"
 	set sleep 0
 	set ct_min 153
 	array set params {}
@@ -178,7 +202,9 @@ proc main {} {
 	set do_auto_on 1
 
 	foreach a [lrange $argv 2 end] {
-		regexp {(.*)[=:](.*$)} $a match k v
+		catch {unset k}
+		catch {unset v}
+		regexp {^([^=:]+)[=:](.*)$} $a match k v
 		if {[info exists v]} {
 			if {$k == "sleep"} {
 				set sleep [expr {0 + $v}]
@@ -200,21 +226,9 @@ proc main {} {
 				set rgb [split $v ","]
 				set rgb_bri 1
 			} elseif {$k == "scene"} {
+				# Scene id, v2 id or name, resolved by hued
 				set do_auto_on 0
-				if {![regexp {[a-zA-Z0-9\-]{15}} $v]} {
-					# Not a scene id
-					array set scene_map [hue::get_scene_name_id_map $bridge_id]
-					if [catch {
-						set v $scene_map($v)
-					} err] {
-						if {$language == "de"} {
-							error "Szene mit Namen ${v} nicht gefunden."
-						} else {
-							error "Failed to find scene with name ${v}."
-						}
-					}
-				}
-				set params($k) "\"${v}\""
+				set params($k) "\"[string map {"\"" ""} $v]\""
 			} else {
 				set nm ""
 				regexp {^(-?\d+)$} $v match nm
@@ -233,6 +247,7 @@ proc main {} {
 		
 		if {$chan == 1} {
 			puts [hue::hued_command "update_object_state" [list $bridge_id $obj_type $obj_id]]
+			# hued answers with an empty line
 			return
 		}
 		
@@ -288,6 +303,11 @@ proc main {} {
 	}
 	
 	set obj_action 1
+	if {$obj_type == "group" && $group_mode == "auto"} {
+		# CLIP v2 grouped_light handles groups well, v1 groups are slow
+		array set gst [get_object_state $bridge_id $obj_type $obj_id]
+		if {[info exists gst(api)] && [string equal $gst(api) "v2"]} { set group_mode "group" } else { set group_mode "lights" }
+	}
 	if {$obj_type == "group" && $group_mode == "lights" && ([array size params] > 0 || $rgb != "") && [lsearch [array names params] "scene"] == -1} {
 		array set st [get_object_state $bridge_id $obj_type $obj_id]
 		set num_lights [llength $st(lights)]
@@ -322,7 +342,7 @@ proc main {} {
 					unset cleaned_params(bri)
 				}
 				hue::write_log 3 "object_action [list $bridge_id "light" $light_id [array get cleaned_params]]"
-				puts -nonewline [hue::hued_command "object_action" [list $bridge_id "light" $light_id [array get cleaned_params]]]
+				puts -nonewline [check_response [hue::hued_command "object_action" [list $bridge_id "light" $light_id [array get cleaned_params]]]]
 				if {$aon == "true" || $aon == "false"} {
 					if {[info exists params(on)]} {
 						unset params(on)
@@ -358,8 +378,8 @@ proc main {} {
 		if {[info exists cleaned_params(bri)] && $cleaned_params(bri) == 0} {
 			unset cleaned_params(bri)
 		}
-		hue::write_log 3 "object_action [list $bridge_id $obj_type $obj_id [array get hued_params]]"
-		puts -nonewline [hue::hued_command "object_action" [list $bridge_id $obj_type $obj_id [array get cleaned_params]]]
+		hue::write_log 3 "object_action [list $bridge_id $obj_type $obj_id [array get cleaned_params]]"
+		puts -nonewline [check_response [hue::hued_command "object_action" [list $bridge_id $obj_type $obj_id [array get cleaned_params]]]]
 	}
 	hue::hued_command "update_object_state" [list $bridge_id $obj_type $obj_id 2]
 }

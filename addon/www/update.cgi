@@ -17,23 +17,29 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-set version_url "https://raw.githubusercontent.com/j-a-n/homematic-addon-hue/master/VERSION"
-set package_url "https://github.com/j-a-n/homematic-addon-hue/raw/master/hm-hue.tar.gz"
+#  Used by the CCU (Einstellungen > Zusatzsoftware) to show available updates.
+#  The addon's own page offers a one-click installation.
+
+set repo "amroeser/homematic-addon-hue"
+set version_url "https://github.com/${repo}/releases/latest/download/VERSION"
+set package_url "https://github.com/${repo}/releases/latest/download/hm-hue.tar.gz"
+
+set curl "/usr/bin/curl"
+if { ![file exists $curl] } { set curl "/usr/local/addons/cuxd/curl" }
 
 if { [catch {
-	set latest_version [exec /usr/bin/wget -q --no-check-certificate -O- "${version_url}"]
 	set cmd ""
 	if {[info exists env(QUERY_STRING)]} {
 		regexp {cmd=([^&]+)} $env(QUERY_STRING) match cmd
 	}
 	if {$cmd == "download"} {
 		puts -nonewline "Content-Type: text/html; charset=utf-8\r\n\r\n"
-		puts -nonewline "<html><head><meta http-equiv=\"refresh\" content=\"0; url=${package_url}\" /></head><body>Downloading latest version ${latest_version} from <a href=\"${package_url}\">${package_url}</a></body></html>"
+		puts -nonewline "<html><head><meta http-equiv=\"refresh\" content=\"0; url=${package_url}\" /></head><body><a href=\"${package_url}\">${package_url}</a></body></html>"
 	} else {
+		set latest_version [string trim [exec $curl --silent --show-error --stderr - --fail --location --connect-timeout 10 --max-time 30 $version_url]]
 		puts -nonewline "Content-Type: text/plain; charset=utf-8\r\n\r\n"
 		puts $latest_version
 	}
-
 } errormsg] } {
 	puts -nonewline "Content-Type: text/plain; charset=utf-8\r\n\r\n"
 	puts "Error: ${errormsg}"

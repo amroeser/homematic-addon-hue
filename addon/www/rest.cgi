@@ -3,6 +3,7 @@
 #  HomeMatic addon to control Philips Hue Lighting
 #
 #  Copyright (C) 2020  Jan Schneider <oss@janschneider.net>
+#  Copyright (C) 2025-2026  Alexander Maximilian Röser
 #
 #  This program is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -16,22 +17,43 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#  Runs on Tcl 8.2 (CCU3 firmware) up to 8.6.
 
-load tclrega.so
-source /usr/local/addons/hue/lib/hue.tcl
+set addon_dir "/usr/local/addons/hue"
+if {[info exists ::env(HUE_ADDON_DIR)]} { set addon_dir $::env(HUE_ADDON_DIR) }
+source [file join $addon_dir lib hue.tcl]
+source [file join $addon_dir lib update.tcl]
 package require http
 
-proc json_string {str} {
-	set replace_map {
-		"\"" "\\\""
-		"\\" "\\\\"
-		"\b"  "\\b"
-		"\f"  "\\f"
-		"\n"  "\\n"
-		"\r"  "\\r"
-		"\t"  "\\t"
+namespace import ::hue::v2::jstr ::hue::v2::jobj
+
+proc urldecode {s} {
+	set s [string map {+ " " "\\" "\\\\" "\[" "\\\[" "\]" "\\\]" "\$" "\\\$"} $s]
+	regsub -all {%([0-9a-fA-F][0-9a-fA-F])} $s {\\u00\1} s
+	return [encoding convertfrom utf-8 [subst -novariables -nocommands $s]]
+}
+
+proc jbool {v} { return [::hue::json::bool $v] }
+
+proc jarr {items} { return [::hue::json::arr $items] }
+
+# Value from the request body (array B, see json.tcl), with default
+proc arg {key {default ""}} {
+	global B
+	if {[info exists B($key)] && $B($key) != ""} {
+		return $B($key)
 	}
-	return "[string map $replace_map $str]"
+	return $default
+}
+
+proc has_arg {key} {
+	global B
+	return [expr {[info exists B($key)] || [info exists B($key/#)] || [info exists B($key/%)]}]
+}
+
+proc is_true {v} {
+	return [expr {[lsearch -exact {true 1} $v] >= 0}]
 }
 
 proc get_http_header {request header_name} {
@@ -39,7 +61,7 @@ proc get_http_header {request header_name} {
 	set header_name [string toupper $header_name]
 	array set meta $req(meta)
 	foreach header [array names meta] {
-		if {$header_name == [string toupper $header] } then {
+		if {[string equal $header_name [string toupper $header]]} {
 			return $meta($header)
 		}
 	}
@@ -54,6 +76,9 @@ proc get_session {sid} {
 }
 
 proc check_session {sid} {
+	if {[info exists ::env(HUE_TEST)]} {
+		return 1
+	}
 	if {[get_session $sid] != ""} {
 		# check and renew session
 		set url "http://127.0.0.1/pages/index.htm?sid=$sid"
@@ -69,281 +94,335 @@ proc check_session {sid} {
 
 proc login {username password} {
 	set request [::http::geturl "http://127.0.0.1/login.htm" -query [::http::formatQuery tbUsername $username tbPassword $password]]
-	set code [::http::code $request]
 	set location [get_http_header $request "location"]
 	::http::cleanup $request
-	
 	if {[string first "error" $location] != -1} {
 		error "Invalid username oder password" "Unauthorized" 401
 	}
-	
 	if {![regexp {sid=@([0-9a-zA-Z]{10})@} $location match sid]} {
 		error "Too many sessions" "Service Unavailable" 503
 	}
 	return $sid
 }
 
+proc hued_running {} {
+	foreach cmd {{pidof hued.tcl} {pidof -x hued.tcl} {pgrep -f hued.tcl}} {
+		if {![catch {eval exec $cmd} pid] && [string trim $pid] != ""} {
+			return [lindex [string trim $pid] 0]
+		}
+	}
+	return ""
+}
+
+# Run hue.tcl with the given arguments (a Tcl list, no shell involved)
+proc run_hue_command {args_list language} {
+	set ::env(LANGUAGE) $language
+	set cmd [concat [list [info nameofexecutable] [file join $::hue::addon_dir hue.tcl]] $args_list]
+	# stderr is collected by sh, 2>@1 needs Tcl 8.4
+	set sh "exec"
+	foreach a $cmd { append sh " [hue::v2::shq $a]" }
+	append sh " 2>&1"
+	set exitcode [catch {exec /bin/sh -c $sh} output]
+	regsub "\nchild process exited abnormally$" $output "" output
+	return [jobj exitcode $exitcode output [jstr $output]]
+}
+
+proc bridge_json {bridge_id} {
+	array set b [hue::get_bridge $bridge_id]
+	set parts [list id [jstr $bridge_id]]
+	foreach k [lsort [array names b]] {
+		if {[string equal $k "id"] || [string equal $k "key"]} { continue }
+		lappend parts $k [jstr $b($k)]
+	}
+	set api "v1"
+	if {![catch {hue::v2::supported $bridge_id 1} ok] && $ok} { set api "v2" }
+	lappend parts api_available [jstr $api]
+	return [::hue::json::objl $parts]
+}
+
 proc process {} {
-	global env
-	if { [info exists env(QUERY_STRING)] } {
-		set query $env(QUERY_STRING)
-		set path ""
-		set sid ""
-		set pairs [split $query "&"]
-		foreach pair $pairs {
-			if {[regexp "^(\[^=\]+)=(.*)$" $pair match varname value]} {
-				if {$varname == "sid"} {
+	global env B
+	set path [list]
+	set sid ""
+	set live 0
+	if {[info exists env(QUERY_STRING)]} {
+		foreach pair [split $env(QUERY_STRING) "&"] {
+			if {[regexp {^([^=]+)=(.*)$} $pair -> name value]} {
+				set value [urldecode $value]
+				if {[string equal $name "sid"]} {
 					set sid $value
-				} elseif {$varname == "path"} {
-					set path [split $value "/"]
+				} elseif {[string equal $name "path"]} {
+					set path [split [string trim $value "/"] "/"]
+				} elseif {[string equal $name "live"]} {
+					set live [is_true $value]
 				}
 			}
 		}
-		set plen [expr [llength $path] - 1]
-		
-		
-		if {[lindex $path 1] == "login"} {
-			set data [read stdin $env(CONTENT_LENGTH)]
-			regexp {\"username\"\s*:\s*\"([^\"]*)\"} $data match username
-			regexp {\"password\"\s*:\s*\"([^\"]*)\"} $data match password
-			set sid [login $username $password]
-			return "\"${sid}\""
+	}
+	set method "GET"
+	if {[info exists env(REQUEST_METHOD)]} { set method $env(REQUEST_METHOD) }
+
+	set raw ""
+	if {[info exists env(CONTENT_LENGTH)] && [string is integer -strict $env(CONTENT_LENGTH)] && $env(CONTENT_LENGTH) > 0} {
+		fconfigure stdin -translation binary -encoding utf-8
+		set raw [read stdin $env(CONTENT_LENGTH)]
+	}
+	array set B {}
+	set trimmed [string trim $raw]
+	if {$trimmed != "" && ![string equal $trimmed "null"]} {
+		if {[catch {::hue::json::parse $raw B}]} {
+			error "Invalid JSON in request" "Bad Request" 400
 		}
-		
-		if {![check_session $sid]} {
-			error "Invalid session" "Unauthorized" 401
+	}
+
+	set p0 [lindex $path 0]
+	set plen [llength $path]
+
+	if {[string equal $p0 "login"]} {
+		return [jstr [login [arg username] [arg password]]]
+	}
+	if {![check_session $sid]} {
+		error "Invalid session" "Unauthorized" 401
+	}
+
+	switch -- $p0 {
+		get_session {
+			return [jstr [get_session $sid]]
 		}
-		
-		set data ""
-		if { [info exists env(CONTENT_LENGTH)] } {
-			set data [read stdin $env(CONTENT_LENGTH)]
+		version {
+			return [jstr [hue::version]]
 		}
-		
-		if {[lindex $path 1] == "get_session"} {
-			return "\"[get_session $sid]\""
-		} elseif {[lindex $path 1] == "version"} {
-			return "\"[hue::version]\""
-		} elseif {[lindex $path 1] == "test-command"} {
-			regexp {\"command\"\s*:\s*\"(.*)\"} $data match command
-			set exitcode 0
-			set output ""
-			if {! [regexp {^/usr/local/addons/hue/hue.tcl( |$)} $command] } {
-				set exitcode 1
-				set output "Invalid command: ${command}"
+		test-command {
+			# {"args": [...]} or a command line {"command": "/usr/local/addons/hue/hue.tcl ..."}
+			set language [arg language "en"]
+			if {[info exists B(args/#)]} {
+				set cmd_args [list]
+				for {set i 0} {$i < $B(args/#)} {incr i} {
+					lappend cmd_args [arg args/$i]
+				}
 			} else {
-				set exitcode [catch {
-					regexp {\"language\"\s*:\s*\"([^\"]+)\"} $data match language
-					set ::env(LANGUAGE) $language
-					set command [string map {\\\" \"} $command]
-					exec /bin/sh -c $command
-				} output]
-				set output [json_string $output]
-			}
-			return "\{\"exitcode\":${exitcode},\"output\":\"${output}\"\}"
-		} elseif {[lindex $path 1] == "discover-bridges"} {
-			set bridges [hue::discover_bridges]
-			set json "\["
-			if {[llength $bridges] > 0} {
-				foreach b $bridges {
-					append json "\{\"ip\":\"[lindex $b 0]\",\"port\":[lindex $b 1]\},"
+				set command [string trim [arg command]]
+				if {[catch {llength $command}] || ![regexp {^[^ ]*hue\.tcl$} [lindex $command 0]]} {
+					return [jobj exitcode 1 output [jstr "Invalid command: ${command}"]]
 				}
-				set json [string range $json 0 end-1]
+				set cmd_args [lrange $command 1 end]
 			}
-			append json "\]"
-			return $json
-		} elseif {[lindex $path 1] == "establish-link"} {
-			regexp {\"ip\"\s*:\s*\"([^\"]+)\"} $data match ip
-			if {! [regexp {\"port\"\s*:\s*(\d+)} $data match port]} {
-				set port 80
+			return [run_hue_command $cmd_args $language]
+		}
+		discover-bridges {
+			set items [list]
+			foreach b [hue::discover_bridges] {
+				lappend items [jobj ip [jstr [lindex $b 0]] port [lindex $b 1]]
 			}
-			set username [hue::api_establish_link $ip $port]
-			set config [hue::api_request "info" $ip $port $username "GET" "config"]
-			regexp {\"name\"\s*:\s*\"([^\"]+)\"} $config match name
-			regexp {\"bridgeid\"\s*:\s*\"([^\"]+)\"} $config match bridgeid
-			hue::api_request "command" $ip $port $username "PUT" "groups/0/action" "\{\"alert\":\"select\"\}"
-			set username [json_string $username]
-			set name [json_string $name]
-			set bridgeid [json_string $bridgeid]
-			return "\{\"username\":\"${username}\",\"name\":\"${name}\"\,\"bridgeid\":\"${bridgeid}\",\"port\":${port}\}"
-		} elseif {[lindex $path 1] == "rgb-to-xybri"} {
-			regexp {\"red\"\s*:\s*(\d+)} $data match red
-			regexp {\"green\"\s*:\s*(\d+)} $data match green
-			regexp {\"blue\"\s*:\s*(\d+)} $data match blue
-			if {! [regexp {\"color_gamut\"\s*:\s*\"([^\"]+)\"} $data match color_gamut] } {
-				set color_gamut ""
+			return [jarr $items]
+		}
+		establish-link {
+			set ip [arg ip]
+			set port [arg port 80]
+			if {$ip == "" || ![string is integer -strict $port]} { error "IP address or port missing" "Bad Request" 400 }
+			set link [hue::api_establish_link $ip $port]
+			set username [lindex $link 0]
+			set clientkey [lindex $link 1]
+			::hue::json::parse [hue::api_request "info" $ip $port $username "GET" "config"] C
+			set name [::hue::json::get C name]
+			set bridgeid [string tolower [::hue::json::get C bridgeid]]
+			catch { hue::api_request "command" $ip $port $username "PUT" "groups/0/action" "\{\"alert\":\"select\"\}" }
+			return [jobj username [jstr $username] clientkey [jstr $clientkey] name [jstr $name] bridgeid [jstr $bridgeid] port $port \
+				apiversion [jstr [::hue::json::get C apiversion]] modelid [jstr [::hue::json::get C modelid]]]
+		}
+		rgb-to-xybri {
+			set r [hue::rgb_to_xybri [arg red 0] [arg green 0] [arg blue 0] [arg color_gamut]]
+			return [jobj x [lindex $r 0] y [lindex $r 1] bri [lindex $r 2]]
+		}
+		get-cuxd-device-map {
+			set items [list]
+			foreach {cuxd_device o} [hue::get_cuxd_device_map] {
+				foreach {bridge_id type id} [split $o "_"] break
+				lappend items [jobj bridge_id [jstr $bridge_id] type [jstr $type] id [jstr $id] cuxd_device [jstr $cuxd_device]]
 			}
-			set res [hue::rgb_to_xybri $red $green $blue $color_gamut]
-			set x [lindex $res 0]
-			set y [lindex $res 1]
-			set bri [lindex $res 2]
-			return "\{\"x\":${x},\"y\":${y},\"bri\":${bri}\}"
-		} elseif {[lindex $path 1] == "get-cuxd-device-map"} {
-			set dmap ""
-			array set cuxd_device_map [hue::get_cuxd_device_map]
-			foreach { cuxd_device o } [array get cuxd_device_map] {
-				set tmp [split $o "_"]
-				set bridge_id [lindex $tmp 0]
-				set type [lindex $tmp 1]
-				set id [lindex $tmp 2]
-				if {$dmap != ""} {
-					set dmap "${dmap},"
+			return [jarr $items]
+		}
+		get-used-cuxd-device-serials {
+			return [jarr [hue::get_used_cuxd_device_serials [arg dtype 28] [arg dtype2 0]]]
+		}
+		create-cuxd-device {
+			set type [arg type]
+			set serial [arg serial 0]
+			set name [arg name]
+			set bridge_id [arg bridge_id]
+			set obj_type [arg obj_type]
+			set obj_id [arg obj_id]
+			set transitiontime [arg transitiontime]
+			if {[lsearch -exact {switch rgbw dimmer} $type] < 0 || [lsearch -exact {light group} $obj_type] < 0 \
+					|| ![regexp {^[0-9a-fA-F\-]+$} $obj_id] || ![regexp {^[0-9a-zA-Z]+$} $bridge_id]} {
+				error "Invalid device type or object" "Bad Request" 400
+			}
+			if {![string is integer -strict $serial] || ($transitiontime != "" && ![string is integer -strict $transitiontime])} {
+				error "Invalid serial or transition time" "Bad Request" 400
+			}
+			if {[regexp {['"\\]} $name]} {
+				error "The name must not contain quotes or backslashes" "Bad Request" 400
+			}
+			# Bulk creation: never create a second device for the same light or group
+			if {[is_true [arg skip_existing false]]} {
+				set existing [hue::find_cuxd_devices $bridge_id $obj_type $obj_id]
+				if {[llength $existing] > 0} {
+					return [jobj device [jstr [lindex $existing 0]] created false]
 				}
-				set dmap "${dmap}\{\"bridge_id\":\"${bridge_id}\",\"type\":\"${type}\",\"id\":\"${id}\",\"cuxd_device\":\"${cuxd_device}\"\}"
 			}
-			return "\[${dmap}\]"
-		} elseif {[lindex $path 1] == "get-used-cuxd-device-serials"} {
-			regexp {\"dtype\"\s*:\s*(\d+)} $data match dtype
-			set dtype2 0
-			regexp {\"dtype2\"\s*:\s*(\d+)} $data match dtype2
-			set serials [hue::get_used_cuxd_device_serials $dtype $dtype2]
-			set res [join $serials ", "]
-			return "\[${res}\]"
-		} elseif {[lindex $path 1] == "create-cuxd-device"} {
-			regexp {\"type\"\s*:\s*\"([^\"]+)\"} $data match type
-			regexp {\"serial\"\s*:\s*(\d+)} $data match serial
-			regexp {\"name\"\s*:\s*\"([^\"]+)\"} $data match name
-			regexp {\"bridge_id\"\s*:\s*\"([^\"]+)\"} $data match bridge_id
-			regexp {\"obj_type\"\s*:\s*\"([^\"]+)\"} $data match obj_type
-			regexp {\"obj_id\"\s*:\s*(\d+)} $data match obj_id
-			regexp {\"transitiontime\"\s*:\s*(\d+|null)} $data match transitiontime
-			if {$transitiontime == "null"} {
-				set transitiontime ""
-			}
-			if {$type == "dimmer"} {
-				regexp {\"ct_min\"\s*:\s*(\d+)} $data match ct_min
-				regexp {\"ct_max\"\s*:\s*(\d+)} $data match ct_max
-				regexp {\"color\"\s*:\s*(false|true)} $data match color
-				if {$color == "true"} {
-					set color 1
-				} else {
-					set color 0
-				}
-				set res [hue::create_cuxd_dimmer_device $sid $serial $name $bridge_id $obj_type $obj_id $ct_min $ct_max $color $transitiontime]
+			if {[string equal $type "dimmer"]} {
+				set color [is_true [arg color false]]
+				set res [hue::create_cuxd_dimmer_device $sid $serial $name $bridge_id $obj_type $obj_id [arg ct_min 153] [arg ct_max 500] $color $transitiontime]
 			} else {
 				set res [hue::create_cuxd_device $sid $type $serial $name $bridge_id $obj_type $obj_id $transitiontime]
 			}
-			hue::hued_command "reload"
-			return "\"${res}\""
-		} elseif {[lindex $path 1] == "config"} {
-			if {$plen == 1} {
-				if {$env(REQUEST_METHOD) == "GET"} {
-					return [hue::get_config_json]
-				}
-			} elseif {[lindex $path 2] == "global"} {
-				if {$env(REQUEST_METHOD) == "PUT"} {
-					regexp {"log_level"\s*:\s*"([^"]+)"} $data match log_level
-					regexp {"api_log"\s*:\s*"([^"]+)"} $data match api_log
-					regexp {"api_connect_timeout"\s*:\s*"([^"]+)"} $data match api_connect_timeout
-					regexp {"poll_state_interval"\s*:\s*"([^"]+)"} $data match poll_state_interval
-					regexp {"unreachable_update_mode"\s*:\s*"([^"]+)"} $data match unreachable_update_mode
-					regexp {"reflect_bri_in_rgb"\s*:\s*(false|true)} $data match reflect_bri_in_rgb
-					regexp {"full_bri_when_turning_on"\s*:\s*(false|true)} $data match full_bri_when_turning_on
-					regexp {"group_throttling_settings"\s*:\s*"([^"]+)"} $data match group_throttling_settings
-					regexp {"remove_transitiontime_when_turning_off"\s*:\s*"([^"]+)"} $data match remove_transitiontime_when_turning_off
-					# Optional new global fields
-					set api_version ""
-					set https_verify ""
-					if {[regexp {"api_version"\s*:\s*"([^"]+)"} $data match tmp]} { set api_version $tmp }
-					if {[regexp {"https_verify"\s*:\s*"([^"]+)"} $data match tmp2]} { set https_verify $tmp2 }
-					hue::update_global_config $log_level $api_log $poll_state_interval $unreachable_update_mode $api_connect_timeout $group_throttling_settings $remove_transitiontime_when_turning_off $reflect_bri_in_rgb $full_bri_when_turning_on $api_version $https_verify
-					catch {
-						hue::hued_command "reload"
+			catch { hue::hued_command "reload" }
+			return [jobj device [jstr $res] created true]
+		}
+		create-sysvars {
+			# Create system variables for all sensors of a bridge
+			set bridge_id [string tolower [arg bridge_id]]
+			if {![regexp {^[0-9a-z]+$} $bridge_id]} { error "Invalid bridge id" "Bad Request" 400 }
+			hue::v2::load $bridge_id
+			set created 0
+			foreach s [hue::v2::sensor_list $bridge_id] {
+				if {[string equal [hue::create_sysvar [lindex $s 0] [lindex $s 2] "Hue [lindex $s 3]"] "created"]} { incr created }
+			}
+			catch { hue::hued_command "reload" }
+			return [jobj created $created]
+		}
+		config {
+			if {$plen == 1 && [string equal $method "GET"]} {
+				return [hue::get_config_json]
+			}
+			if {[string equal [lindex $path 1] "global"] && [string equal $method "PUT"]} {
+				set settings [list]
+				foreach {k spec} [hue::global_config_keys] {
+					if {[info exists B($k)]} {
+						lappend settings $k $B($k)
 					}
-					return "\"Global config successfully updated\""
 				}
-			} elseif {$plen == 3 && [lindex $path 2] == "bridge"} {
-				if {$env(REQUEST_METHOD) == "PUT"} {
-					set id [lindex $path 3]
-					# parse bridge fields from payload
-					regexp {\"name\"\s*:\s*\"([^\"]+)\"} $data match name
-					regexp {\"ip\"\s*:\s*\"([^\"]+)\"} $data match ip
-					regexp {\"username\"\s*:\s*\"([^\"]+)\"} $data match username
-					if {! [regexp {\"port\"\s*:\s*(\d+)} $data match port]} {
-						set port 80
+				if {[catch {hue::update_global_config $settings} err]} {
+					error $err "Bad Request" 400
+				}
+				catch { hue::hued_command "reload" }
+				return [jstr "Global config successfully updated"]
+			}
+			if {$plen == 3 && [string equal [lindex $path 1] "bridge"]} {
+				set id [string tolower [lindex $path 2]]
+				if {![regexp {^[0-9a-z]+$} $id]} { error "Invalid bridge id" "Bad Request" 400 }
+				if {[string equal $method "PUT"]} {
+					foreach k {name ip username} {
+						if {[regexp "\[\n\r\]" [arg $k]]} { error "Invalid ${k}" "Bad Request" 400 }
 					}
-					hue::create_bridge $id $name $ip $username $port
-					return "\"Bridge ${id} successfully created\""
-				} elseif {$env(REQUEST_METHOD) == "DELETE"} {
-					set id [lindex $path 3]
+					set port [arg port 80]
+					if {![string is integer -strict $port]} { error "Invalid port" "Bad Request" 400 }
+					hue::create_bridge $id [arg name] [arg ip] [arg username] $port
+					foreach k {clientkey https_port} {
+						if {[regexp {^[0-9a-zA-Z]+$} [arg $k]]} { hue::set_bridge_param $id $k [arg $k] }
+					}
+					catch { hue::hued_command "reload" }
+					return [jstr "Bridge ${id} successfully saved"]
+				} elseif {[string equal $method "DELETE"]} {
 					hue::delete_bridge $id
-					return "\"Bridge ${id} successfully deleted\""
+					catch { hue::hued_command "reload" }
+					return [jstr "Bridge ${id} successfully deleted"]
 				}
 			}
-		} elseif {[lindex $path 1] == "bridges"} {
-			if {$plen == 3} {
-				if {[lindex $path 3] == "request"} {
-					set id [lindex $path 2]
-					regexp {\"method\"\s*:\s*\"([^\"]+)\"} $data match method
-					regexp {\"path\"\s*:\s*\"([^\"]+)\"} $data match path
-					regexp {\"data\"\s*:\s*(.*)\}} $data match data
-					if {$data == "null"} {
-						set data ""
+		}
+		bridges {
+			set id [string tolower [lindex $path 1]]
+			set action [lindex $path 2]
+			if {$plen != 3 || ![regexp {^[0-9a-z]+$} $id]} { error "invalid request" "Not found" 404 }
+			switch -- $action {
+				info {
+					return [bridge_json $id]
+				}
+				objects {
+					# live=1: quick answer from hued's cache (polled by the UI), else a fresh load
+					if {$live} {
+						if {![catch {hue::hued_command "objects" [list $id]} r] && [string index [string trim $r] 0] == "\{"} {
+							return [string trim $r]
+						}
 					}
-					# Perform request and ensure JSON is returned to the frontend
-					# If bridge is configured with SSL (port 443) but UI sends v1 endpoints,
-					# route v1 over HTTP (port 80) to avoid sending plain HTTP to HTTPS port.
-					# Heuristic: treat as v1 if path does not start with "resource/" (CLIPv2) and is typical v1 like config/lights/groups/scenes...
-					set resp ""
-					set is_v2_path [regexp {^\s*/?resource/} $path]
-					if {$is_v2_path} {
-						# Use CLIPv2 over HTTPS via curl
-						set resp [hue::request_v2 "status" $id $method $path $data]
-					} else {
-						# v1 style: use HTTP. If bridge port is 443, force port 80 for this request
-						set abridge [hue::get_bridge $id]
-						array set bridge $abridge
-						set req_port $bridge(port)
-						if {$req_port == ""} { set req_port 80 }
-						if {[string is integer -strict $req_port] && $req_port == 443} { set req_port 80 }
-						# hue::api_request handles leading slash in path itself
-						set resp [hue::api_request "command" $bridge(ip) $req_port $bridge(username) $method $path $data]
+					return [hue::objects_json $id]
+				}
+				repin {
+					# Read the TLS key again, e.g. after replacing the bridge
+					hue::set_bridge_param $id "tls_pubkey_sha256" ""
+					array set b [hue::v2::bridge_info $id]
+					set pin [hue::v2::fetch_pin $id $b(ip) $b(https_port)]
+					catch { hue::hued_command "reload" }
+					return [jobj pin [jstr $pin]]
+				}
+				request {
+					# Raw API request from the UI. data is a JSON document as string.
+					set rmethod [string toupper [arg method GET]]
+					set rpath [string trim [arg path]]
+					set data [arg data]
+					if {[lsearch -exact {GET PUT POST DELETE} $rmethod] < 0} { error "Invalid method" "Bad Request" 400 }
+					if {[regexp {^/?(clip/v2/)?resource(/|$)} $rpath]} {
+						regsub {^/?(clip/v2/)?} $rpath "" rpath
+						return [hue::v2::request_raw "command" $id $rmethod $rpath $data]
 					}
-					# If the bridge (or a proxy) returns an HTML page, wrap it as a JSON error
-					if {[regexp {^\s*<} $resp]} {
-						# Return a proper JSON error so the UI doesn't try to JSON.parse HTML
+					set resp [hue::request "command" $id $rmethod $rpath $data]
+					if {[regexp {^[ \t\r\n]*<} $resp]} {
 						error "Bridge response is not JSON: [string range $resp 0 200]" "Bad Gateway" 502
 					}
 					return $resp
 				}
 			}
-		} elseif {[lindex $path 1] == "hued"} {
-			if {[lindex $path 2] == "pid"} {
-				set pid ""
-				catch {
-					set pid [exec pidof hued.tcl]
+		}
+		hued {
+			switch -- [lindex $path 1] {
+				pid {
+					return [jstr [hued_running]]
 				}
-				if {$pid == ""} {
-					catch {
-						set pid [exec pidof -x hued.tcl]
-					}
+				status {
+					set st ""
+					catch { set st [hue::hued_command "status"] }
+					return [jstr $st]
 				}
-				return "\"${pid}\""
-			} elseif {[lindex $path 2] == "restart"} {
-				exec /usr/local/addons/hue/hued.tcl
-				after 500
-				return "\"OK\""
+				restart {
+					exec [file join $::hue::addon_dir hued.tcl]
+					after 500
+					return [jstr "OK"]
+				}
 			}
-		} elseif {[lindex $path 1] == "truncate-log"} {
+		}
+		truncate-log {
 			hue::truncate_log
-			return "\"OK\""
+			return [jstr "OK"]
+		}
+		update {
+			switch -- [lindex $path 1] {
+				check {
+					set u [hue::update::check]
+					return [jobj installed [jstr [lindex $u 0]] latest [jstr [lindex $u 1]] available [jbool [lindex $u 2]] \
+						url [jstr "https://github.com/${::hue::update_repo}/releases/latest"]]
+				}
+				install {
+					if {![string equal $method "POST"]} { error "POST required" "Method Not Allowed" 405 }
+					return [jobj installing [jstr [hue::update::install]]]
+				}
+			}
 		}
 	}
 	error "invalid request" "Not found" 404
 }
 
-if [catch {process} result] {
+fconfigure stdout -translation binary -encoding utf-8
+array set http_status {"Bad Request" 400 "Unauthorized" 401 "Not found" 404 "Method Not Allowed" 405 "Bad Gateway" 502 "Service Unavailable" 503}
+if {[catch {process} result]} {
 	set status 500
-	if { [regexp {^\d+$} $errorCode ] } {
+	if {[regexp {^[0-9]+$} $errorCode]} {
 		set status $errorCode
+	} elseif {[info exists http_status($errorCode)]} {
+		set status $http_status($errorCode)
 	}
-	puts "Content-Type: application/json"
-	puts "Status: $status";
-	puts ""
-	set result [json_string $result]
-	puts -nonewline "\{\"error\":\"${result}\"\}"
+	puts -nonewline "Content-Type: application/json\r\nStatus: ${status}\r\n\r\n"
+	puts -nonewline [jobj error [jstr $result]]
 } else {
-	puts "Content-Type: application/json"
-	puts "Status: 200 OK";
-	puts ""
+	puts -nonewline "Content-Type: application/json\r\nStatus: 200 OK\r\n\r\n"
 	puts -nonewline $result
 }

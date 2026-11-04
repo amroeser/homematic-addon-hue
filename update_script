@@ -1,64 +1,77 @@
 #!/bin/sh
+# Installs or updates the Philips Hue addon.
+# Called by the CCU (Zusatzsoftware) with the platform as $1, or by the addon's one-click update.
+# Existing settings (etc/hue.conf) are kept. CUxD devices are not touched.
 
 ADDON_NAME=hue
 CONFIG_DIR=/usr/local/etc/config
 ADDON_DIR=/usr/local/addons/${ADDON_NAME}
 RCD_DIR=${CONFIG_DIR}/rc.d
 LOG_FILE=/tmp/${ADDON_NAME}-install.log
+CONF_BACKUP=${CONFIG_DIR}/${ADDON_NAME}.conf.bak
 
+: > $LOG_FILE
 exec 1<&-
 exec 2<&-
 exec 1<>$LOG_FILE
 exec 2>&1
 
-echo "starting installation of addon ${ADDON_NAME} at $(date)" >>$LOG_FILE
-echo $@ >>$LOG_FILE
+echo "starting installation of addon ${ADDON_NAME} $(cat VERSION 2>/dev/null) at $(date)"
+echo "arguments: $@"
 
-echo "mount /usr/local if not already mounted" >>$LOG_FILE
+echo "mount /usr/local if not already mounted"
 mount | grep /usr/local 2>&1 >/dev/null || mount /usr/local
 
-echo "backup existing config file" >>$LOG_FILE
-[ -e "/tmp/${ADDON_NAME}.conf" ] && rm "/tmp/${ADDON_NAME}.conf"
-[ -e "${ADDON_DIR}/etc/${ADDON_NAME}.conf" ] && cp "${ADDON_DIR}/etc/${ADDON_NAME}.conf" "/tmp/${ADDON_NAME}.conf"
+# Runs on the CCU3 firmware (Tcl 8.2) as well as on OpenCCU / RaspberryMatic (Tcl 8.6).
+# Check the interpreter before anything is replaced, so a broken system keeps the installed version.
+if ! echo 'puts ok' | tclsh 2>/dev/null | grep -q ok; then
+	echo "ERROR: tclsh not working. Nothing was changed."
+	exit 1
+fi
+echo "tcl: $(echo 'puts [info patchlevel]' | tclsh 2>/dev/null)"
 
-echo "create directories" >>$LOG_FILE
+echo "backup existing config file"
+[ -e "/tmp/${ADDON_NAME}.conf" ] && rm "/tmp/${ADDON_NAME}.conf"
+if [ -e "${ADDON_DIR}/etc/${ADDON_NAME}.conf" ]; then
+	cp "${ADDON_DIR}/etc/${ADDON_NAME}.conf" "/tmp/${ADDON_NAME}.conf"
+	# Second copy outside the addon directory, survives a failed installation
+	cp "${ADDON_DIR}/etc/${ADDON_NAME}.conf" "${CONF_BACKUP}"
+elif [ -e "${CONF_BACKUP}" ]; then
+	echo "no config in addon directory, using ${CONF_BACKUP}"
+	cp "${CONF_BACKUP}" "/tmp/${ADDON_NAME}.conf"
+fi
+
+echo "stop daemon"
+[ -x "${ADDON_DIR}/hued.tcl" ] && "${ADDON_DIR}/hued.tcl" stop
+
+echo "create directories"
 [ -e "${ADDON_DIR}" ] && rm -rf "${ADDON_DIR}"
 mkdir -p "${ADDON_DIR}"
 chmod 755 "${ADDON_DIR}"
 [ -e "${RCD_DIR}" ] || (mkdir -p "${RCD_DIR}"; chmod 755 "${RCD_DIR}")
 
-echo "install addon files" >>$LOG_FILE
+echo "install addon files"
 [ -d addon ] && cp -af addon/* ${ADDON_DIR}/
-[ -f "${ADDON_DIR}/hue.tcl" ] && chmod 755 "${ADDON_DIR}/hue.tcl"
-[ -f "${ADDON_DIR}/hued.tcl" ] && chmod 755 "${ADDON_DIR}/hued.tcl"
+for f in hue.tcl hued.tcl www/rest.cgi www/update.cgi www/log.cgi www/debug.cgi; do
+	[ -f "${ADDON_DIR}/${f}" ] && chmod 755 "${ADDON_DIR}/${f}"
+done
 [ -f VERSION ] && cp VERSION ${ADDON_DIR}/
 
-echo "restore config file" >>$LOG_FILE
+echo "restore config file"
 [ -e "/tmp/${ADDON_NAME}.conf" ] && mv "/tmp/${ADDON_NAME}.conf" "${ADDON_DIR}/etc/${ADDON_NAME}.conf"
 
-echo "install ccu dependent files" >>$LOG_FILE
-if [ "$1" = "" ]; then
-	[ -d "ccu1" ] && cp -af ccu1/* "${ADDON_DIR}/"
-elif [ "$1" = "CCU2" ]; then
-	[ -d "ccu2" ] && cp -af ccu2/* "${ADDON_DIR}/"
-elif [ "$1" = "CCU3" ]; then
-	[ -d "ccu3" ] && cp -af ccu3/* "${ADDON_DIR}/"
-elif [ "$1" == "HM-RASPBERRYMATIC" ]; then
-	[ -d "ccu3" ] && cp -af ccu3/* "${ADDON_DIR}/"
-fi
-
-echo "link www files" >>$LOG_FILE
+echo "link www files"
 if [ -d "${ADDON_DIR}/www" -a ! -e "${CONFIG_DIR}/addons/www/${ADDON_NAME}" ]; then
 	ln -sf "${ADDON_DIR}/www" "${CONFIG_DIR}/addons/www/${ADDON_NAME}"
 fi
 
-echo "copy rc.d script" >>$LOG_FILE
+echo "copy rc.d script"
 if [ -e ${ADDON_NAME} ]; then
 	cp -af ${ADDON_NAME} "${RCD_DIR}/"
 	chmod 755 "${RCD_DIR}/${ADDON_NAME}"
 fi
 
-echo "add menu entry" >>$LOG_FILE
+echo "add menu entry"
 touch "${CONFIG_DIR}/hm_addons.cfg"
 if [ -x /bin/updateAddonConfig.tcl ]; then
 	/bin/updateAddonConfig.tcl -a hue -url /addons/hue/index.html -name "Philips Hue" -de "Philips Hue Steuerung" -en "Philips Hue control"
@@ -69,24 +82,18 @@ fi
 sync
 
 if [ -e /usr/local/etc/config/rc.d/cuxdaemon -a -e /usr/local/addons/cuxd/cuxd.ini ]; then
-	echo "cuxd config" >>$LOG_FILE
-	/usr/local/etc/config/rc.d/cuxdaemon stop
-	grep -v "LEVEL-FILTER" /usr/local/addons/cuxd/cuxd.ini > /usr/local/addons/cuxd/cuxd.ini.tmphue
-	echo "LEVEL-FILTER=0" >> /usr/local/addons/cuxd/cuxd.ini.tmphue
-	mv /usr/local/addons/cuxd/cuxd.ini.tmphue /usr/local/addons/cuxd/cuxd.ini
-	/usr/local/etc/config/rc.d/cuxdaemon start
+	if ! grep -q "^LEVEL-FILTER=0" /usr/local/addons/cuxd/cuxd.ini; then
+		echo "cuxd config"
+		/usr/local/etc/config/rc.d/cuxdaemon stop
+		grep -v "LEVEL-FILTER" /usr/local/addons/cuxd/cuxd.ini > /usr/local/addons/cuxd/cuxd.ini.tmphue
+		echo "LEVEL-FILTER=0" >> /usr/local/addons/cuxd/cuxd.ini.tmphue
+		mv /usr/local/addons/cuxd/cuxd.ini.tmphue /usr/local/addons/cuxd/cuxd.ini
+		/usr/local/etc/config/rc.d/cuxdaemon start
+	fi
 fi
 
-if [ "$1" = "" ]; then
-	echo "running on CCU1, rebooting"
-	echo "x" > /dev/watchdog
-	reboot
-	while true; do
-		sleep 1
-	done
-else
-	echo "(re)starting hued"
-	/usr/local/addons/hue/hued.tcl
-fi
+echo "(re)starting hued"
+/usr/local/addons/hue/hued.tcl
 
+echo "installation finished at $(date)"
 exit 0

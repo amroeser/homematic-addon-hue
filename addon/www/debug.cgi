@@ -17,8 +17,9 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-load tclrega.so
-source /usr/local/addons/hue/lib/hue.tcl
+set addon_dir "/usr/local/addons/hue"
+if {[info exists ::env(HUE_ADDON_DIR)]} { set addon_dir $::env(HUE_ADDON_DIR) }
+source [file join $addon_dir lib hue.tcl]
 package require http
 
 proc get_session {sid} {

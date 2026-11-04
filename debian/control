@@ -1,12 +1,12 @@
 Source: hue
 Section: debmatic-addons
 Priority: extra
-Maintainer: Jan Schneider <oss@janschneider.net>
-Homepage: https://github.com/j-a-n/homematic-addon-hue
+Maintainer: Alexander Maximilian Röser <info@alexanderroeser.de>
+Homepage: https://github.com/amroeser/homematic-addon-hue
 Build-Depends: debhelper (>= 4.0.0)
 
 Package: hue
 Section: debmatic-addons
 Architecture: amd64
-Depends: debmatic, cuxd, systemd, curl
+Depends: debmatic, cuxd, systemd, curl, openssl
 Description: Hue addon for debmatic

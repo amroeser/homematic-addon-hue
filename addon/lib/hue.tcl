@@ -18,14 +18,25 @@
 #  hue api docs:
 #    https://developers.meethue.com/documentation/getting-started
 
-load tclrega.so
-load tclrpc.so
+# HUE_ADDON_DIR / HUE_TEST are used by the test suite only
+set ::hue_addon_dir "/usr/local/addons/hue"
+if {[info exists ::env(HUE_ADDON_DIR)]} {
+	set ::hue_addon_dir $::env(HUE_ADDON_DIR)
+}
+if {[info exists ::env(HUE_TEST)]} {
+	source [file join $::hue_addon_dir .. test stubs.tcl]
+} else {
+	load tclrega.so
+	load tclrpc.so
+}
 
-source /usr/local/addons/hue/lib/ini.tcl
+source [file join $::hue_addon_dir lib ini.tcl]
+source [file join $::hue_addon_dir lib json.tcl]
 
 namespace eval hue {
-	variable version_file "/usr/local/addons/hue/VERSION"
-	variable ini_file "/usr/local/addons/hue/etc/hue.conf"
+	variable addon_dir $::hue_addon_dir
+	variable version_file [file join $addon_dir VERSION]
+	variable ini_file [file join $addon_dir etc hue.conf]
 	variable log_file "/tmp/hue-addon-log.txt"
 	variable log_level_default 0
 	variable log_level $log_level_default
@@ -72,6 +83,16 @@ namespace eval hue {
 	# - fingerprint: pin bridge public key (per-bridge key 'tls_pubkey_sha256')
 	variable https_verify_default "fingerprint"
 	variable https_verify $https_verify_default
+	# Receive state changes from the CLIP v2 event stream instead of waiting for the next poll
+	variable eventstream_default 1
+	variable eventstream $eventstream_default
+	variable update_repo "amroeser/homematic-addon-hue"
+	if {[info exists ::env(HUE_CONF)]} { set ini_file $::env(HUE_CONF) }
+	if {[info exists ::env(HUE_LOG_FILE)]} { set log_file $::env(HUE_LOG_FILE) }
+	if {[info exists ::env(HUED_PORT)]} { set hued_port $::env(HUED_PORT) }
+	if {[info exists ::env(HUED_ADDRESS)]} { set hued_address $::env(HUED_ADDRESS) }
+	if {[info exists ::env(HUE_LOCK_PORT)]} { set lock_start_port $::env(HUE_LOCK_PORT) }
+	if {![file exists $version_file]} { set version_file [file join $addon_dir .. VERSION] }
 }
 
 # Return path to curl binary used by the addon
@@ -82,211 +103,6 @@ proc ::hue::curl_bin {} {
 	}
 	return $curl
 }
-
-# Build and cache v1->v2 id maps for lights, groups (rooms/zones -> grouped_light), and scenes
-proc ::hue::build_v1_v2_index {bridge_id} {
-	variable v2_index_lights
-	variable v2_index_groups
-	variable v2_index_scenes
-
-	# Initialize arrays if not yet
-	if {![info exists v2_index_lights]} { array set v2_index_lights {} }
-	if {![info exists v2_index_groups]} { array set v2_index_groups {} }
-	if {![info exists v2_index_scenes]} { array set v2_index_scenes {} }
-
-	# helper to set array key
-	set lid "${bridge_id}::"
-
-	# Lights: scan id_v1 and nearest id
-	set res [catch { request_v2 "status" $bridge_id "GET" "resource/light" } data]
-	if {$res == 0} {
-		set flat [string map {"\n" "" "\r" ""} $data]
-		set pos 0
-		while {1} {
-			set idx [string first "\"id_v1\":\"/lights/" $flat $pos]
-			if {$idx < 0} { break }
-			set num_start [expr {$idx + [string length "\"id_v1\":\"/lights/"]}]
-			set num_end [string first "\"" $flat $num_start]
-			if {$num_end < 0} { break }
-			set v1id [string range $flat $num_start [expr {$num_end - 1}]]
-			# search backwards a limited window for the id field
-			set back_start [expr {$idx - 800}]
-			if {$back_start < 0} { set back_start 0 }
-			set window [string range $flat $back_start [expr {$idx + 200}]]
-			set rid ""
-			if {[regexp {"id"\s*:\s*"([^"]+)"} $window -> rid_match]} {
-				set rid $rid_match
-			}
-			if {$rid != "" && [string is integer -strict $v1id]} {
-				set v2_index_lights(${lid}${v1id}) $rid
-			}
-			set pos [expr {$num_end + 1}]
-		}
-	}
-
-	# Rooms and Zones -> grouped_light: find id_v1 group and grouped_light rid in vicinity
-	foreach type {room zone} {
-		set res [catch { request_v2 "status" $bridge_id "GET" "resource/$type" } data]
-		if {$res == 0} {
-			set flat [string map {"\n" "" "\r" ""} $data]
-			set pos 0
-			while {1} {
-				set idx [string first "\"id_v1\":\"/groups/" $flat $pos]
-				if {$idx < 0} { break }
-				set gid_start [expr {$idx + [string length "\"id_v1\":\"/groups/"]}]
-				set gid_end [string first "\"" $flat $gid_start]
-				if {$gid_end < 0} { break }
-				set v1gid [string range $flat $gid_start [expr {$gid_end - 1}]]
-				# search forward a window for grouped_light rid
-				set fwd_end [expr {$gid_end + 1200}]
-				if {$fwd_end > [string length $flat]} { set fwd_end [string length $flat] }
-				set window [string range $flat [expr {$gid_start - 400}] $fwd_end]
-				set glrid ""
-				if {[regexp {"rtype"\s*:\s*"grouped_light"[^\}]*"rid"\s*:\s*"([^"]+)"} $window -> ridm]} {
-					set glrid $ridm
-				}
-				if {$glrid != "" && [string is integer -strict $v1gid]} {
-					set v2_index_groups(${lid}${v1gid}) $glrid
-				}
-				set pos [expr {$gid_end + 1}]
-			}
-		}
-	}
-
-	# Scenes: map id_v1 scene to id (rid)
-	set res [catch { request_v2 "status" $bridge_id "GET" "resource/scene" } data]
-	if {$res == 0} {
-		set flat [string map {"\n" "" "\r" ""} $data]
-		set pos 0
-		while {1} {
-			set idx [string first "\"id_v1\":\"/scenes/" $flat $pos]
-			if {$idx < 0} { break }
-			set sid_start [expr {$idx + [string length "\"id_v1\":\"/scenes/"]}]
-			set sid_end [string first "\"" $flat $sid_start]
-			if {$sid_end < 0} { break }
-			set v1sid [string range $flat $sid_start [expr {$sid_end - 1}]]
-			set back_start [expr {$idx - 800}]
-			if {$back_start < 0} { set back_start 0 }
-			set window [string range $flat $back_start [expr {$idx + 200}]]
-			set rid ""
-			if {[regexp {"id"\s*:\s*"([^"]+)"} $window -> ridm]} {
-				set rid $ridm
-			}
-			if {$rid != "" && $v1sid != ""} {
-				set v2_index_scenes(${lid}${v1sid}) $rid
-			}
-			set pos [expr {$sid_end + 1}]
-		}
-	}
-}
-
-proc ::hue::map_v1_light_id_to_v2 {bridge_id v1id} {
-	variable v2_index_lights
-	set key "${bridge_id}::${v1id}"
-	if {![info exists v2_index_lights($key)]} {
-		build_v1_v2_index $bridge_id
-	}
-	if {[info exists v2_index_lights($key)]} { return $v2_index_lights($key) }
-	return ""
-}
-
-proc ::hue::map_v1_group_id_to_v2 {bridge_id v1gid} {
-	variable v2_index_groups
-	# 0 (all lights) special-case: try bridge_home grouped_light
-	if {$v1gid == 0 || $v1gid == "0"} {
-		set res [catch { request_v2 "status" $bridge_id "GET" "resource/bridge_home" } data]
-		if {$res == 0} {
-			if {[regexp {"services"\s*:\s*\[(.*?)\]} $data -> services] && [regexp {"rtype"\s*:\s*"grouped_light"[^\}]*"rid"\s*:\s*"([^"]+)"} $services -> glrid]} {
-				return $glrid
-			}
-		}
-	}
-	set key "${bridge_id}::${v1gid}"
-	if {![info exists v2_index_groups($key)]} {
-		build_v1_v2_index $bridge_id
-	}
-	if {[info exists v2_index_groups($key)]} { return $v2_index_groups($key) }
-	return ""
-}
-
-proc ::hue::map_v1_scene_to_v2 {bridge_id v1scene} {
-	variable v2_index_scenes
-	set key "${bridge_id}::${v1scene}"
-	if {![info exists v2_index_scenes($key)]} {
-		build_v1_v2_index $bridge_id
-	}
-	if {[info exists v2_index_scenes($key)]} { return $v2_index_scenes($key) }
-	return ""
-}
-
-# Convert legacy v1 param list to a v2 JSON body string for light/grouped_light
-proc ::hue::v1_params_to_v2_body {bridge_id obj_type obj_id aparams} {
-	array set params $aparams
-	set parts [list]
-
-	# Normalize 'on' to JSON boolean and short-circuit for OFF (immediate off)
-	set has_on 0
-	set on_bool ""
-	if {[info exists params(on)]} {
-		set has_on 1
-		set raw $params(on)
-		# Accept 0/1 or true/false
-		if {[string is integer -strict $raw]} {
-			set on_bool [json_bool [expr {$raw != 0}]]
-		} else {
-			set on_bool $raw
-			# ensure lowercase true/false
-			set on_bool [string tolower $on_bool]
-			if {$on_bool ne "true" && $on_bool ne "false"} {
-				# fallback: treat anything non-zero/non-empty as true
-				set on_bool [json_bool 1]
-			}
-		}
-	}
-
-	# If turning off, do NOT include dimming/color to avoid long fades; send only on:false
-	if {$has_on && $on_bool eq "false"} {
-		return "{\"on\":{\"on\":false}}"
-	}
-
-	# on (when true), allow other attributes alongside
-	if {$has_on} {
-		lappend parts "\"on\":{\"on\":${on_bool}}"
-	}
-	# brightness (0..254) -> percent 0..100
-	if {[info exists params(bri)]} {
-		set bri [expr {0 + $params(bri)}]
-		if {$bri < 0} { set bri 0 }
-		if {$bri > 254} { set bri 254 }
-		set pct [expr {round( (double($bri)/254.0) * 100.0 )}]
-		lappend parts "\"dimming\":{\"brightness\":${pct}}"
-	}
-	# color temperature (mirek)
-	if {[info exists params(ct)]} {
-		lappend parts "\"color_temperature\":{\"mirek\":${params(ct)}}"
-	}
-	# xy
-	if {[info exists params(xy)]} {
-		# params(xy) looks like "[x,y]" already
-		set xy $params(xy)
-		# normalize input like "[x,y]" or "x,y"
-		if {![regexp {\[.*\]} $xy]} { set xy "\[$xy\]" }
-		# extract two numbers
-		if {[regexp {\[\s*([0-9\.]+)\s*,\s*([0-9\.]+)\s*\]} $xy -> x y]} {
-			lappend parts "\"color\":{\"xy\":{\"x\":$x,\"y\":$y}}"
-		}
-	}
-	# rgb -> xy (+ optional dimming)
-	# If 'rgb' came in earlier, caller should have translated to xy already (as in addon/hue.tcl)
-
-	set body "\{"
-	if {[llength $parts] > 0} {
-		append body [join $parts ","]
-	}
-	append body "\}"
-	return $body
-}
-
 
 proc json_string {str} {
 	set replace_map {
@@ -819,39 +635,64 @@ proc ::hue::get_config_bridge_ids {} {
 	return $bridge_ids
 }
 
-proc ::hue::update_global_config {log_level api_log poll_state_interval unreachable_update_mode api_connect_timeout group_throttling_settings remove_transitiontime_when_turning_off reflect_bri_in_rgb full_bri_when_turning_on {api_version ""} {https_verify ""}} {
+# Global settings: name {type allowed-values} ...
+proc ::hue::global_config_keys {} {
+	return {
+		log_level {int {}}
+		api_log {enum {off all command status info}}
+		api_connect_timeout {int {}}
+		poll_state_interval {int {}}
+		unreachable_update_mode {enum {set_off as_reachable skip_update}}
+		group_throttling_settings {string {}}
+		remove_transitiontime_when_turning_off {enum {never cuxd always}}
+		reflect_bri_in_rgb {bool {}}
+		full_bri_when_turning_on {bool {}}
+		api_version {enum {auto v1 v2}}
+		https_verify {enum {none fingerprint strict}}
+		eventstream {bool {}}
+	}
+}
+
+# Update global settings from name value pairs. Unknown names and invalid values are rejected.
+proc ::hue::update_global_config {settings} {
 	variable ini_file
 	variable lock_id_ini_file
-
-	write_log 4 "Updating global config: log_level=${log_level} api_log=${api_log} poll_state_interval=${poll_state_interval} unreachable_update_mode=${unreachable_update_mode} api_connect_timeout=${api_connect_timeout} group_throttling_settings=${group_throttling_settings} remove_transitiontime_when_turning_off=${remove_transitiontime_when_turning_off} reflect_bri_in_rgb=${reflect_bri_in_rgb} full_bri_when_turning_on=${full_bri_when_turning_on} api_version=${api_version} https_verify=${https_verify}"
+	array set keys [global_config_keys]
+	set clean [list]
+	foreach {k v} $settings {
+		if {![info exists keys($k)]} {
+			error "Unknown setting ${k}"
+		}
+		set type [lindex $keys($k) 0]
+		set allowed [lindex $keys($k) 1]
+		switch -- $type {
+			int {
+				if {![string is integer -strict $v]} { error "Setting ${k} must be a number" }
+			}
+			bool {
+				if {[lsearch -exact {1 true on yes} $v] >= 0} { set v 1 } else { set v 0 }
+			}
+			enum {
+				if {[lsearch -exact $allowed $v] < 0} { error "Setting ${k} must be one of: [join $allowed {, }]" }
+			}
+			string {
+				if {[regexp "\[\n\r\]" $v]} { error "Setting ${k} must not contain line breaks" }
+			}
+		}
+		lappend clean $k $v
+	}
+	write_log 4 "Updating global config: ${clean}"
 	acquire_lock $lock_id_ini_file
-	set ini [ini::open $ini_file r+]
-	ini::set $ini "global" "log_level" $log_level
-	ini::set $ini "global" "api_log" $api_log
-	ini::set $ini "global" "api_connect_timeout" $api_connect_timeout
-	ini::set $ini "global" "poll_state_interval" $poll_state_interval
-	ini::set $ini "global" "group_throttling_settings" $group_throttling_settings
-	ini::set $ini "global" "remove_transitiontime_when_turning_off" $remove_transitiontime_when_turning_off
-	ini::set $ini "global" "unreachable_update_mode" $unreachable_update_mode
-	if {$reflect_bri_in_rgb == "true" || $reflect_bri_in_rgb == "1"} {
-		ini::set $ini "global" "reflect_bri_in_rgb" "1"
-	} else {
-		ini::set $ini "global" "reflect_bri_in_rgb" "0"
-	}
-	if {$full_bri_when_turning_on == "true" || $full_bri_when_turning_on == "1"} {
-		ini::set $ini "global" "full_bri_when_turning_on" "1"
-	} else {
-		ini::set $ini "global" "full_bri_when_turning_on" "0"
-	}
-	# Optional new keys
-	if {$api_version != ""} {
-		ini::set $ini "global" "api_version" $api_version
-	}
-	if {$https_verify != ""} {
-		ini::set $ini "global" "https_verify" $https_verify
-	}
-	ini::commit $ini
+	set rc [catch {
+		set ini [ini::open $ini_file r+]
+		foreach {k v} $clean {
+			ini::set $ini "global" $k $v
+		}
+		ini::commit $ini
+		ini::close $ini
+	} err]
 	release_lock $lock_id_ini_file
+	if {$rc} { error $err }
 }
 
 proc ::hue::read_global_config {} {
@@ -868,6 +709,7 @@ proc ::hue::read_global_config {} {
 	variable full_bri_when_turning_on
 	variable api_version
 	variable https_verify
+	variable eventstream
 	
 	write_log 4 "Reading global config"
 	acquire_lock $lock_id_ini_file
@@ -885,6 +727,7 @@ proc ::hue::read_global_config {} {
 		# Optional new keys
 		set api_version [::ini::value $ini "global" "api_version" $api_version]
 		set https_verify [::ini::value $ini "global" "https_verify" $https_verify]
+		set eventstream [expr { 0 + [::ini::value $ini "global" "eventstream" $eventstream] }]
 	}
 	ini::close $ini
 	release_lock $lock_id_ini_file
@@ -915,12 +758,15 @@ proc ::hue::get_config_json {} {
 	variable api_version
 	variable https_verify_default
 	variable https_verify
+	variable eventstream_default
+	variable eventstream
 	
-	set cuxd_version [get_cuxd_version]
+	set cuxd_version ""
+	catch { set cuxd_version [get_cuxd_version] }
 	
 	acquire_lock $lock_id_ini_file
 	set ini [ini::open $ini_file r]
-	set json "\{\"cuxd_version\":\"${cuxd_version}\","
+	set json "\{\"version\":\"[json_string [version]]\",\"cuxd_version\":\"[json_string $cuxd_version]\","
 	append json "\"global\":\{"
 	append json "\"log_level\":\{\"default\":${log_level_default},\"value\":${log_level}\},"
 	append json "\"api_log\":\{\"default\":\"${api_log_default}\",\"value\":\"${api_log}\"\},"
@@ -933,6 +779,7 @@ proc ::hue::get_config_json {} {
 	# expose optional new global keys to the UI as well
 	append json "\"api_version\":\{\"default\":\"${api_version_default}\",\"value\":\"${api_version}\"\},"
 	append json "\"https_verify\":\{\"default\":\"${https_verify_default}\",\"value\":\"${https_verify}\"\},"
+	append json "\"eventstream\":\{\"default\":[json_bool $eventstream_default],\"value\":[json_bool $eventstream]\},"
 	append json "\"remove_transitiontime_when_turning_off\":\{\"default\":\"${remove_transitiontime_when_turning_off_default}\",\"value\":\"${remove_transitiontime_when_turning_off}\"\}"
 	append json "\},"
 	append json "\"bridges\":\["
@@ -948,13 +795,13 @@ proc ::hue::get_config_json {} {
 				set value [json_string $value]
 				append json "\"${key}\":\"${value}\","
 			}
-			set json [string range $json 0 end-1]
+			set json [string range $json 0 [expr {[string length $json] - 2}]]
 			append json "\},"
 		}
 	}
 	ini::close $ini
 	if {$count > 0} {
-		set json [string range $json 0 end-1]
+		set json [string range $json 0 [expr {[string length $json] - 2}]]
 	}
 	append json "\]\}"
 	release_lock $lock_id_ini_file
@@ -1121,163 +968,6 @@ proc ::hue::http_request {ip port method path {data ""} {content_type ""} {timeo
 	}
 }
 
-##
-# HTTPS v2 API access helpers (using curl)
-##
-
-# Resolve TLS flags for curl based on global https_verify and per-bridge settings
-proc ::hue::curl_tls_flags {bridge_id} {
-	variable https_verify
-	set flags [list]
-	if { [string equal -nocase $https_verify "none"] } {
-		lappend flags "--insecure"
-	} elseif { [string equal -nocase $https_verify "fingerprint"] } {
-		# Expect per-bridge pinned public key (sha256 base64)
-		set pin [hue::get_bridge_param $bridge_id "tls_pubkey_sha256"]
-		if {$pin != ""} {
-			lappend flags "--pinnedpubkey" "sha256//$pin"
-		} else {
-			# No pin available yet; fall back to insecure to avoid breakage
-			lappend flags "--insecure"
-		}
-	} else {
-		# strict verification (default curl behavior)
-	}
-	return $flags
-}
-
-# Perform a CLIPv2 API request over HTTPS using curl
-proc ::hue::api_request_v2 {type bridge_id ip port appkey method path {data ""}} {
-	variable api_log
-	variable api_connect_timeout
-
-	if {[string first "/" $path] == 0} {
-		set path [string range $path 1 end]
-	}
-	set url "https://$ip:$port/clip/v2/$path"
-
-	set curl [curl_bin]
-	set cmd [list $curl --silent --show-error -H "hue-application-key: $appkey" -H "Content-Type: application/json" -X $method]
-
-	# timeouts (curl expects seconds). api_connect_timeout is milliseconds.
-	set cto_ms $api_connect_timeout
-	if {$cto_ms < 0} { set cto_ms 0 }
-	if {$cto_ms > 0} {
-		set cto_sec [expr {int(ceil(double($cto_ms)/1000.0))}]
-		lappend cmd --connect-timeout $cto_sec --max-time [expr {$cto_sec + 5}]
-	}
-
-	# TLS flags
-	set tls_flags [curl_tls_flags $bridge_id]
-	foreach f $tls_flags { lappend cmd $f }
-
-	# Data
-	if {$data != ""} {
-		lappend cmd --data $data
-	}
-
-	# URL
-	lappend cmd $url
-
-	set log 0
-	if {$api_log == "all" || $type == $api_log} {
-		set log 1
-	}
-	if {$log} {
-		write_log 0 "api v2 request: ${url} - ${method} - ${data}"
-	}
-	set res ""
-	# Try the request; on SSL verification errors, transparently retry with --insecure (to support self-signed bridges)
-	set err 0
-	set errmsg ""
-	if { [catch { set res [eval exec $cmd] } errmsg] } {
-		set err 1
-	}
-	if {$err} {
-		# Retry once with --insecure if not already present and error indicates cert validation issue
-		set ssl_err 0
-		# Detect common curl SSL verify errors
-		if {[string first "SSL certificate problem" $errmsg] >= 0 || [string first "curl: (60)" $errmsg] >= 0} {
-			set ssl_err 1
-		}
-		if {$ssl_err && [lsearch -exact $cmd "--insecure"] < 0} {
-			set cmd_insec $cmd
-			# insert --insecure after curl binary
-			set cmd_insec [linsert $cmd_insec 1 "--insecure"]
-			if {$log} { write_log 1 "api v2 request retrying with --insecure due to SSL verify error" }
-			if { [catch { set res [eval exec $cmd_insec] } errmsg2] } {
-				# Still failing; return original error context
-				return -code 1 -errorcode $::errorCode -errorinfo $::errorInfo $errmsg
-			}
-		} else {
-			return -code 1 -errorcode $::errorCode -errorinfo $::errorInfo $errmsg
-		}
-	}
-	if {$log} {
-		write_log 0 "api v2 response: ${res}"
-	}
-	return $res
-}
-
-# Wrapper like ::hue::request but targeting CLIPv2 and handling bridge config
-proc ::hue::request_v2 {type bridge_id method path {data ""}} {
-	set abridge [get_bridge $bridge_id]
-	array set bridge $abridge
-	if {$bridge(id) == ""} {
-		error "Hue bridge ${bridge_id} not configured"
-	}
-	if {$bridge(ip) == ""} {
-		error "Hue bridge ${bridge_id} ip address not configured"
-	}
-	if {$bridge(username) == ""} {
-		error "Hue bridge ${bridge_id} username not configured"
-	}
-	# Ensure TLS fingerprint is available if https_verify=fingerprint
-	variable https_verify
-	if {[string equal -nocase $https_verify "fingerprint"]} {
-		set curpin [hue::get_bridge_param $bridge_id "tls_pubkey_sha256"]
-		if {$curpin == ""} {
-			catch { hue::fetch_tls_pubkey_sha256 $bridge_id }
-		}
-	}
-	acquire_bridge_lock $bridge_id
-	if {[catch {
-		set result [api_request_v2 $type $bridge_id $bridge(ip) $bridge(port) $bridge(username) $method $path $data]
-	} errmsg]} {
-		release_bridge_lock $bridge_id
-		return -code 1 -errorcode $::errorCode -errorinfo $::errorInfo $errmsg
-	}
-	release_bridge_lock $bridge_id
-	return $result
-}
-
-# Fetch TLS public key SHA256 (base64) for a bridge and persist as tls_pubkey_sha256
-proc ::hue::fetch_tls_pubkey_sha256 {bridge_id} {
-	set abridge [get_bridge $bridge_id]
-	array set bridge $abridge
-	set ip $bridge(ip)
-	set port $bridge(port)
-	if {$port == ""} { set port 443 }
-	# locate openssl
-	set openssl "/usr/bin/openssl"
-	if { [file exists $openssl] == 0 } {
-		set openssl "/usr/local/addons/cuxd/openssl"
-	}
-	if { [file exists $openssl] == 0 } {
-		return
-	}
-	set cmd "echo | $openssl s_client -servername $ip -connect $ip:$port 2>/dev/null | $openssl x509 -pubkey -noout | $openssl pkey -pubin -outform DER | $openssl dgst -sha256 -binary | base64"
-	set pin ""
-	if { [catch { set pin [exec /bin/sh -c $cmd] } errmsg] } {
-		return
-	}
-	set pin [string trim $pin]
-	if {$pin != ""} {
-		# persist pin
-		hue::set_bridge_param $bridge_id "tls_pubkey_sha256" $pin
-	}
-}
-
 proc ::hue::api_request {type ip port username method path {data ""}} {
 	variable api_log
 	variable api_connect_timeout
@@ -1299,11 +989,24 @@ proc ::hue::api_request {type ip port username method path {data ""}} {
 	return $res
 }
 
+# Pair with a bridge (link button must be pressed). Returns {username clientkey}.
 proc ::hue::api_establish_link {ip port} {
-	set response [http_request $ip $port "POST" "/api" "\{\"devicetype\":\"${hue::devicetype}\"\}" "application/json"]
-	regexp {"success":.*"username"\s*:\s*"([a-zA-Z0-9\-]+)"} $response match username
-	if {[info exists username]} {
-		return $username
+	set body "\{\"devicetype\":\"${hue::devicetype}\",\"generateclientkey\":true\}"
+	set response ""
+	# Square bridges accept HTTPS, the round v1 bridge only HTTP
+	if {[catch {
+		set response [exec [curl_bin] --silent --show-error --stderr - --insecure --connect-timeout 5 --max-time 10 \
+			-H "Content-Type: application/json" --data-binary $body "https://${ip}/api"]
+	}] || $response == ""} {
+		set response [http_request $ip $port "POST" "/api" $body "application/json"]
+	}
+	if {[regexp {"username"\s*:\s*"([a-zA-Z0-9\-]+)"} $response -> username]} {
+		set clientkey ""
+		regexp {"clientkey"\s*:\s*"([a-fA-F0-9]+)"} $response -> clientkey
+		return [list $username $clientkey]
+	}
+	if {[regexp {"description"\s*:\s*"([^"]+)"} $response -> desc]} {
+		error $desc
 	}
 	error $response
 }
@@ -1345,12 +1048,10 @@ proc ::hue::hue_command {bridge_id command args} {
 
 proc ::hue::get_scene_name_id_map {bridge_id} {
 	array set scenes {}
-	set data [hue::request "info" $bridge_id "GET" "scenes"]
-	while {1} {
-		if {[regexp {\"([a-zA-Z0-9\-]{15})\":\{.*?\"name\":\"([^\"]+)\"(.*)$} $data match id name data]} {
-			set scenes($name) $id
-		} else {
-			break
+	::hue::json::parse [hue::request "info" $bridge_id "GET" "scenes"] J
+	foreach id [::hue::json::keys J ""] {
+		if {[info exists J($id/name)]} {
+			set scenes($J($id/name)) $id
 		}
 	}
 	return [array get scenes]
@@ -1406,7 +1107,7 @@ proc ::hue::get_cuxd_device_map_cuxd_ps {} {
 			}
 		} elseif {$device != ""} {
 			set data [string tolower $data]
-			if {[regexp "cmd\[sh\]? (\\d*)\\D.*hue\\.tcl\\s+(\\S+)\\s+(light|group)\\s+(\\d+)" $data match channel bridge_id obj num]} {
+			if {[regexp "cmd\[sh\]? (\\d*)\\D.*hue\\.tcl\\s+(\\S+)\\s+(light|group)\\s+(\[0-9a-f\\-\]+)" $data match channel bridge_id obj num]} {
 				if {$channel != ""} {
 					set channel ":${channel}"
 				}
@@ -1448,7 +1149,7 @@ proc ::hue::get_cuxd_device_map {} {
 			}
 			unset ParamHash
 			if {$command != ""} {
-				if {[regexp ".*hue\\.tcl\\s+(\\S+)\\s+(light|group)\\s+(\\d+)" $command match bridge_id obj num]} {
+				if {[regexp ".*hue\\.tcl\\s+(\\S+)\\s+(light|group)\\s+(\[0-9a-fA-F\\-\]+)" $command match bridge_id obj num]} {
 					set dmap(${address}) "${bridge_id}_${obj}_${num}"
 					hue::write_log 4 "get_cuxd_device_map: device=${address} mapped=${bridge_id}_${obj}_${num}"
 				}
@@ -1456,6 +1157,19 @@ proc ::hue::get_cuxd_device_map {} {
 		}
 	}
 	return [array get dmap]
+}
+
+# CUxD devices that already control this object (addresses without channel)
+proc ::hue::find_cuxd_devices {bridge_id obj_type obj_id} {
+	set found [list]
+	foreach {address o} [get_cuxd_device_map] {
+		foreach {b t i} [split $o "_"] break
+		if {[string equal [string tolower $b] [string tolower $bridge_id]] && [string equal $t $obj_type] && [string equal [string tolower $i] [string tolower $obj_id]]} {
+			set dev [lindex [split $address ":"] 0]
+			if {[lsearch -exact $found $dev] < 0} { lappend found $dev }
+		}
+	}
+	return $found
 }
 
 proc ::hue::update_cuxd_device_state {device astate} {
@@ -1636,6 +1350,9 @@ proc ::hue::update_cuxd_device_state {device astate} {
 }
 
 proc ::hue::get_object_state {bridge_id obj_type obj_id} {
+	if {[hue::v2::active $bridge_id]} {
+		return [hue::v2::object_state $bridge_id $obj_type $obj_id]
+	}
 	set data [hue::request "status" $bridge_id "GET" "/${obj_type}s/${obj_id}"]
 	return [hue::get_object_state_from_json $bridge_id $obj_type $obj_id $data]
 }
@@ -2071,6 +1788,108 @@ proc ::hue::delete_cuxd_device {id} {
 	set response [http_request "127.0.0.1" 80 "POST" "/addons/cuxd/index.ccc?m=4" $data "application/x-www-form-urlencoded"]
 	#puts $response
 }
+
+proc ::hue::sysvar_exists {name} {
+	array set res [rega_script "var s = dom.GetObject(\"${name}\"); if (s) { Write('1'); } else { Write('0'); }"]
+	return [expr {[info exists res(STDOUT)] && $res(STDOUT) == "1"}]
+}
+
+# Create a system variable for a Hue sensor if it does not exist.
+#   kind: bool | lux | temp | button
+proc ::hue::create_sysvar {name kind info} {
+	if {![regexp {^Hue_[A-Za-z0-9_\-]+$} $name]} {
+		error "Invalid system variable name ${name}"
+	}
+	set info [string map {"\"" "" "\\" "" "\n" " "} $info]
+	switch -- $kind {
+		bool {
+			set type "sv.ValueType(ivtBinary); sv.ValueSubType(istBool); sv.ValueName0('nein'); sv.ValueName1('ja'); sv.State(false);"
+		}
+		lux {
+			set type "sv.ValueType(ivtFloat); sv.ValueSubType(istGeneric); sv.ValueMin(0); sv.ValueMax(100000); sv.ValueUnit('lx'); sv.State(0);"
+		}
+		temp {
+			set type "sv.ValueType(ivtFloat); sv.ValueSubType(istGeneric); sv.ValueMin(-50); sv.ValueMax(100); sv.ValueUnit('C'); sv.State(0);"
+		}
+		button {
+			set type "sv.ValueType(ivtString); sv.ValueSubType(istChar8859); sv.State('');"
+		}
+		default { error "Unknown sensor kind ${kind}" }
+	}
+	set s "object sv = dom.GetObject(\"${name}\");
+		if (!sv) {
+			object svs = dom.GetObject(ID_SYSTEM_VARIABLES);
+			sv = dom.CreateObject(OT_VARDP);
+			svs.Add(sv.ID());
+			sv.Name(\"${name}\");
+			${type}
+			sv.DPInfo(\"${info}\");
+			sv.Internal(false);
+			sv.Visible(true);
+			dom.RTUpdate(0);
+			Write('created');
+		} else {
+			Write('exists');
+		}"
+	write_log 4 "rega_script ${s}"
+	array set res [rega_script $s]
+	return [string trim $res(STDOUT)]
+}
+
+# Lights, groups and scenes of a bridge for the web UI (same shape for v1 and v2)
+proc ::hue::objects_json {bridge_id {reload 1}} {
+	if {[hue::v2::active $bridge_id]} {
+		return [hue::v2::objects_json $bridge_id $reload]
+	}
+	return [objects_json_v1 $bridge_id]
+}
+
+proc ::hue::xy_or_null {x y} {
+	if {$x == "" || $y == ""} { return "null" }
+	return "\[$x,$y\]"
+}
+
+proc ::hue::objects_json_v1 {bridge_id} {
+	set S ::hue::json::str
+	set N ::hue::json::numornull
+	set B ::hue::json::bool
+	set lights [list]
+	::hue::json::parse [request "info" $bridge_id "GET" "lights"] L
+	foreach id [::hue::json::keys L ""] {
+		set type [::hue::json::get L $id/type]
+		set gamut [::hue::json::get L $id/capabilities/control/colorgamuttype [::hue::json::get L $id/colorgamuttype]]
+		set ltype [string tolower $type]
+		set color [expr {[string first "color light" $ltype] >= 0 && [string first "temperature" $ltype] < 0}]
+		set reachable [expr {![string equal [::hue::json::get L $id/state/reachable] "false"]}]
+		lappend lights [::hue::json::obj id [$S $id] rid [$S ""] name [$S [::hue::json::get L $id/name]] type [$S $type] color [$B $color] \
+			ct_min [$N [::hue::json::get L $id/capabilities/control/ct/min]] ct_max [$N [::hue::json::get L $id/capabilities/control/ct/max]] \
+			reachable [$B $reachable] on [$B [::hue::json::get L $id/state/on]] bri [$N [::hue::json::get L $id/state/bri]] gamut [$S $gamut] \
+			colormode [$S [::hue::json::get L $id/state/colormode]] ct [$N [::hue::json::get L $id/state/ct]] \
+			xy [xy_or_null [::hue::json::get L $id/state/xy/0] [::hue::json::get L $id/state/xy/1]] gradient false]
+	}
+	set groups [list [::hue::json::obj id [$S 0] rid [$S ""] name [$S "All lights"] type [$S bridge_home] class [$S ""] lights "\[\]" color false reachable true on false bri null]]
+	::hue::json::parse [request "info" $bridge_id "GET" "groups"] G
+	foreach id [::hue::json::keys G ""] {
+		set lj [list]
+		for {set i 0} {$i < [::hue::json::len G $id/lights]} {incr i} {
+			lappend lj [$S [::hue::json::get G $id/lights/$i]]
+		}
+		lappend groups [::hue::json::obj id [$S $id] rid [$S ""] name [$S [::hue::json::get G $id/name]] \
+			type [$S [string tolower [::hue::json::get G $id/type]]] class [$S [::hue::json::get G $id/class]] \
+			lights [::hue::json::arr $lj] color false reachable true \
+			on [$B [::hue::json::get G $id/state/any_on]] bri [$N [::hue::json::get G $id/action/bri]]]
+	}
+	set scenes [list]
+	::hue::json::parse [request "info" $bridge_id "GET" "scenes"] C
+	foreach id [::hue::json::keys C ""] {
+		lappend scenes [::hue::json::obj id [$S $id] rid [$S ""] name [$S [::hue::json::get C $id/name]] \
+			group [$S [::hue::json::get C $id/group]] group_name [$S ""]]
+	}
+	return [::hue::json::obj api [$S v1] lights [::hue::json::arr $lights] groups [::hue::json::arr $groups] \
+		scenes [::hue::json::arr $scenes] sensors "\[\]"]
+}
+
+source [file join $::hue_addon_dir lib hue_v2.tcl]
 
 hue::read_global_config
 

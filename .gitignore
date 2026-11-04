@@ -3,3 +3,10 @@
 /debian/.debhelper
 /debian/hue.debhelper.log
 /debian/hue.substvars
+/hm-hue.tar.gz
+/hm-hue.tar.gz.sha256
+/hue_amd64.deb
+/dist/
+.DS_Store
+/test/.run/
+__pycache__/

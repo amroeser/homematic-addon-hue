@@ -1,0 +1,38 @@
+name: Test and release
+
+on:
+  push:
+    branches: [master]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Tcl 8.6 (without tcllib, the addon must not need it)
+        run: sudo apt-get update && sudo apt-get install -y tcl8.6 openssl curl
+      - name: Run tests
+        run: TCLSH=$(command -v tclsh8.6) python3 -W ignore test/test_addon.py
+
+  release:
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check that the tag matches VERSION
+        run: test "v$(cat VERSION)" = "${GITHUB_REF_NAME}"
+      - name: Build package
+        run: ./pack_addon.sh
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes=$(awk -v v="$(cat VERSION)" '$0 ~ "^## " v {f=1; next} /^## /{f=0} f' CHANGELOG.md)
+          gh release create "${GITHUB_REF_NAME}" dist/hm-hue.tar.gz dist/hm-hue.tar.gz.sha256 dist/VERSION \
+            --title "${GITHUB_REF_NAME}" --notes "${notes}"

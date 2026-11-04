@@ -173,7 +173,7 @@ proc ::ini::_loadfile {fh} {
 	if { [string match "$char*" $line] } {
 	    lappend com [string trim [string range $line [string length $char] end]]
 	} elseif { [string match {\[*\]} $line] } {
-	    ::set cur [string range $line 1 end-1]
+	    ::set cur [string range $line 1 [expr {[string length $line] - 2}]]
 	    if { $cur == "" } { continue }
 	    ::set sections($cur) 1
 	    if { $com != "" } {
@@ -386,7 +386,7 @@ proc ::ini::comment {fh sec key args} {
         return $comments($r)
     }
     if { [llength $args] == 1 && [lindex $args 0] == "" } {
-        unset -nocomplain comments($r)
+        catch {unset comments($r)}
         return {}
     }
     # take care of any embedded newlines

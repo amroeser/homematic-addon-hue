@@ -3,6 +3,7 @@
 #  HomeMatic addon to control Philips Hue Lighting
 #
 #  Copyright (C) 2020  Jan Schneider <oss@janschneider.net>
+#  Copyright (C) 2025-2026  Alexander Maximilian Röser (CLIP v2, event stream)
 #
 #  This program is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -17,26 +18,37 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-source /usr/local/addons/hue/lib/hue.tcl
+set addon_dir "/usr/local/addons/hue"
+if {[info exists ::env(HUE_ADDON_DIR)]} { set addon_dir $::env(HUE_ADDON_DIR) }
+source [file join $addon_dir lib hue.tcl]
 
+# Last state sent to CUxD, per "<bridge>_<type>_<id>"
 variable object_states
+array set object_states {}
+# CUxD address -> "<bridge>_<type>_<id>"
 variable cuxd_device_map
-variable group_command_times [list]
+array set cuxd_device_map {}
 variable set_sysvars_reachable 1
 variable scheduled_update_time 0
 variable scheduled_update_cuxd_device_map_time 0
 variable update_cuxd_device_map_interval 30
 variable forced_updates
+array set forced_updates {}
+# Last value written per system variable
+variable sysvar_values
+array set sysvar_values {}
+# Event streams: stream(<bridge>,chan|buf|connected|events|retry|next_try|error)
+variable stream
+array set stream {}
+# Bridges with pending event stream changes
+variable dirty_bridges [list]
+variable dirty_after_id ""
 
 proc same_array {array1 array2} {
 	array set a1 $array1
 	array set a2 $array2
-	
-	foreach key [lsort -unique [concat [array names a1] [array names a2]]] {
-		if {![info exists a1($key)]} {
-			return 0
-		}
-		if {![info exists a2($key)]} {
+	foreach key [hue::v2::luniq [concat [array names a1] [array names a2]]] {
+		if {![info exists a1($key)] || ![info exists a2($key)]} {
 			return 0
 		}
 		if {$a1($key) != $a2($key)} {
@@ -46,83 +58,48 @@ proc same_array {array1 array2} {
 	return 1
 }
 
+proc bgerror message {
+	hue::write_log 1 "Unhandled error: ${message} - $::errorInfo"
+}
+
+# ---------------------------------------------------------------------------
+# System variables
+# ---------------------------------------------------------------------------
+
+proc sysvar_exists {name} {
+	return [hue::sysvar_exists $name]
+}
+
+# Write a value (rega syntax: true, 12.5, "text") if the variable exists and the value changed
 proc update_sysvar_value {name value} {
-	array set res [rega_script "var s = dom.GetObject(\"${name}\"); if (s) { Write('1'); } else { Write('0'); }"]
-	if {$res(STDOUT) == "1"} {
+	variable sysvar_values
+	if {[info exists sysvar_values($name)] && [string equal $sysvar_values($name) $value]} {
+		return
+	}
+	set sysvar_values($name) $value
+	if {[sysvar_exists $name]} {
 		hue::write_log 3 "Setting sysvar ${name} to ${value}"
-		# Try to set directly; booleans as true/false, numbers as-is
 		rega_script "var s = dom.GetObject(\"${name}\"); if (s) { s.State(${value}); }"
 	} else {
 		hue::write_log 4 "Sysvar ${name} does not exist"
 	}
 }
 
-proc bgerror message {
-	hue::write_log 1 "Unhandled error: ${message}"
+proc update_sysvars_reachable {name reachable} {
+	set val [expr {$reachable == 1 || $reachable == "true" ? "true" : "false"}]
+	update_sysvar_value $name $val
 }
 
-proc throttle_group_command {} {
-{{ ... }}
-	variable group_command_times
-	
-	set new [list]
-	foreach t $group_command_times {
-		set diff [expr {[clock seconds] - $t}]
-		if {$diff < 10} {
-			lappend new $t
-		}
-	}
-	set group_command_times $new
-	#hue::write_log 0 $group_command_times
-	
-	array set delay {}
-	if { [catch {
-		foreach s [split $hue::group_throttling_settings ","] {
-			set tmp [split $s ":"]
-			set n [expr {int([lindex $tmp 0])}]
-			set d [expr {int([lindex $tmp 1])}]
-			set delay($n) $d
-		}
-	} errmsg] } {
-		hue::write_log 1 "Failed to set group throttling settings '${hue::group_throttling_settings}': ${errmsg}"
-	}
-	
-	set ms 0
-	set num [llength $group_command_times]
-	foreach n [lsort -integer -decreasing [array names delay]] {
-		if {$num >= $n} {
-			set ms $delay($n)
-			break
-		}
-	}
-	if {$ms > 0} {
-		hue::write_log 3 "Throttling group commands, waiting for ${ms} millis"
-		after $ms
-	}
-	set group_command_times [linsert $group_command_times 0 [clock seconds]]
-}
-
-proc main_loop {} {
-	if { [catch {
-		check_update
-	} errmsg] } {
-		hue::write_log 1 "Error: ${errmsg} - ${::errorCode} - ${::errorInfo}"
-		after 30000 main_loop
-	} else {
-		after 1000 main_loop
-	}
-}
+# ---------------------------------------------------------------------------
+# CUxD device map
+# ---------------------------------------------------------------------------
 
 proc update_cuxd_device_map {} {
 	variable cuxd_device_map
 	hue::write_log 4 "Updating cuxd device map"
-	# Note that array set does not remove variables which already exist in the array.
-	# Clear array
-	foreach key [array names cuxd_device_map] {
-		unset cuxd_device_map($key)
-	}
 	if { [catch {
 		set dmap [hue::get_cuxd_device_map]
+		hue::v2::aunset cuxd_device_map *
 		array set cuxd_device_map $dmap
 	} errmsg] } {
 		hue::write_log 1 "Failed to get cuxd device map: ${errmsg} - ${::errorCode} - ${::errorInfo}"
@@ -152,6 +129,100 @@ proc get_bridge_ids_from_map {} {
 	return $bridge_ids
 }
 
+# {type id} pairs of all mapped objects of a bridge
+proc get_mapped_objects {bridge_id} {
+	variable cuxd_device_map
+	set objs [list]
+	foreach { d o } [array get cuxd_device_map] {
+		foreach {b t i} [split $o "_"] break
+		if {[string equal $b $bridge_id] && [lsearch -exact $objs [list $t $i]] < 0} {
+			lappend objs [list $t $i]
+		}
+	}
+	return $objs
+}
+
+# ---------------------------------------------------------------------------
+# Pushing state to CUxD
+# ---------------------------------------------------------------------------
+
+proc update_cuxd_device {cuxd_device bridge_id obj_type obj_id astate} {
+	variable set_sysvars_reachable
+	array set state $astate
+	hue::update_cuxd_device_state $cuxd_device [array get state]
+	hue::write_log 3 "Update of ${bridge_id} ${obj_type} ${obj_id} / ${cuxd_device} successful (reachable=$state(reachable) on=$state(on) colormode=$state(colormode) bri=$state(bri) ct=$state(ct) hue=$state(hue) sat=$state(sat) xy=$state(xy))"
+	if {$set_sysvars_reachable == 1} {
+		update_sysvars_reachable "Hue_reachable_${cuxd_device}" $state(reachable)
+		update_sysvars_reachable "Hue_reachable_${bridge_id}_${obj_type}_${obj_id}" $state(reachable)
+	}
+}
+
+# Compare with the last state and update CUxD devices if needed
+proc process_object_state {bridge_id obj_type obj_id astate} {
+	variable object_states
+	variable forced_updates
+	variable scheduled_update_cuxd_device_map_time
+	array set state $astate
+	# Fields that are not part of the CUxD state
+	foreach k {api rid ct_min ct_max color} { catch {unset state($k)} }
+	set full_id "${bridge_id}_${obj_type}_${obj_id}"
+
+	set force_update 0
+	if {[info exists forced_updates($full_id)] && $forced_updates($full_id) > 0} {
+		set force_update 1
+		incr forced_updates($full_id) -1
+	}
+	if {!$force_update && [info exists object_states($full_id)] && [same_array [array get state] $object_states($full_id)]} {
+		hue::write_log 4 "State of ${bridge_id} ${obj_type} ${obj_id} is unchanged"
+		return
+	}
+	hue::write_log 4 "State of ${bridge_id} ${obj_type} ${obj_id} has changed (forced=${force_update})"
+	set object_states($full_id) [array get state]
+
+	foreach cuxd_device [get_cuxd_devices_from_map $bridge_id $obj_type $obj_id] {
+		if { [catch {
+			update_cuxd_device $cuxd_device $bridge_id $obj_type $obj_id [array get state]
+		} errmsg] } {
+			# CUxD device deleted
+			hue::write_log 2 "Failed to update cuxd device ${cuxd_device}: ${errmsg}"
+			set scheduled_update_cuxd_device_map_time [clock seconds]
+		}
+	}
+}
+
+# CLIP v2: push all mapped objects and sensors from the cache
+proc process_bridge_v2 {bridge_id} {
+	foreach o [get_mapped_objects $bridge_id] {
+		set obj_type [lindex $o 0]
+		set obj_id [lindex $o 1]
+		if {[catch {
+			process_object_state $bridge_id $obj_type $obj_id [hue::v2::object_state $bridge_id $obj_type $obj_id]
+		} err]} {
+			hue::write_log 2 "Failed to process ${bridge_id} ${obj_type} ${obj_id}: ${err}"
+		}
+	}
+	foreach {name value} [hue::v2::sensor_values $bridge_id] {
+		update_sysvar_value $name $value
+	}
+}
+
+# v1: poll lights and groups
+proc process_bridge_v1 {bridge_id} {
+	variable object_states
+	foreach obj_type [list "light" "group"] {
+		set response [hue::request "status" $bridge_id "GET" "/${obj_type}s"]
+		regsub -all {\n} $response "" response
+		regsub -all {(\"\d+\":\{)} $response "\n\\1" tmp
+		foreach data [split $tmp "\n"] {
+			if {[regexp {\"(\d+)\":\{} $data match obj_id]} {
+				if {[llength [get_cuxd_devices_from_map $bridge_id $obj_type $obj_id]] == 0} {
+					continue
+				}
+				process_object_state $bridge_id $obj_type $obj_id [hue::get_object_state_from_json $bridge_id $obj_type $obj_id $data [array get object_states]]
+			}
+		}
+	}
+}
 
 proc set_scheduled_update {time} {
 	variable scheduled_update_time
@@ -164,304 +235,320 @@ proc check_update {} {
 	variable scheduled_update_time
 	variable scheduled_update_cuxd_device_map_time
 	variable update_cuxd_device_map_interval
-	variable object_states
-	variable forced_updates
-	
-	hue::write_log 4 "Check update (scheduled_update_time=${scheduled_update_time})"
-	
+
 	if {[clock seconds] >= $scheduled_update_cuxd_device_map_time} {
 		update_cuxd_device_map
 		set scheduled_update_cuxd_device_map_time [expr {[clock seconds] + $update_cuxd_device_map_interval}]
 	}
-	
+
+	set bridge_ids [get_bridge_ids_from_map]
+	foreach bridge_id $bridge_ids {
+		ensure_eventstream $bridge_id
+	}
+
 	if {$scheduled_update_time < 0 || [clock seconds] < $scheduled_update_time} {
 		return
 	}
-	
 	hue::write_log 4 "Updating status"
-	
-	foreach bridge_id [get_bridge_ids_from_map] {
-		foreach obj_type [list "light" "group"] {
-			set response [hue::request "status" $bridge_id "GET" "/${obj_type}s"]
-			regsub -all {\n} $response "" response
-			regsub -all {(\"\d+\":\{)} $response "\n\\1" tmp
-			set tmp [split $tmp "\n"]
-			foreach data $tmp {
-				if {[regexp {\"(\d+)\":\{} $data match obj_id]} {
-					set obj_path "/${obj_type}s/${obj_id}"
-					set full_id "${bridge_id}_${obj_type}_${obj_id}"
-					hue::write_log 4 "Processing status of ${obj_path}"
-					array set state [hue::get_object_state_from_json $bridge_id $obj_type $obj_id $data [array get object_states]]
-					
-					set force_update 0
-					if { [info exists object_states($full_id)] } {
-						array set current_state $object_states($full_id)
-						if { [info exists forced_updates($full_id)] } {
-							if {$forced_updates($full_id) > 0} {
-								set force_update 1
-								set forced_updates($full_id) [expr $forced_updates($full_id) - 1]
-							}
-						}
-						if {$force_update == 0 && [same_array [array get state] [array get current_state]] == 1} {
-							hue::write_log 4 "State of ${bridge_id} ${obj_type} ${obj_id} is unchanged"
-							continue
-						}
-					}
-					
-					if {$force_update == 1} {
-						hue::write_log 4 "Update of ${bridge_id} ${obj_type} ${obj_id} forced"
-					} else {
-						hue::write_log 4 "State of ${bridge_id} ${obj_type} ${obj_id} has changed"
-					}
-					set object_states($full_id) [array get state]
-					
-					set cuxd_devices [get_cuxd_devices_from_map $bridge_id $obj_type $obj_id]
-					if {[llength $cuxd_devices] == 0} {
-						continue
-					}
-					foreach cuxd_device $cuxd_devices {
-						if { [catch {
-							update_cuxd_device $cuxd_device $bridge_id $obj_type $obj_id [array get state]
-						} errmsg] } {
-							# CUxD device deleted
-							hue::write_log 2 "Failed to update cuxd device ${cuxd_device}: ${errmsg}"
-							set scheduled_update_cuxd_device_map_time [clock seconds]
-						}
-					}
-				}
+	set scheduled_update_time -1
+
+	foreach bridge_id $bridge_ids {
+		if {[catch {
+			if {[hue::v2::active $bridge_id]} {
+				hue::v2::ensure_loaded $bridge_id
+				hue::v2::refresh_state $bridge_id
+				process_bridge_v2 $bridge_id
+			} else {
+				process_bridge_v1 $bridge_id
 			}
-		}
-	}
-	
-	# Poll v2 sensors if enabled
-	if {$hue::api_version == "v2" || $hue::api_version == "auto"} {
-		foreach bridge_id [get_bridge_ids_from_map] {
-			catch { poll_v2_sensors $bridge_id }
+		} err]} {
+			hue::write_log 1 "Status update of bridge ${bridge_id} failed: ${err}"
 		}
 	}
 
-	set_scheduled_update -1
 	if {$hue::poll_state_interval > 0} {
-		set_scheduled_update [expr {[clock seconds] + $hue::poll_state_interval}]
+		set interval $hue::poll_state_interval
+		# With a running event stream polling is only a safety net
+		if {[all_streams_connected $bridge_ids] && $interval < 300} {
+			set interval 300
+		}
+		set_scheduled_update [expr {[clock seconds] + $interval}]
 	}
 }
 
-proc update_sysvars_reachable {name reachable} {
-	array set res [rega_script "var s = dom.GetObject(\"${name}\"); if (s) { Write(s.Value()); }"]
-	set val ""
-	if {$res(STDOUT) == "false"} {
-		if {$reachable == 1 || $reachable == "true"} {
-			set val "true"
-		}
-	} elseif {$res(STDOUT) == "true"} {
-		if {$reachable == 0 || $reachable == "false"} {
-			set val "false"
-		}
+proc main_loop {} {
+	if { [catch {
+		check_update
+	} errmsg] } {
+		hue::write_log 1 "Error: ${errmsg} - ${::errorCode} - ${::errorInfo}"
+		after 30000 main_loop
 	} else {
-		hue::write_log 4 "Sysvar ${name} does not exist"
-	}
-	
-	if {$val != ""} {
-		hue::write_log 3 "Setting sysvar ${name} to ${val}"
-		rega_script "dom.GetObject(\"${name}\").State(${val})"
+		after 1000 main_loop
 	}
 }
 
-proc update_cuxd_device {cuxd_device bridge_id obj_type obj_id astate} {
-	variable set_sysvars_reachable
-	array set state $astate
-	
-	hue::update_cuxd_device_state $cuxd_device [array get state]
-	
-	hue::write_log 3 "Update of ${bridge_id} ${obj_type} ${obj_id} / ${cuxd_device} successful (reachable=$state(reachable) on=$state(on) colormode=$state(colormode) bri=$state(bri) ct=$state(ct) hue=$state(hue) sat=$state(sat) xy=$state(xy))"
-	if {$set_sysvars_reachable == 1} {
-		update_sysvars_reachable "Hue_reachable_${cuxd_device}" $state(reachable)
-		update_sysvars_reachable "Hue_reachable_${bridge_id}_${obj_type}_${obj_id}" $state(reachable)
-	}
-}
-proc poll_v2_sensors {bridge_id} {
-    # Motion sensors
-    if {![catch {set res [hue::request_v2 "status" $bridge_id "GET" "resource/motion" ]} err]} {
-        set flat [string map {"\n" "" "\r" ""} $res]
-        set pos 0
-        while {[regexp -indices -start $pos {\{[^\{\}]*"id"\s*:\s*"([^"]+)"[^\{\}]*"motion"\s*:\s*\{[^\{\}]*"motion"\s*:\s*(true|false)[^\{\}]*\}[^\{\}]*\}} $flat m]} {
-            set slice [string range $flat [lindex $m 0] [lindex $m 1]]
-            set id ""; set mot "false"
-            regexp {"id"\s*:\s*"([^"]+)"} $slice -> id
-            regexp {"motion"\s*:\s*\{[^\}]*"motion"\s*:\s*(true|false)} $slice -> mot
-            if {$id != ""} { update_sysvar_value "Hue_motion_${bridge_id}_${id}" $mot }
-            set pos [expr {[lindex $m 1] + 1}]
-        }
-    }
-    # Light level
-    if {![catch {set res [hue::request_v2 "status" $bridge_id "GET" "resource/light_level" ]} err]} {
-        set flat [string map {"\n" "" "\r" ""} $res]
-        set pos 0
-        while {[regexp -indices -start $pos {\{[^\{\}]*"id"\s*:\s*"([^"]+)"[^\{\}]*"light"\s*:\s*\{[^\{\}]*"light_level"\s*:\s*([0-9\.]+)[^\{\}]*\}[^\{\}]*\}} $flat m]} {
-            set slice [string range $flat [lindex $m 0] [lindex $m 1]]
-            set id ""; set lux ""
-            regexp {"id"\s*:\s*"([^"]+)"} $slice -> id
-            regexp {"light"\s*:\s*\{[^\}]*"light_level"\s*:\s*([0-9\.]+)} $slice -> lux
-            if {$id != "" && $lux != ""} { update_sysvar_value "Hue_lux_${bridge_id}_${id}" $lux }
-            set pos [expr {[lindex $m 1] + 1}]
-        }
-    }
-    # Temperature (celsius)
-    if {![catch {set res [hue::request_v2 "status" $bridge_id "GET" "resource/temperature" ]} err]} {
-        set flat [string map {"\n" "" "\r" ""} $res]
-        set pos 0
-        while {[regexp -indices -start $pos {\{[^\{\}]*"id"\s*:\s*"([^"]+)"[^\{\}]*"temperature"\s*:\s*\{[^\{\}]*"celsius"\s*:\s*([-0-9\.]+)[^\{\}]*\}[^\{\}]*\}} $flat m] || [regexp -indices -start $pos {\{[^\{\}]*"id"\s*:\s*"([^"]+)"[^\{\}]*"temperature"\s*:\s*\{[^\{\}]*"temperature"\s*:\s*\{[^\{\}]*"celsius"\s*:\s*([-0-9\.]+)} $flat m]} {
-            set slice [string range $flat [lindex $m 0] [lindex $m 1]]
-            set id ""; set cel ""
-            regexp {"id"\s*:\s*"([^"]+)"} $slice -> id
-            if {![regexp {"temperature"\s*:\s*\{[^\{\}]*"celsius"\s*:\s*([-0-9\.]+)} $slice -> cel]} {
-                regexp {"temperature"\s*:\s*\{[^\{\}]*"temperature"\s*:\s*\{[^\{\}]*"celsius"\s*:\s*([-0-9\.]+)} $slice -> cel
-            }
-            if {$id != "" && $cel != ""} { update_sysvar_value "Hue_temp_${bridge_id}_${id}" $cel }
-            set pos [expr {[lindex $m 1] + 1}]
-        }
-    }
+# ---------------------------------------------------------------------------
+# CLIP v2 event stream
+# ---------------------------------------------------------------------------
+
+proc stream_get {bridge_id key {default ""}} {
+	variable stream
+	if {[info exists stream($bridge_id,$key)]} { return $stream($bridge_id,$key) }
+	return $default
 }
 
-proc get_object_state {bridge_id obj_type obj_id} {
+proc all_streams_connected {bridge_ids} {
+	if {[llength $bridge_ids] == 0} { return 0 }
+	foreach b $bridge_ids {
+		if {[stream_get $b connected 0] != 1} { return 0 }
+	}
+	return 1
+}
+
+proc ensure_eventstream {bridge_id} {
+	variable stream
+	if {!$hue::eventstream} {
+		stop_eventstream $bridge_id
+		return
+	}
+	if {[stream_get $bridge_id chan] != ""} { return }
+	if {[clock seconds] < [stream_get $bridge_id next_try 0]} { return }
+	if {[catch {hue::v2::active $bridge_id} active] || !$active} {
+		set stream($bridge_id,next_try) [expr {[clock seconds] + 300}]
+		return
+	}
+	if {[catch {start_eventstream $bridge_id} err]} {
+		hue::write_log 2 "Event stream of bridge ${bridge_id} could not be started: ${err}"
+		schedule_stream_retry $bridge_id
+	}
+}
+
+proc start_eventstream {bridge_id} {
+	variable stream
+	hue::v2::ensure_loaded $bridge_id
+	array set bridge [hue::v2::bridge_info $bridge_id]
+	set url "[hue::v2::base_url bridge]/eventstream/clip/v2"
+	set cmd [list [hue::curl_bin] --silent --show-error --no-buffer --connect-timeout 10 --keepalive-time 30 \
+		-H "hue-application-key: $bridge(username)" -H "Accept: text/event-stream"]
+	foreach a [hue::v2::tls_args bridge] { lappend cmd $a }
+	# --stderr -: curl errors arrive in the stream (2>@1 needs Tcl 8.4)
+	lappend cmd --stderr - $url
+	set chan [open "|$cmd" r]
+	fconfigure $chan -blocking 0 -buffering line -translation auto -encoding utf-8
+	set stream($bridge_id,chan) $chan
+	set stream($bridge_id,buf) ""
+	set stream($bridge_id,connected) 0
+	set stream($bridge_id,error) ""
+	fileevent $chan readable [list read_eventstream $bridge_id $chan]
+	hue::write_log 3 "Event stream of bridge ${bridge_id} started"
+}
+
+proc stop_eventstream {bridge_id} {
+	variable stream
+	set chan [stream_get $bridge_id chan]
+	if {$chan != ""} {
+		catch { fileevent $chan readable {} }
+		catch { eval exec kill [pid $chan] }
+		catch { close $chan }
+		hue::write_log 3 "Event stream of bridge ${bridge_id} stopped"
+	}
+	set stream($bridge_id,chan) ""
+	set stream($bridge_id,connected) 0
+}
+
+proc schedule_stream_retry {bridge_id} {
+	variable stream
+	set retry [hue::v2::minn 300 [hue::v2::maxn 5 [expr {2 * [stream_get $bridge_id retry 0]}]]]
+	set stream($bridge_id,retry) $retry
+	set stream($bridge_id,next_try) [expr {[clock seconds] + $retry}]
+}
+
+proc read_eventstream {bridge_id chan} {
+	variable stream
+	while {[gets $chan line] >= 0} {
+		if {[string match "data:*" $line]} {
+			append stream($bridge_id,buf) [string trim [string range $line 5 end]]
+		} elseif {$line == ""} {
+			set data $stream($bridge_id,buf)
+			set stream($bridge_id,buf) ""
+			if {$data != ""} {
+				handle_events $bridge_id $data
+			}
+		} elseif {[string match "id:*" $line] || [string match ":*" $line]} {
+			if {[stream_get $bridge_id connected 0] == 0} {
+				set stream($bridge_id,connected) 1
+				set stream($bridge_id,retry) 0
+				hue::write_log 3 "Event stream of bridge ${bridge_id} connected"
+			}
+		} else {
+			# curl error message or HTTP noise
+			set stream($bridge_id,error) $line
+			hue::write_log 2 "Event stream of bridge ${bridge_id}: ${line}"
+		}
+	}
+	if {[eof $chan]} {
+		catch { close $chan }
+		set stream($bridge_id,chan) ""
+		set stream($bridge_id,connected) 0
+		hue::write_log 2 "Event stream of bridge ${bridge_id} closed [stream_get $bridge_id error]"
+		schedule_stream_retry $bridge_id
+		# Catch up on changes we may have missed
+		set_scheduled_update [clock seconds]
+	}
+}
+
+proc handle_events {bridge_id data} {
+	variable stream
+	variable dirty_bridges
+	variable dirty_after_id
+	set stream($bridge_id,connected) 1
+	set stream($bridge_id,events) [expr {[stream_get $bridge_id events 0] + 1}]
+	hue::write_log 4 "Event from bridge ${bridge_id}: ${data}"
+	if {[catch {set structure [hue::v2::apply_events $bridge_id $data]} err]} {
+		hue::write_log 2 "Invalid event from bridge ${bridge_id}: ${err}"
+		return
+	}
+	if {$structure} {
+		hue::write_log 3 "Resources of bridge ${bridge_id} were added or deleted"
+	}
+	# Collect events for a moment, a scene change sends one event per lamp
+	if {[lsearch -exact $dirty_bridges $bridge_id] < 0} {
+		lappend dirty_bridges $bridge_id
+	}
+	if {$dirty_after_id == ""} {
+		set dirty_after_id [after 150 process_dirty_bridges]
+	}
+}
+
+proc process_dirty_bridges {} {
+	variable dirty_bridges
+	variable dirty_after_id
+	set bridges $dirty_bridges
+	set dirty_bridges [list]
+	set dirty_after_id ""
+	foreach bridge_id $bridges {
+		if {[catch {process_bridge_v2 $bridge_id} err]} {
+			hue::write_log 1 "Processing events of bridge ${bridge_id} failed: ${err}"
+		}
+	}
+}
+
+# ---------------------------------------------------------------------------
+# Commands from hue.tcl and the web UI
+# ---------------------------------------------------------------------------
+
+proc v1_object_action {bridge_id obj_type obj_id params} {
+	set json "\{"
+	foreach {name value} $params {
+		# Parameters of the v2 API have no v1 equivalent
+		if {[string equal $name "identify"]} {
+			set name "alert"
+			set value "\"select\""
+		} elseif {[lsearch -exact {speed gradient gradient_mode timed_effect signal signal_duration signal_color} $name] >= 0} {
+			hue::write_log 2 "${bridge_id} ${obj_type} ${obj_id}: parameter ${name} needs the Hue API v2, ignored"
+			continue
+		}
+		if {[string equal $name "scene"] && ![regexp {^"[a-zA-Z0-9\-]{15,16}"$} $value]} {
+			# Scene given by name
+			array set scene_map [hue::get_scene_name_id_map $bridge_id]
+			set sname [string trim $value "\""]
+			if {![info exists scene_map($sname)]} {
+				error "Failed to find scene with name ${sname}."
+			}
+			set value "\"$scene_map($sname)\""
+		}
+		append json "\"${name}\":${value},"
+	}
+	set json "[string trimright $json ,]\}"
+	set path "lights/${obj_id}/state"
+	if {$obj_type == "group"} {
+		set path "groups/${obj_id}/action"
+	}
+	return [hue::request "command" $bridge_id "PUT" $path $json]
+}
+
+proc object_state {bridge_id obj_type obj_id} {
 	variable object_states
-	
+	if {[hue::v2::active $bridge_id]} {
+		return [hue::v2::object_state $bridge_id $obj_type $obj_id]
+	}
 	set full_id "${bridge_id}_${obj_type}_${obj_id}"
-	if { ![info exists object_states($full_id)] } {
-		set object_states($full_id) [hue::get_object_state $bridge_id $obj_type $obj_id]
-	} elseif {$hue::poll_state_interval <= 0 || $hue::poll_state_interval > 10} {
+	if {![info exists object_states($full_id)] || $hue::poll_state_interval <= 0 || $hue::poll_state_interval > 10} {
 		set object_states($full_id) [hue::get_object_state $bridge_id $obj_type $obj_id]
 	}
-	return $object_states($full_id)
+	array set st $object_states($full_id)
+	set st(api) "v1"
+	return [array get st]
+}
+
+proc status_text {} {
+	variable scheduled_update_time
+	variable cuxd_device_map
+	set r ""
+	append r "version: [hue::version]\n"
+	append r "time: [clock seconds]\n"
+	append r "scheduled_update_time: ${scheduled_update_time}\n"
+	append r "api_version: ${hue::api_version}\n"
+	append r "eventstream: ${hue::eventstream}\n"
+	foreach bridge_id [hue::get_config_bridge_ids] {
+		set api "v1"
+		catch { if {[hue::v2::active $bridge_id]} { set api "v2" } }
+		append r "bridge ${bridge_id}: api=${api} stream_connected=[stream_get $bridge_id connected 0] events=[stream_get $bridge_id events 0]"
+		set err [stream_get $bridge_id error]
+		if {$err != ""} { append r " stream_error=\"${err}\"" }
+		append r "\n"
+	}
+	append r "cuxd_device_map: [join [array get cuxd_device_map] { }]\n"
+	return $r
 }
 
 proc read_from_channel {channel} {
-	variable cuxd_device_map
-	variable group_command_times
-	variable scheduled_update_time
-	variable object_states
 	variable forced_updates
-	
-	set len [gets $channel cmd]
+	variable stream
+
+	if {[gets $channel cmd] < 0} {
+		if {[eof $channel]} { close $channel }
+		return
+	}
 	set cmd [string trim $cmd]
 	hue::write_log 4 "Received command: $cmd"
 	set response ""
 	if { [catch {
 		if {[regexp "^object_action\\s+(\\S+)\\s+(\\S+)\\s+(\\S+)\\s*(.*)$" $cmd match bridge_id obj_type obj_id params]} {
-			# Build legacy JSON for v1
-			set json "\{"
-			foreach {name value} $params {
-				append json "\"${name}\":${value},"
-			}
-			if {$json != "\{"} {
-				set json [string range $json 0 end-1]
-			}
-			append json "\}"
-
-			# Decide whether to use v2 or v1
-			set use_v2 0
-			if {$hue::api_version == "v2"} {
-				set use_v2 1
-			} elseif {$hue::api_version == "auto"} {
-				# Try mapping availability
-				if {$obj_type == "light"} {
-					set rid [hue::map_v1_light_id_to_v2 $bridge_id $obj_id]
-					if {$rid != ""} { set use_v2 1 }
-				} elseif {$obj_type == "group"} {
-					set rid [hue::map_v1_group_id_to_v2 $bridge_id $obj_id]
-					if {$rid != ""} { set use_v2 1 }
-				}
-			}
-
-			if {$use_v2} {
-				# Parse params into array
-				array set p {}
-				foreach {name value} $params {
-					set p($name) $value
-				}
-				# Handle scene recall explicitly (group context in v1, direct scene in v2)
-				if {[info exists p(scene)]} {
-					set scene_id $p(scene)
-					# strip quotes if present
-					regsub -all {^"|"$} $scene_id "" scene_id
-					set s_rid [hue::map_v1_scene_to_v2 $bridge_id $scene_id]
-					if {$s_rid != ""} {
-						set response [hue::request_v2 "command" $bridge_id "PUT" "resource/scene/${s_rid}" "{\"recall\":{\"action\":\"active\",\"duration\":0}}"]
-					} else {
-						# v2 strict mode: fallback to v1 only when api_version==auto
-						if {$hue::api_version == "auto"} {
-							set path "groups/${obj_id}/action"
-							set response [hue::request "command" $bridge_id "PUT" $path $json]
-						} else {
-							set response "ERROR: v2 scene mapping not found for ${scene_id}"
-						}
-					}
-				} else {
-					# Light / Grouped Light write
-					if {$obj_type == "light"} {
-						set rid [hue::map_v1_light_id_to_v2 $bridge_id $obj_id]
-						if {$rid != ""} {
-							set body [hue::v1_params_to_v2_body $bridge_id $obj_type $obj_id [array get p]]
-							set response [hue::request_v2 "command" $bridge_id "PUT" "resource/light/${rid}" $body]
-						} else {
-							if {$hue::api_version == "auto"} {
-								set path "lights/${obj_id}/state"
-								set response [hue::request "command" $bridge_id "PUT" $path $json]
-							} else {
-								set response "ERROR: v2 light mapping not found for ${obj_id}"
-							}
-						}
-					} else {
-						# group -> grouped_light (no v1 fallback unless api_version==auto)
-						set rid [hue::map_v1_group_id_to_v2 $bridge_id $obj_id]
-						if {$rid != ""} {
-							set body [hue::v1_params_to_v2_body $bridge_id $obj_type $obj_id [array get p]]
-							set response [hue::request_v2 "command" $bridge_id "PUT" "resource/grouped_light/${rid}" $body]
-						} else {
-							if {$hue::api_version == "auto"} {
-								set path "groups/${obj_id}/action"
-								set response [hue::request "command" $bridge_id "PUT" $path $json]
-							} else {
-								set response "ERROR: v2 group mapping not found for ${obj_id}"
-							}
-						}
-					}
-				}
+			if {[hue::v2::active $bridge_id]} {
+				set response [hue::v2::object_action $bridge_id $obj_type $obj_id $params]
 			} else {
-				# Original v1 path
-				set path "lights/${obj_id}/state"
-				if {$obj_type == "group"} {
-					set path "groups/${obj_id}/action"
-				}
-				set response [hue::request "command" $bridge_id "PUT" $path $json]
+				set response [v1_object_action $bridge_id $obj_type $obj_id $params]
 			}
 		} elseif {[regexp "^object_state\\s+(\\S+)\\s+(\\S+)\\s+(\\S+)$" $cmd match bridge_id obj_type obj_id]} {
-			set full_id "${bridge_id}_${obj_type}_${obj_id}"
-			if { ![info exists object_states($full_id)] } {
-				set object_states($full_id) [hue::get_object_state $bridge_id $obj_type $obj_id]
-			}
-			array set current_state $object_states($full_id)
-			set response [array get current_state]
+			set response [object_state $bridge_id $obj_type $obj_id]
 		} elseif {[regexp "^update_object_state\\s+(\\S+)\\s+(\\S+)\\s+(\\S+)\\s+(\\d+)$" $cmd match bridge_id obj_type obj_id delay_seconds]} {
-			set_scheduled_update [expr [clock seconds] + $delay_seconds]
-			set full_id "${bridge_id}_${obj_type}_${obj_id}"
-			set forced_updates($full_id) 2
-		} elseif {[regexp "^reload$" $cmd match]} {
+			set forced_updates(${bridge_id}_${obj_type}_${obj_id}) 2
+			# The event stream delivers v2 changes by itself
+			if {[stream_get $bridge_id connected 0] != 1} {
+				set_scheduled_update [expr {[clock seconds] + $delay_seconds}]
+			}
+		} elseif {[regexp "^update_object_state\\s+(\\S+)\\s+(\\S+)\\s+(\\S+)$" $cmd match bridge_id obj_type obj_id]} {
+			# Channel 1 of a dimmer: refresh now
+			set forced_updates(${bridge_id}_${obj_type}_${obj_id}) 2
+			set_scheduled_update [clock seconds]
+		} elseif {[string equal $cmd "reload"]} {
 			hue::write_log 3 "Hue daemon reload"
 			hue::read_global_config
+			hue::v2::forget_all
+			foreach key [array names stream "*,chan"] {
+				set b [lindex [split $key ","] 0]
+				stop_eventstream $b
+				set stream($b,next_try) 0
+			}
 			update_cuxd_device_map
 			set_scheduled_update [clock seconds]
 			set response "Reload scheduled"
-		} elseif {[regexp "^status$" $cmd match]} {
-			set response ""
-			set tmp [clock seconds]
-			append response "time: ${tmp}\n"
-			append response "scheduled_update_time: ${scheduled_update_time}\n"
-			set tmp [array get cuxd_device_map]
-			set tmp [join $tmp " "]
-			append response "cuxd_device_map: ${tmp}\n"
-			set tmp [join $group_command_times " "]
-			append response "group_command_times: ${tmp}\n"
+		} elseif {[regexp "^objects\\s+(\\S+)$" $cmd match bridge_id]} {
+			# Overview for the web UI from the cache, kept current by the event stream
+			set response [hue::objects_json $bridge_id 0]
+		} elseif {[string equal $cmd "status"]} {
+			set response [status_text]
 		} else {
 			set response "ERROR: Invalid command"
 		}
@@ -470,16 +557,17 @@ proc read_from_channel {channel} {
 		set response "ERROR: ${errmsg}"
 	}
 	hue::write_log 4 "Sending response: $response"
-	puts $channel $response
-	flush $channel
-	close $channel
+	catch {
+		puts $channel $response
+		flush $channel
+	}
+	catch { close $channel }
 }
 
 proc accept_connection {channel address port} {
 	hue::write_log 4 "Accepted connection from $address\:$port"
-	fconfigure $channel -blocking 0
-	fconfigure $channel -buffersize 2048
-	fileevent $channel readable "read_from_channel $channel"
+	fconfigure $channel -blocking 0 -buffersize 65536 -encoding utf-8
+	fileevent $channel readable [list read_from_channel $channel]
 }
 
 proc update_config {} {
@@ -488,34 +576,30 @@ proc update_config {} {
 	catch {
 		set f [open $hue::ini_file r]
 		set data [read $f]
+		close $f
 		# Remove legacy options
-		regsub -all {cuxd_device_[^\n]+\n} $data "" data
-		close $f
-		set f [open $hue::ini_file w]
-		puts $f $data
-		close $f
+		if {[regsub -all {cuxd_device_[^\n]+\n} $data "" data]} {
+			set f [open $hue::ini_file w]
+			puts -nonewline $f $data
+			close $f
+		}
 	}
 	hue::release_lock $hue::lock_id_ini_file
 }
 
 proc main {} {
-	variable hue::hued_address
-	variable hue::hued_port
-	variable cuxd_device_map
 	if { [catch {
 		update_config
 	} errmsg] } {
 		hue::write_log 1 "Error: ${errmsg} - ${::errorCode} - ${::errorInfo}"
 	}
-	
-	main_loop
-	
 	if {$hue::hued_address == "0.0.0.0"} {
 		socket -server accept_connection $hue::hued_port
 	} else {
 		socket -server accept_connection -myaddr $hue::hued_address $hue::hued_port
 	}
-	hue::write_log 3 "Hue daemon is listening for connections on ${hue::hued_address}:${hue::hued_port}"
+	hue::write_log 3 "Hue daemon [hue::version] is listening for connections on ${hue::hued_address}:${hue::hued_port}"
+	main_loop
 }
 
 if { "[lindex $argv 0 ]" != "daemon" && "[lindex $argv 0 ]" != "nofork" } {
@@ -526,6 +610,8 @@ if { "[lindex $argv 0 ]" != "daemon" && "[lindex $argv 0 ]" != "nofork" } {
 			}
 		}
 	}
+	# Leftover event stream processes of a previous daemon
+	catch { exec pkill -f "eventstream/clip/v2" }
 	if { "[lindex $argv 0 ]" != "stop" } {
 		exec $argv0 daemon &
 	}
