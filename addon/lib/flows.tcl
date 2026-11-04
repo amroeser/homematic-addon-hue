@@ -169,7 +169,7 @@ proc ::hue::flows::finish_program {pName rName} {
 				foreach {sid lv lvt ct ct2 r1 r2 chid lname chname sop} $s break
 				set press [press_kind $lname]
 				lappend sj [::hue::json::objl [list id [$S $sid] dp [$S $lv] type [$S $lvt] ct [$S $ct] ct2 [$S $ct2] \
-					value [$S $r1] value2 [$S $r2] channel [$S $chid] name [$S $lname] channel_name [$S $chname] press [$S $press]]]
+					value [$S $r1] value2 [$S $r2] channel [$S $chid] name [$S $lname] channel_name [$S $chname] press [$S $press] op [$S $sop]]]
 				if {$press == "" || [lsearch -exact {1 13} $ct2] < 0} { set editable 0; set why "condition" }
 			}
 			# Several keys in one condition are fine when they are combined with "or"

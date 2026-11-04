@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.1.1
+
+- Abläufe: Ein Programm, das dieselbe Taste in mehreren Bedingungen prüft (z. B. „Taste und Shelly an“ oder „Taste und anderer Shelly an“), wurde fälschlich als doppelt belegte Taste markiert.
+- Abläufe: Programme, die nur in der CCU änderbar sind, zeigen ihre vollständige Logik lesbar mit „und“, „oder“ und „Sonst“, mit Vergleichen wie „Helligkeit < 45“.
+- Abläufe: Schalten und Umschalten derselben Lampe erscheinen als ein Ziel.
+
 ## 4.1.0
 
 - Abläufe: neue Seite, die alle Programme der CCU als Bild zeigt. Links Tasten und andere Auslöser, in der Mitte die Programme, rechts was geschaltet wird, verbunden durch Linien mit der Aktion („Szene Entspannen“, „umschalten“, „auf 100 %“).

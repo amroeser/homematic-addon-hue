@@ -507,6 +507,7 @@ const I18N = {
 		fl_new: "Neuer Ablauf", fl_new_text: "Taste wählen, Aktion wählen, speichern. Das Addon legt das Programm in der CCU an.", fl_failed: "Programme nicht lesbar: {{e}}",
 		fl_search: "Suchen, z. B. Wohnzimmer", fl_issues: "{{n}} Abläufe prüfen", fl_no_issues: "Keine Konflikte", fl_reload: "Neu laden", fl_none: "Keine Abläufe gefunden.",
 		fl_c_presence: "Anwesenheit", fl_c_motion: "Bewegung", fl_c_lux: "Helligkeit", fl_c_state: "Zustand", fl_c_level: "Position", fl_issues_1: "1 Ablauf prüfen",
+		fl_and: "und", fl_or: "oder", fl_else_if: "Sonst, wenn",
 		fl_when: "Wenn", fl_then: "Dann", fl_program: "Programm", fl_else: "Sonst", fl_condition: "Bedingung",
 		fl_short: "kurz", fl_long: "lang", fl_long_rep: "lang, wiederholt", fl_key: "Taste {{n}}", fl_key_short: "kurz drücken", fl_key_long: "lang drücken",
 		fl_on: "an", fl_off: "aus", fl_toggle: "umschalten", fl_scene: "Szene {{s}}", fl_level: "auf {{p}} %",
@@ -651,6 +652,7 @@ const I18N = {
 		fl_new: "New flow", fl_new_text: "Pick a key, pick an action, save. The addon creates the program in the CCU.", fl_failed: "Cannot read the programs: {{e}}",
 		fl_search: "Search, e.g. living room", fl_issues: "{{n}} flows to check", fl_no_issues: "No conflicts", fl_reload: "Reload", fl_none: "No flows found.",
 		fl_c_presence: "Presence", fl_c_motion: "Motion", fl_c_lux: "Brightness", fl_c_state: "State", fl_c_level: "Position", fl_issues_1: "1 flow to check",
+		fl_and: "and", fl_or: "or", fl_else_if: "Else if",
 		fl_when: "When", fl_then: "Then", fl_program: "Program", fl_else: "Else", fl_condition: "Condition",
 		fl_short: "short", fl_long: "long", fl_long_rep: "long, repeating", fl_key: "Key {{n}}", fl_key_short: "short press", fl_key_long: "long press",
 		fl_on: "on", fl_off: "off", fl_toggle: "toggle", fl_scene: "scene {{s}}", fl_level: "to {{p}} %",
@@ -1650,6 +1652,26 @@ function condLabel(s) {
 	const known = { PRESENCE_DETECTION_STATE: "fl_c_presence", MOTION: "fl_c_motion", ILLUMINATION: "fl_c_lux", STATE: "fl_c_state", LEVEL: "fl_c_level" };
 	return (known[dp] ? t(known[dp]) : dp ? dp.toLowerCase().replace(/_/g, " ") : t("fl_condition")) + (s.ct2 === "15" ? " (" + t("fl_only_check").replace(":", "") + ")" : "");
 }
+// Switch and toggle of one lamp are one target; system variables have no channel
+// The whole program in words: (a and b) or (c and d) -> actions, else -> actions
+function flowLogic(p) {
+	const num = v => { const f = parseFloat(v); return isNaN(f) ? v : String(Math.round(f * 100) / 100).replace(".", lang === "de" ? "," : "."); };
+	const val = v => v === "true" ? t("fl_on") : v === "false" ? t("fl_off") : num(v);
+	// Comparison types of the CCU: 5 equal, 7 range, 8 greater, 9 at least, 10 less, 11 at most, 12 not equal
+	const cmp = s => ({ "8": "> ", "9": "≥ ", "10": "< ", "11": "≤ ", "12": "≠ " })[s.ct] || (s.ct === "7" ? "" : "= ");
+	const single = s => s.press ? keyName(s).device + ", " + keyName(s).key + " " + pressLabel(s.press)
+		: cleanName(s.channel_name || s.name) + " " + condLabel(s).replace(/ \(.*\)$/, "") + " " + cmp(s)
+			+ (s.ct === "7" ? val(s.value) + " – " + val(s.value2) : val(s.value)) + (s.ct2 === "15" ? " (" + t("fl_only_check").replace(":", "") + ")" : "");
+	return h("div", { class: "flow-logic" }, p.rules.map((r, ri) => {
+		const conds = r.conditions.map(c => c.singles.map((s, k) => (k ? (s.op === "2" ? " " + t("fl_or") + " " : " " + t("fl_and") + " ") : "") + single(s)).join(""));
+		const join = " " + ((r.conditions[1] || {}).op === "1" ? t("fl_and") : t("fl_or")) + " ";
+		const when = conds.length > 1 ? conds.map(c => "(" + c + ")").join(join) : conds[0];
+		const acts = r.actions.map(a => targetName(a) + " " + actionText(a) + (a.delay_type && a.delay_type !== "0" ? " (" + t("fl_delayed") + ")" : "")).join(", ");
+		return h("p", { style: "margin:6px 0" }, h("b", {}, ri === 0 ? t("fl_when") : when ? t("fl_else_if") : t("fl_else")), " ", when || "", when ? h("br") : null,
+			h("b", {}, t("fl_then")), " ", acts || "–");
+	}));
+}
+function targetKey(a) { return a.channel && a.channel !== "65535" && a.channel !== "0" ? "ch" + a.channel : "dp" + a.dp; }
 function targetOf(dp) { return (S.catalog.targets || []).find(x => x.dp === dp || x.toggle === dp); }
 function actionText(a) {
 	const n = String(a.name || "");
@@ -1678,7 +1700,7 @@ function flowIssues() {
 		for (const c of (p.rules[0] || { conditions: [] }).conditions) for (const s of c.singles) {
 			if (!s.press) continue;
 			if (!byDp.has(s.dp)) byDp.set(s.dp, []);
-			byDp.get(s.dp).push(p);
+			if (!byDp.get(s.dp).includes(p)) byDp.get(s.dp).push(p);
 			if (s.press === "LONG") issues.set(p.id, [...(issues.get(p.id) || []), { kind: "repeat", dp: s.dp }]);
 		}
 	}
@@ -1737,7 +1759,7 @@ function renderFlows() {
 			edges.push({ from: "t" + portKey, to: "p" + p.id, label: "", warn: s.press === "LONG" });
 		}
 		for (const a of rule.actions) {
-			const key = a.dp;
+			const key = targetKey(a);
 			if (!targNodes.has(key)) {
 				const node = h("div", { class: "flow-node target" }, h("span", { class: "flow-name" }, targetName(a)));
 				targNodes.set(key, node);
@@ -1746,8 +1768,9 @@ function renderFlows() {
 			edges.push({ from: "p" + p.id, to: "a" + key, label: actionText(a) });
 		}
 		for (const r of p.rules.slice(1)) for (const a of r.actions) {
-			if (!targNodes.has(a.dp)) { const node = h("div", { class: "flow-node target" }, h("span", { class: "flow-name" }, targetName(a))); targNodes.set(a.dp, node); colA.append(node); }
-			edges.push({ from: "p" + p.id, to: "a" + a.dp, label: t("fl_else") + ": " + actionText(a), dashed: true });
+			const key = targetKey(a);
+			if (!targNodes.has(key)) { const node = h("div", { class: "flow-node target" }, h("span", { class: "flow-name" }, targetName(a))); targNodes.set(key, node); colA.append(node); }
+			edges.push({ from: "p" + p.id, to: "a" + key, label: t("fl_else") + ": " + actionText(a), dashed: true });
 		}
 	}
 	const sortedDevs = [...devices.values()].sort((a, b) => (b.press - a.press) || a.name.localeCompare(b.name));
@@ -1833,7 +1856,7 @@ function openFlow(p, presetTrigger) {
 	const draft = {
 		name: p ? p.name : "",
 		active: p ? p.active : true,
-		triggers: p ? rule.conditions.flatMap(c => c.singles).filter(s => s.press).map(s => s.dp) : (presetTrigger ? [presetTrigger] : []),
+		triggers: p ? [...new Set(rule.conditions.flatMap(c => c.singles).filter(s => s.press).map(s => s.dp))] : (presetTrigger ? [presetTrigger] : []),
 		actions: p ? rule.actions.map(a => ({ dp: a.dp, value: a.value })) : []
 	};
 	const trigLabel = dp => {
@@ -1925,10 +1948,7 @@ function openFlow(p, presetTrigger) {
 					h("input", { type: "checkbox", class: "switch", role: "switch", checked: draft.active, disabled: !p && false, onchange: e => draft.active = e.target.checked })),
 				editable || draft.triggers.length ? h("div", { class: "section" }, h("div", { class: "t-h3" }, t("fl_when")), h("p", { class: "muted t-small", style: "margin:2px 0 6px" }, t("fl_when_text")), whenList, editable ? addKey : null) : null,
 				h("div", { class: "section" }, h("div", { class: "t-h3" }, t("fl_then")), thenList, editable ? addTarget : null),
-				!editable && p ? h("div", { class: "section" }, h("div", { class: "t-h3" }, t("fl_all_conditions")),
-					h("ul", { class: "muted", style: "margin:6px 0 0;padding-left:18px" }, p.rules.flatMap((r, ri) => [
-						...r.conditions.flatMap(c => c.singles).map(s => h("li", {}, (ri ? t("fl_else") + ": " : "") + cleanName(s.channel_name || s.name) + " " + (s.press ? pressLabel(s.press) : (s.ct2 === "15" ? t("fl_only_check") : t("fl_trigger")) + " " + s.value))),
-						...r.actions.map(a => h("li", {}, (ri ? t("fl_else") + ": " : "") + targetName(a) + " " + actionText(a) + (a.delay_type && a.delay_type !== "0" ? " (" + t("fl_delayed") + ")" : "")))]))) : null].filter(Boolean));
+				!editable && p ? h("div", { class: "section" }, h("div", { class: "t-h3" }, t("fl_all_conditions")), flowLogic(p)) : null].filter(Boolean));
 			foot.replaceChildren(
 				p ? h("button", { class: "btn quiet", style: "color:var(--bad)", onclick: async () => {
 					if (!confirm(t("fl_delete_q", { name: p.name }))) return;
