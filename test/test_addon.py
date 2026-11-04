@@ -718,6 +718,23 @@ class AddonTest(unittest.TestCase):
         st, r = self.rest("POST", f"bridges/{BRIDGE}/swupdate", {"action": "auto", "on": True, "time": "25:00"})
         self.assertEqual(st, 400, r)
 
+    def test_61_sbom(self):
+        """CycloneDX SBOM: authors, bundled third-party files with matching hashes, runtime needs."""
+        import hashlib
+        out = RUN / "sbom.cdx.json"
+        subprocess.run([sys.executable, str(ROOT / "tools" / "make_sbom.py"), str(out)], check=True, capture_output=True)
+        b = json.loads(out.read_text(encoding="utf-8"))
+        self.assertEqual((b["bomFormat"], b["specVersion"]), ("CycloneDX", "1.5"))
+        self.assertEqual(b["metadata"]["component"]["version"], (ROOT / "VERSION").read_text().strip())
+        self.assertEqual([a["name"] for a in b["metadata"]["authors"]], ["Jan Schneider", "Alexander Maximilian Röser"])
+        comps = {c["name"]: c for c in b["components"]}
+        ini = comps["tcllib-inifile"]
+        self.assertEqual(ini["hashes"][0]["content"], hashlib.sha256((ADDON / "lib" / "ini.tcl").read_bytes()).hexdigest())
+        self.assertEqual(comps["Instrument Sans"]["licenses"][0]["license"]["id"], "OFL-1.1")
+        for need in ("Tcl", "CUxD", "curl", "OpenSSL"):
+            self.assertEqual(comps[need]["scope"], "required")
+        self.assertIn("addon/hued.tcl", comps)
+
     def test_30_v1_bridge_fallback(self):
         """Round bridge / old firmware: everything over v1, nothing breaks."""
         ctl("/_v2", {"enabled": False})

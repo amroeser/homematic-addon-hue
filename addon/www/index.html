@@ -565,6 +565,10 @@ const I18N = {
 		extra_on: "An", extra_off: "Aus", extra_unknown: "Zustand unbekannt",
 		shelly_sync: "Shelly-Zustand abgleichen", shelly_sync_text: "Für Shellys hinter CUxD-Schaltern: Das Addon liest alle 10 Sekunden das Relais und korrigiert den Zustand in HomeMatic, etwa nach dem Wandschalter.",
 		scene_state: "Szenen-Tasten zeigen ihre Szene", scene_state_text: "Eine Szenen-Taste steht nur auf „an“, solange ihre Szene aktiv ist. So wechseln Programme mit „Umschalten“ zuverlässig zwischen den Szenen eines Raums.",
+		about: "Über dieses Addon", about_jan: "Jan Schneider hat das Addon 2017 geschrieben und bis Version 3.2.5 entwickelt.",
+		about_amr: "Alexander Maximilian Röser hat es zu Version 4 weiterentwickelt.",
+		about_parts: "Enthält tcllib inifile (Tcl/Tk-Lizenz) und die Schrift Instrument Sans (SIL Open Font License). Lizenz des Addons: GPL-3.0.",
+		about_sbom: "SBOM herunterladen", about_credits: "Credits und Lizenzen",
 		sys_title: "Bridge und Hue-Konto: {{name}}", sys_firmware: "Firmware {{v}}, API {{api}}", sys_failed: "Status der Bridge nicht lesbar: {{e}}",
 		sys_internet: "Internet", sys_internet_ok: "Die Bridge ist mit dem Internet verbunden.", sys_internet_bad: "Keine Internetverbindung. Updates und die Hue-App unterwegs funktionieren nicht.",
 		sys_account: "Hue-Konto", sys_account_ok: "Die Bridge ist mit einem Hue-Konto verbunden.", sys_account_bad: "Kein Hue-Konto verbunden. Melde dich in der Hue-App an, um sie unterwegs zu nutzen.",
@@ -683,6 +687,10 @@ const I18N = {
 		extra_on: "On", extra_off: "Off", extra_unknown: "State unknown",
 		shelly_sync: "Read back Shelly state", shelly_sync_text: "For Shellys behind CUxD switches: every 10 seconds the addon reads the relay and corrects the state in HomeMatic, for example after the wall switch.",
 		scene_state: "Scene buttons show their scene", scene_state_text: "A scene button is only “on” while its scene is active. Programs that toggle switch reliably between the scenes of a room.",
+		about: "About this addon", about_jan: "Jan Schneider wrote the addon in 2017 and developed it up to version 3.2.5.",
+		about_amr: "Alexander Maximilian Röser developed it into version 4.",
+		about_parts: "Contains tcllib inifile (Tcl/Tk license) and the Instrument Sans typeface (SIL Open Font License). The addon is licensed under GPL-3.0.",
+		about_sbom: "Download SBOM", about_credits: "Credits and licences",
 		sys_title: "Bridge and Hue account: {{name}}", sys_firmware: "Firmware {{v}}, API {{api}}", sys_failed: "Cannot read the bridge status: {{e}}",
 		sys_internet: "Internet", sys_internet_ok: "The bridge is connected to the internet.", sys_internet_bad: "No internet connection. Updates and the Hue app away from home do not work.",
 		sys_account: "Hue account", sys_account_ok: "The bridge is linked to a Hue account.", sys_account_bad: "No Hue account linked. Sign in with the Hue app to use it away from home.",
@@ -1463,7 +1471,14 @@ function renderSettings() {
 				row(t("timeout"), t("timeout_text"), num("api_connect_timeout", 100)),
 				row(t("throttle"), t("throttle_text"), h("input", { value: draft.group_throttling_settings, style: "width:180px", oninput: e => set("group_throttling_settings", e.target.value) })),
 				row(t("log_level"), null, sel("log_level", [0, 1, 2, 3, 4].map(i => [i, t("log_" + i)]))),
-				row(t("api_log"), null, sel("api_log", ["off", "command", "status", "all"].map(k => [k, t("api_log_" + k)]))))));
+				row(t("api_log"), null, sel("api_log", ["off", "command", "status", "all"].map(k => [k, t("api_log_" + k)]))))),
+		h("section", { class: "panel" }, h("div", { class: "panel-head" }, h("h2", { class: "t-h3" }, t("about")), h("p", { class: "muted t-small" }, "Version " + (S.config.version || ""))),
+			h("div", { class: "row", style: "display:block" },
+				h("p", { style: "margin:0 0 6px" }, t("about_jan")), h("p", { style: "margin:0 0 6px" }, t("about_amr")),
+				h("p", { class: "muted t-small", style: "margin:0 0 12px" }, t("about_parts")),
+				h("div", { style: "display:flex;gap:10px;flex-wrap:wrap" },
+					h("a", { class: "btn sm", href: "sbom.cdx.json", download: "hm-hue-" + (S.config.version || "") + ".cdx.json" }, t("about_sbom")),
+					h("a", { class: "btn sm quiet", href: "https://github.com/amroeser/homematic-addon-hue/blob/master/CREDITS.md", target: "_blank", rel: "noopener" }, t("about_credits"))))));
 }
 
 function editBridge(b) {

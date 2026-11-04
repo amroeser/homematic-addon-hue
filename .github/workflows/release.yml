@@ -34,5 +34,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           notes=$(awk -v v="$(cat VERSION)" '$0 ~ "^## " v {f=1; next} /^## /{f=0} f' CHANGELOG.md)
-          gh release create "${GITHUB_REF_NAME}" dist/hm-hue.tar.gz dist/hm-hue.tar.gz.sha256 dist/VERSION \
+          gh release create "${GITHUB_REF_NAME}" dist/hm-hue.tar.gz dist/hm-hue.tar.gz.sha256 dist/VERSION dist/hm-hue.cdx.json \
             --title "${GITHUB_REF_NAME}" --notes "${notes}"

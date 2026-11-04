@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.0.5
+
+- Credits: Jan Schneider als ursprünglicher Autor (Versionen 1.0 bis 3.2.5), Alexander Maximilian Röser für Version 4. Alle eingebundenen und vorausgesetzten Komponenten mit Lizenzen in `CREDITS.md`.
+- Software-Stückliste (SBOM) im Format CycloneDX 1.5: am Release als `hm-hue.cdx.json`, im Paket und unter Einstellungen → „Über dieses Addon“ zum Herunterladen.
+
 ## 4.0.4
 
 - Bridge und Hue-Konto in der Diagnose: Internet, Hue-Konto, Zugriff von unterwegs und Uhrzeit auf einen Blick.

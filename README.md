@@ -441,11 +441,17 @@ Ein Release entsteht durch einen Tag `v<VERSION>`. GitHub Actions testet, baut u
 
 </details>
 
+## Credits
+
+**Jan Schneider** hat das Addon 2017 geschrieben und bis Version 3.2.5 entwickelt: Hue API v1, CUxD-Geräte und den Hue-Dienst, auf denen alles aufbaut. **Alexander Maximilian Röser** hat es zu Version 4 weiterentwickelt: Hue API v2 mit Echtzeit, neue Oberfläche, CCU3-Unterstützung, Szenen, Lampen ohne Hue und Updates mit einem Klick.
+
+Im Paket stecken außerdem tcllib inifile (Tcl/Tk-Lizenz) und die Schrift Instrument Sans (SIL Open Font License). Alle Komponenten, Lizenzen und Werkzeuge stehen in [CREDITS.md](CREDITS.md). Jedes Release enthält eine Software-Stückliste (SBOM) im Format CycloneDX: `hm-hue.cdx.json`.
+
 <br>
 
 <div align="center">
 <sub>
-GPL-3.0 · basiert auf <a href="https://github.com/j-a-n/homematic-addon-hue">homematic-addon-hue</a> von Jan Schneider · Schrift: Instrument Sans (SIL Open Font License)<br>
+Ursprünglich von Jan Schneider (Versionen 1 bis 3), weiterentwickelt von Alexander Maximilian Röser (Version 4). GPL-3.0. <a href="CREDITS.md">Credits, Lizenzen und SBOM</a><br>
 Philips Hue ist eine Marke von Signify. Dieses Projekt steht in keiner Verbindung zu Signify oder eQ-3.
 </sub>
 </div>

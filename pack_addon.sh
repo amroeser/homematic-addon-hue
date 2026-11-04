@@ -15,6 +15,10 @@ mkdir -p "${dist}"
 for f in VERSION update_script addon hue; do
 	cp -a "$f" "${tmp_dir}/"
 done
+# Credits and software bill of materials go with the addon; the SBOM is also served by the web UI
+cp CREDITS.md "${tmp_dir}/addon/CREDITS.md"
+python3 tools/make_sbom.py "${dist}/hm-hue.cdx.json" >/dev/null
+cp "${dist}/hm-hue.cdx.json" "${tmp_dir}/addon/www/sbom.cdx.json"
 chmod 755 "${tmp_dir}/update_script" "${tmp_dir}/hue" "${tmp_dir}/addon/hue.tcl" "${tmp_dir}/addon/hued.tcl"
 chmod 755 "${tmp_dir}"/addon/www/*.cgi
 find "${tmp_dir}" \( -name "#*" -o -name ".DS_Store" -o -name "*~" -o -name "*.bak*" \) -delete
