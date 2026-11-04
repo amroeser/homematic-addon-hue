@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.1.0
+
+- Abläufe: neue Seite, die alle Programme der CCU als Bild zeigt. Links Tasten und andere Auslöser, in der Mitte die Programme, rechts was geschaltet wird, verbunden durch Linien mit der Aktion („Szene Entspannen“, „umschalten“, „auf 100 %“).
+- Abläufe bearbeiten: neue Abläufe mit Taste (kurz oder lang) und Aktionen anlegen, Tasten per Ziehen zu einem Programm hinzufügen, Aktionen ändern, pausieren, löschen. Das Programm in der CCU ist die einzige Kopie: Änderungen stehen sofort in der CCU, Änderungen in der CCU sofort hier.
+- Vor jeder Änderung sichert das Addon das Programm unter `/usr/local/etc/config/hue-flow-backups` (bleibt bei Updates erhalten und ist Teil des CCU-Backups).
+- Konflikte werden markiert: eine Taste in mehreren Programmen und lange Tastendrücke, die beim Halten mehrfach auslösen, mit Knopf zum Umstellen auf einmaliges Auslösen.
+- Programme mit Bedingungen, „Sonst“, Verzögerungen oder Skripten werden vollständig angezeigt und lassen sich pausieren; geändert werden sie weiter in der CCU.
+
 ## 4.0.5
 
 - Credits: Jan Schneider als ursprünglicher Autor (Versionen 1.0 bis 3.2.5), Alexander Maximilian Röser für Version 4. Alle eingebundenen und vorausgesetzten Komponenten mit Lizenzen in `CREDITS.md`.

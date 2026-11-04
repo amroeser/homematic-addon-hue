@@ -71,6 +71,24 @@ proc ::hue_test_extras {kind script} {
 proc rega_script {script} {
 	::hue_test_append rega.log [string map {"\n" " " "\t" " "} $script]
 	set out ""
+	# Flow designer: programs from flows_dump.txt (one program per block "P|..."), catalog from flows_catalog.txt
+	if {[regexp {^!hue:flows:dump} $script]} {
+		set all [::hue_test_read flows_dump.txt]
+		if {[regexp {foreach\(pid, "([0-9]+)"\)} $script -> only]} {
+			set keep ""
+			set on 0
+			foreach line [split $all "\n"] {
+				if {[string match "P|*" $line]} { set on [string match "P|${only}|*" $line] }
+				if {$on} { append keep "$line\n" }
+			}
+			set all $keep
+		}
+		return [list STDOUT $all]
+	}
+	if {[regexp {^!hue:flows:catalog} $script]} { return [list STDOUT [::hue_test_read flows_catalog.txt]] }
+	if {[regexp {^!hue:flows:create} $script]} { return [list STDOUT "ID|99001\n"] }
+	if {[regexp {^!hue:flows:update} $script] && [regexp {GetObject\(([0-9]+)\)} $script -> id]} { return [list STDOUT "OK|$id\n"] }
+	if {[regexp {^!hue:flows:delete} $script]} { return [list STDOUT "DEL|true\n"] }
 	if {[regexp {^!hue:extras:candidates} $script]} {
 		return [list STDOUT [::hue_test_read ccu_channels.txt]]
 	}

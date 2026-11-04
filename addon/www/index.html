@@ -169,7 +169,7 @@ main { padding: 28px clamp(16px, 4vw, 48px) 120px; max-width: 1180px; width: 100
 .btn.sm { min-height: 32px; padding: 0 12px; font-size: .875rem; }
 .icon-btn { width: 36px; height: 36px; padding: 0; border-radius: 50%; }
 
-input[type=text], input[type=number], input[type=password], input:not([type]), select, textarea {
+input[type=text], input[type=search], input[type=number], input[type=password], input:not([type]), select, textarea {
 	width: 100%; min-height: 42px; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--r-sm);
 	background: var(--surface); transition: border-color 150ms, box-shadow 150ms;
 }
@@ -312,6 +312,38 @@ details.more-settings[open] > summary::before { content: "–"; }
 pre { margin: 0; padding: 14px; border-radius: var(--r-sm); background: var(--fill); overflow: auto; max-height: 50vh; font: .8125rem/1.5 ui-monospace, Menlo, Consolas, monospace; white-space: pre-wrap; word-break: break-word; }
 .examples { display: flex; gap: 6px; flex-wrap: wrap; }
 
+/* Flows: three columns joined by curves */
+.flow-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 0 0 16px; }
+.flow-bar .badge svg { width: 14px; height: 14px; }
+.flow-wrap { overflow-x: auto; padding-bottom: 8px; }
+.flow-canvas { position: relative; display: grid; grid-template-columns: minmax(230px, 1fr) minmax(210px, .9fr) minmax(200px, 1fr); column-gap: 150px; min-width: 980px; padding: 4px 0 24px; }
+.flow-lines { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+.flow-lines .edge { fill: none; stroke: color-mix(in srgb, var(--amber) 55%, var(--line)); stroke-width: 1.6; }
+.flow-lines .edge.warn { stroke: var(--bad); stroke-dasharray: 5 4; }
+.flow-lines .edge.dashed { stroke-dasharray: 3 4; stroke: var(--ink-3); }
+.flow-lines text { font-size: 11px; fill: var(--ink-2); paint-order: stroke; stroke: var(--canvas); stroke-width: 4px; }
+.flow-col { display: grid; gap: 10px; align-content: start; position: relative; z-index: 1; }
+.flow-col-head { font-size: .8125rem; font-weight: 600; color: var(--ink-2); padding: 0 2px 2px; }
+.flow-node { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); text-align: left; color: var(--ink); }
+.flow-node .flow-name { font-weight: 600; line-height: 1.3; }
+.flow-node .flow-meta { font-size: .75rem; color: var(--ink-2); }
+.flow-node.prog { border-color: color-mix(in srgb, var(--amber) 45%, var(--line)); cursor: pointer; }
+.flow-node.prog:hover { box-shadow: 0 6px 18px -10px rgb(232 147 42 / .8); }
+.flow-node.prog.off { opacity: .55; }
+.flow-node.prog.warn { border-color: var(--bad); }
+.flow-node.prog.warn .flow-meta { color: var(--bad); }
+.flow-node.prog.drop { outline: 2px solid var(--amber); outline-offset: 2px; }
+.flow-node.trigger.cond { border-style: dashed; }
+.flow-port { display: flex; align-items: center; gap: 8px; font-size: .8125rem; color: var(--ink-2); padding: 3px 0; cursor: grab; }
+.flow-port .dot, .flow-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--amber); flex: none; box-shadow: 0 0 0 3px var(--amber-soft); }
+.flow-dot.target { background: var(--ink-3); box-shadow: 0 0 0 3px var(--fill); }
+.flow-node.trigger.cond .flow-port { cursor: default; }
+.flow-add { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px 0 2px; }
+.flow-list { display: none; gap: 10px; }
+.flow-card { display: grid; gap: 4px; text-align: left; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); color: var(--ink); }
+.flow-card.warn { border-color: var(--bad); }
+.flow-card .flow-name { font-weight: 600; }
+@media (max-width: 760px) { .flow-wrap { display: none; } .flow-list { display: grid; } }
 .sys-dev { display: flex; align-items: center; gap: 10px; padding: 6px 0; flex-wrap: wrap; }
 .sys-dev .grow { min-width: 160px; }
 .badge.warn { background: var(--amber-soft); color: var(--ink); }
@@ -434,6 +466,9 @@ dialog.closing::backdrop { animation: fade-out 200ms ease-in forwards; }
 		<button class="nav-item" data-page="sensors">
 			<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 16.2a6 6 0 0 0 0-8.4M4.9 4.9a10 10 0 0 0 0 14.2M19.1 19.1a10 10 0 0 0 0-14.2"/></svg>
 			<span data-t="nav_sensors"></span></button>
+		<button class="nav-item" data-page="flows">
+			<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="6" height="5" rx="1.5"/><rect x="15" y="15" width="6" height="5" rx="1.5"/><path d="M9 6.5h3a2 2 0 0 1 2 2v7a2 2 0 0 0 2 2"/></svg>
+			<span data-t="nav_flows"></span></button>
 		<button class="nav-item" data-page="settings">
 			<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>
 			<span data-t="nav_settings"></span></button>
@@ -452,6 +487,7 @@ dialog.closing::backdrop { animation: fade-out 200ms ease-in forwards; }
 		<div id="update-notice" class="notice" hidden></div>
 		<section id="page-rooms"></section>
 		<section id="page-sensors" hidden></section>
+		<section id="page-flows" hidden></section>
 		<section id="page-settings" hidden></section>
 		<section id="page-diagnose" hidden></section>
 	</main>
@@ -466,7 +502,29 @@ dialog.closing::backdrop { animation: fade-out 200ms ease-in forwards; }
 /* ====================================================================== i18n */
 const I18N = {
 	de: {
-		nav_rooms: "Räume", nav_sensors: "Sensoren", nav_settings: "Einstellungen", nav_diagnose: "Diagnose",
+		nav_rooms: "Räume", nav_sensors: "Sensoren", nav_settings: "Einstellungen", nav_diagnose: "Diagnose", nav_flows: "Abläufe",
+		fl_title: "Abläufe", fl_text: "Was passiert, wenn du eine Taste drückst. Jede Verbindung ist ein Programm der CCU: Änderungen hier stehen sofort auch dort, und umgekehrt.",
+		fl_new: "Neuer Ablauf", fl_new_text: "Taste wählen, Aktion wählen, speichern. Das Addon legt das Programm in der CCU an.", fl_failed: "Programme nicht lesbar: {{e}}",
+		fl_search: "Suchen, z. B. Wohnzimmer", fl_issues: "{{n}} Abläufe prüfen", fl_no_issues: "Keine Konflikte", fl_reload: "Neu laden", fl_none: "Keine Abläufe gefunden.",
+		fl_c_presence: "Anwesenheit", fl_c_motion: "Bewegung", fl_c_lux: "Helligkeit", fl_c_state: "Zustand", fl_c_level: "Position", fl_issues_1: "1 Ablauf prüfen",
+		fl_when: "Wenn", fl_then: "Dann", fl_program: "Programm", fl_else: "Sonst", fl_condition: "Bedingung",
+		fl_short: "kurz", fl_long: "lang", fl_long_rep: "lang, wiederholt", fl_key: "Taste {{n}}", fl_key_short: "kurz drücken", fl_key_long: "lang drücken",
+		fl_on: "an", fl_off: "aus", fl_toggle: "umschalten", fl_scene: "Szene {{s}}", fl_level: "auf {{p}} %",
+		fl_inactive: "Pausiert", fl_ccu_only: "In der CCU bearbeiten", fl_check: "Bitte prüfen", fl_active: "Aktiv",
+		fl_drag: "Auf ein Programm ziehen, um diese Taste hinzuzufügen. Klicken für einen neuen Ablauf.",
+		fl_saved: "„{{name}}“ gespeichert. Die vorherige Fassung liegt als Sicherung auf der CCU.", fl_deleted: "Ablauf gelöscht. Eine Sicherung liegt auf der CCU.",
+		fl_name: "Name", fl_name_ph: "z. B. Wohnzimmer Taste 1: Hell", fl_active_label: "Aktiv",
+		fl_when_text: "Eine der Tasten genügt.", fl_add_key: "Taste hinzufügen", fl_pick_key: "Taste wählen …", fl_add: "Hinzufügen",
+		fl_add_target: "Aktion hinzufügen", fl_pick_target: "Was soll passieren …",
+		fl_g_scene: "Hue-Szenen", fl_g_switch: "Schalter und Lampen", fl_g_blind: "Rollläden", fl_g_level: "Dimmer", fl_g_sysvar: "Systemvariablen",
+		fl_ro_title: "Nur in der CCU änderbar", fl_ro_text: "Dieser Ablauf nutzt Bedingungen, „Sonst“, Verzögerungen oder Skripte. Du siehst ihn hier vollständig, ändern kannst du ihn in der CCU unter Programme. Pausieren geht hier.",
+		fl_all_conditions: "Vollständiger Ablauf", fl_only_check: "nur prüfen:", fl_trigger: "bei Änderung:", fl_delayed: "verzögert",
+		fl_repeat_title: "Lange Taste löst mehrfach aus", fl_repeat_text: "Solange die Taste gehalten wird, startet das Programm immer wieder. Bei „umschalten“ geht das Licht dann an und gleich wieder aus.",
+		fl_repeat_fix: "Einmal auslösen", fl_repeat_fixed: "Umgestellt, jetzt speichern.",
+		fl_twice_title: "Taste doppelt belegt", fl_twice_text: "Dieselbe Taste startet auch: {{names}}. Beide Programme laufen gleichzeitig.",
+		fl_delete: "Löschen", fl_delete_q: "„{{name}}“ aus der CCU löschen? Eine Sicherung bleibt auf der CCU.", fl_disable: "Pausieren", fl_enable: "Aktivieren",
+		fl_need_name: "Bitte gib dem Ablauf einen Namen.", fl_need_both: "Ein Ablauf braucht mindestens eine Taste und eine Aktion.",
+		fl_last: "Zuletzt ausgeführt: {{d}}", fl_never: "Noch nicht ausgeführt",
 		rooms_title: "Räume", rooms_summary: "{{on}} von {{n}} Lampen an", all_off: "Alles aus", more: "Details",
 		no_room: "Ohne Raum", room_on: "{{on}} von {{n}} an", room_all_on: "Alle an", room_off: "Aus",
 		lamp_off: "Aus", lamp_on: "An", lamp_on_bri: "{{p}} %", unreachable: "Nicht erreichbar",
@@ -588,7 +646,29 @@ const I18N = {
 		tour6_t: "Lampen ohne Hue", tour6_x: "Deckenlampe am Shelly, Stehlampe an der HomeMatic-Steckdose: Ordne sie beim Raum unter „Mehr“ zu. Dann schalten sie mit dem Raum an und aus, und jede Szene kann sie mitnehmen."
 	},
 	en: {
-		nav_rooms: "Rooms", nav_sensors: "Sensors", nav_settings: "Settings", nav_diagnose: "Diagnostics",
+		nav_rooms: "Rooms", nav_sensors: "Sensors", nav_settings: "Settings", nav_diagnose: "Diagnostics", nav_flows: "Flows",
+		fl_title: "Flows", fl_text: "What happens when you press a key. Every connection is a CCU program: changes here show up there right away, and the other way round.",
+		fl_new: "New flow", fl_new_text: "Pick a key, pick an action, save. The addon creates the program in the CCU.", fl_failed: "Cannot read the programs: {{e}}",
+		fl_search: "Search, e.g. living room", fl_issues: "{{n}} flows to check", fl_no_issues: "No conflicts", fl_reload: "Reload", fl_none: "No flows found.",
+		fl_c_presence: "Presence", fl_c_motion: "Motion", fl_c_lux: "Brightness", fl_c_state: "State", fl_c_level: "Position", fl_issues_1: "1 flow to check",
+		fl_when: "When", fl_then: "Then", fl_program: "Program", fl_else: "Else", fl_condition: "Condition",
+		fl_short: "short", fl_long: "long", fl_long_rep: "long, repeating", fl_key: "Key {{n}}", fl_key_short: "short press", fl_key_long: "long press",
+		fl_on: "on", fl_off: "off", fl_toggle: "toggle", fl_scene: "scene {{s}}", fl_level: "to {{p}} %",
+		fl_inactive: "Paused", fl_ccu_only: "Edit in the CCU", fl_check: "Please check", fl_active: "Active",
+		fl_drag: "Drag onto a program to add this key. Click for a new flow.",
+		fl_saved: "“{{name}}” saved. The previous version is kept as a backup on the CCU.", fl_deleted: "Flow deleted. A backup is kept on the CCU.",
+		fl_name: "Name", fl_name_ph: "e.g. Living room key 1: bright", fl_active_label: "Active",
+		fl_when_text: "Any of the keys starts it.", fl_add_key: "Add a key", fl_pick_key: "Pick a key …", fl_add: "Add",
+		fl_add_target: "Add an action", fl_pick_target: "What should happen …",
+		fl_g_scene: "Hue scenes", fl_g_switch: "Switches and lamps", fl_g_blind: "Blinds", fl_g_level: "Dimmers", fl_g_sysvar: "System variables",
+		fl_ro_title: "Only editable in the CCU", fl_ro_text: "This flow uses conditions, “else”, delays or scripts. You see all of it here; change it in the CCU under Programs. Pausing works here.",
+		fl_all_conditions: "Complete flow", fl_only_check: "check only:", fl_trigger: "on change:", fl_delayed: "delayed",
+		fl_repeat_title: "Long press triggers repeatedly", fl_repeat_text: "While the key is held, the program starts again and again. With “toggle” the light goes on and right off again.",
+		fl_repeat_fix: "Trigger once", fl_repeat_fixed: "Changed, now save.",
+		fl_twice_title: "Key used twice", fl_twice_text: "The same key also starts: {{names}}. Both programs run at the same time.",
+		fl_delete: "Delete", fl_delete_q: "Delete “{{name}}” from the CCU? A backup is kept on the CCU.", fl_disable: "Pause", fl_enable: "Activate",
+		fl_need_name: "Please give the flow a name.", fl_need_both: "A flow needs at least one key and one action.",
+		fl_last: "Last run: {{d}}", fl_never: "Not run yet",
 		rooms_title: "Rooms", rooms_summary: "{{on}} of {{n}} lights on", all_off: "All off", more: "Details",
 		no_room: "No room", room_on: "{{on}} of {{n}} on", room_all_on: "All on", room_off: "Off",
 		lamp_off: "Off", lamp_on: "On", lamp_on_bri: "{{p}} %", unreachable: "Unreachable",
@@ -834,7 +914,7 @@ function render() {
 	document.documentElement.lang = lang;
 	if (!S.config) return;
 	if (!S.bridges.length) { renderOnboarding(); return; }
-	({ rooms: renderRooms, sensors: renderSensors, settings: renderSettings, diagnose: renderDiagnose })[S.page]();
+	({ rooms: renderRooms, sensors: renderSensors, flows: renderFlows, settings: renderSettings, diagnose: renderDiagnose })[S.page]();
 	renderBadges();
 }
 $("#lang").addEventListener("change", e => { lang = e.target.value; try { localStorage.setItem("hue-lang", lang); } catch (x) {} render(); });
@@ -1550,6 +1630,331 @@ function renderDiagnose() {
 			h("div", { class: "row", style: "display:block;border-top:0;padding-top:0" }, log)));
 }
 
+/* ====================================================================== flows */
+// The CCU programs as a picture: trigger -> program -> target. The programs are the only copy;
+// the page reads them live and writes changes straight back (with a backup on the CCU).
+async function loadFlows(force) {
+	if (S.flows && !force) return;
+	const [f, c] = await Promise.all([rest("GET", "flows"), S.catalog && !force ? Promise.resolve(S.catalog) : rest("GET", "flows/catalog")]);
+	S.flows = f.programs; S.catalog = c;
+}
+const pressLabel = p => ({ SHORT: t("fl_short"), LONG_START: t("fl_long"), LONG: t("fl_long_rep") })[p] || "";
+function cleanName(n) { return String(n || "").replace(/:\d+$/, "").replace(/_/g, " "); }
+function keyName(single) {
+	const ch = String(single.channel_name || single.name || "");
+	const m = /:(\d+)$/.exec(ch);
+	return { device: cleanName(ch), key: m ? t("fl_key", { n: m[1] }) : "" };
+}
+function condLabel(s) {
+	const dp = String(s.name || "").split(".").pop();
+	const known = { PRESENCE_DETECTION_STATE: "fl_c_presence", MOTION: "fl_c_motion", ILLUMINATION: "fl_c_lux", STATE: "fl_c_state", LEVEL: "fl_c_level" };
+	return (known[dp] ? t(known[dp]) : dp ? dp.toLowerCase().replace(/_/g, " ") : t("fl_condition")) + (s.ct2 === "15" ? " (" + t("fl_only_check").replace(":", "") + ")" : "");
+}
+function targetOf(dp) { return (S.catalog.targets || []).find(x => x.dp === dp || x.toggle === dp); }
+function actionText(a) {
+	const n = String(a.name || "");
+	const tg = targetOf(a.dp);
+	if (tg && (tg.kind === "scene" || tg.kind === "sysvar") && tg.values && tg.values.length > 1) {
+		const v = tg.values[parseInt(a.value, 10)];
+		if (v != null) return tg.kind === "scene" ? (v === "Aus" ? t("fl_off") : t("fl_scene", { s: v })) : v;
+	}
+	if (/\.TOGGLE$/.test(n)) return t("fl_toggle");
+	if (/\.LEVEL$/.test(n)) return t("fl_level", { p: Math.round(parseFloat(a.value || 0) * 100) });
+	if (a.value === "true") return t("fl_on");
+	if (a.value === "false") return t("fl_off");
+	return a.value;
+}
+function targetName(a) {
+	const tg = targetOf(a.dp);
+	if (tg && tg.kind === "scene") return tg.name.replace(/^Hue Szene /, "Hue ");
+	return cleanName(a.channel_name || a.name || (tg && tg.name));
+}
+// Triggers used by more than one active program, and long presses that repeat
+function flowIssues() {
+	const byDp = new Map();
+	const issues = new Map();
+	for (const p of S.flows) {
+		if (!p.active) continue;
+		for (const c of (p.rules[0] || { conditions: [] }).conditions) for (const s of c.singles) {
+			if (!s.press) continue;
+			if (!byDp.has(s.dp)) byDp.set(s.dp, []);
+			byDp.get(s.dp).push(p);
+			if (s.press === "LONG") issues.set(p.id, [...(issues.get(p.id) || []), { kind: "repeat", dp: s.dp }]);
+		}
+	}
+	for (const [dp, ps] of byDp) if (ps.length > 1) for (const p of ps) issues.set(p.id, [...(issues.get(p.id) || []), { kind: "twice", dp, others: ps.filter(x => x !== p).map(x => x.name) }]);
+	return issues;
+}
+
+function renderFlows() {
+	const page = $("#page-flows");
+	const head = h("div", { class: "page-head" },
+		h("div", { class: "grow" }, h("h1", { class: "t-title" }, t("fl_title")), h("p", { class: "muted", style: "max-width:66ch" }, t("fl_text"))),
+		h("button", { class: "btn primary", onclick: () => openFlow(null) }, t("fl_new")));
+	if (!S.flows) {
+		page.replaceChildren(head, h("p", { class: "muted" }, S.flowError ? t("fl_failed", { e: S.flowError }) : t("loading")));
+		if (!S.flowError) loadFlows().then(render).catch(e => { S.flowError = e.message || String(e); render(); });
+		return;
+	}
+	const issues = flowIssues();
+	const q = (S.flowFilter || "").toLowerCase();
+	const progs = S.flows.filter(p => !q || p.name.toLowerCase().includes(q) || JSON.stringify(p).toLowerCase().includes(q));
+	const nIssues = [...issues.values()].length;
+	const search = h("input", { type: "search", placeholder: t("fl_search"), value: S.flowFilter || "", "aria-label": t("fl_search"), style: "max-width:320px",
+		oninput: e => { S.flowFilter = e.target.value; clearTimeout(S.flowT); S.flowT = setTimeout(() => { renderFlows(); const i = $("#page-flows input[type=search]"); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 200); } });
+	const bar = h("div", { class: "flow-bar" }, search,
+		nIssues ? h("span", { class: "badge warn" }, icon("warn"), nIssues === 1 ? t("fl_issues_1") : t("fl_issues", { n: nIssues })) : h("span", { class: "badge ok" }, icon("check"), t("fl_no_issues")),
+		h("button", { class: "btn sm quiet", onclick: async () => { S.flows = null; S.catalog = null; render(); } }, t("fl_reload")));
+
+	// Canvas: left the keys and other triggers, middle the programs, right the targets
+	const canvas = h("div", { class: "flow-canvas" });
+	const colT = h("div", { class: "flow-col" }, h("div", { class: "flow-col-head" }, t("fl_when")));
+	const colP = h("div", { class: "flow-col" }, h("div", { class: "flow-col-head" }, t("fl_program")));
+	const colA = h("div", { class: "flow-col" }, h("div", { class: "flow-col-head" }, t("fl_then")));
+	const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+	svg.setAttribute("class", "flow-lines"); svg.setAttribute("aria-hidden", "true");
+	const edges = [];
+	const trigNodes = new Map(), targNodes = new Map();
+	const devices = new Map();
+	for (const p of progs) {
+		const rule = p.rules[0] || { conditions: [], actions: [] };
+		const pNode = h("button", { class: "flow-node prog" + (p.active ? "" : " off") + (issues.has(p.id) ? " warn" : ""), "data-id": p.id, onclick: () => openFlow(p) },
+			h("span", { class: "flow-name" }, p.name),
+			h("span", { class: "flow-meta" }, !p.active ? t("fl_inactive") : !p.editable ? t("fl_ccu_only") : issues.has(p.id) ? t("fl_check") : t("fl_active")));
+		pNode.addEventListener("dragover", e => { if (p.editable) { e.preventDefault(); pNode.classList.add("drop"); } });
+		pNode.addEventListener("dragleave", () => pNode.classList.remove("drop"));
+		pNode.addEventListener("drop", e => { e.preventDefault(); pNode.classList.remove("drop"); addTriggerTo(p, e.dataTransfer.getData("text/plain")); });
+		colP.append(pNode);
+		const conds = [];
+		for (const c of rule.conditions) for (const s of c.singles) conds.push(s);
+		for (const s of conds) {
+			const kn = keyName(s);
+			const devKey = s.press ? kn.device : "other:" + (s.channel_name || s.name || s.dp);
+			if (!devices.has(devKey)) devices.set(devKey, { name: s.press ? kn.device : cleanName(s.channel_name || s.name), press: !!s.press, ports: new Map() });
+			const dev = devices.get(devKey);
+			const portKey = s.press ? s.dp : "c" + s.dp;
+			if (!dev.ports.has(portKey)) dev.ports.set(portKey, { s, label: s.press ? kn.key + ", " + pressLabel(s.press) : condLabel(s) });
+			edges.push({ from: "t" + portKey, to: "p" + p.id, label: "", warn: s.press === "LONG" });
+		}
+		for (const a of rule.actions) {
+			const key = a.dp;
+			if (!targNodes.has(key)) {
+				const node = h("div", { class: "flow-node target" }, h("span", { class: "flow-name" }, targetName(a)));
+				targNodes.set(key, node);
+				colA.append(node);
+			}
+			edges.push({ from: "p" + p.id, to: "a" + key, label: actionText(a) });
+		}
+		for (const r of p.rules.slice(1)) for (const a of r.actions) {
+			if (!targNodes.has(a.dp)) { const node = h("div", { class: "flow-node target" }, h("span", { class: "flow-name" }, targetName(a))); targNodes.set(a.dp, node); colA.append(node); }
+			edges.push({ from: "p" + p.id, to: "a" + a.dp, label: t("fl_else") + ": " + actionText(a), dashed: true });
+		}
+	}
+	const sortedDevs = [...devices.values()].sort((a, b) => (b.press - a.press) || a.name.localeCompare(b.name));
+	for (const d of sortedDevs) {
+		const card = h("div", { class: "flow-node trigger" + (d.press ? "" : " cond") }, h("span", { class: "flow-name" }, d.name));
+		for (const [k, port] of d.ports) {
+			const row = h("div", { class: "flow-port", "data-key": k, draggable: d.press ? "true" : "false", title: d.press ? t("fl_drag") : "" },
+				h("span", { class: "dot" }), port.label);
+			if (d.press) {
+				row.addEventListener("dragstart", e => { e.dataTransfer.setData("text/plain", port.s.dp); e.dataTransfer.effectAllowed = "link"; });
+				row.addEventListener("click", () => openFlow(null, port.s.dp));
+			}
+			trigNodes.set("t" + k, row);
+			card.append(row);
+		}
+		colT.append(card);
+	}
+	const progNodes = new Map([...colP.querySelectorAll(".flow-node.prog")].map(n => ["p" + n.dataset.id, n]));
+	canvas.append(svg, colT, colP, colA);
+	const draw = () => {
+		const box = canvas.getBoundingClientRect();
+		svg.setAttribute("width", box.width); svg.setAttribute("height", canvas.scrollHeight);
+		svg.replaceChildren();
+		const get = id => id[0] === "t" ? trigNodes.get(id) : id[0] === "p" ? progNodes.get(id) : targNodes.get(id.slice(1));
+		// Several lines at one node: spread their ends over its height so labels do not overlap
+		const outN = new Map(), inN = new Map(), outI = new Map(), inI = new Map();
+		for (const e of edges) { outN.set(e.from, (outN.get(e.from) || 0) + 1); inN.set(e.to, (inN.get(e.to) || 0) + 1); }
+		const spread = (r, i, n) => r.top + r.height * (i + 1) / (n + 1) - box.top;
+		for (const e of edges) {
+			const a = get(e.from), b = get(e.to);
+			if (!a || !b) continue;
+			const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+			const oi = outI.get(e.from) || 0, ii = inI.get(e.to) || 0;
+			outI.set(e.from, oi + 1); inI.set(e.to, ii + 1);
+			const x1 = ra.right - box.left, y1 = spread(ra, oi, outN.get(e.from)), x2 = rb.left - box.left, y2 = spread(rb, ii, inN.get(e.to));
+			const dx = Math.max(40, (x2 - x1) / 2);
+			const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+			path.setAttribute("d", `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`);
+			path.setAttribute("class", "edge" + (e.warn ? " warn" : "") + (e.dashed ? " dashed" : ""));
+			svg.append(path);
+			if (e.label) {
+				const tx = document.createElementNS("http://www.w3.org/2000/svg", "text");
+				tx.setAttribute("x", x2 - 8); tx.setAttribute("y", y2 - 4); tx.setAttribute("text-anchor", "end");
+				tx.textContent = e.label;
+				svg.append(tx);
+			}
+		}
+	};
+	// Narrow screens: the same flows as a list, "when ... then ..."
+	const list = h("div", { class: "flow-list" }, progs.map(p => {
+		const rule = p.rules[0] || { conditions: [], actions: [] };
+		const whens = rule.conditions.flatMap(c => c.singles).map(s => s.press ? keyName(s).device + ", " + keyName(s).key + " " + pressLabel(s.press) : cleanName(s.channel_name || s.name));
+		return h("button", { class: "flow-card" + (issues.has(p.id) ? " warn" : ""), onclick: () => openFlow(p) },
+			h("div", { class: "flow-name" }, p.name, !p.active ? h("span", { class: "muted t-small" }, "  " + t("fl_inactive")) : null),
+			h("div", { class: "muted t-small" }, t("fl_when") + ": " + (whens.join(" / ") || "–")),
+			h("div", { class: "muted t-small" }, t("fl_then") + ": " + (rule.actions.map(a => targetName(a) + " " + actionText(a)).join(", ") || "–")));
+	}));
+	page.replaceChildren(head, bar, progs.length ? h("div", { class: "flow-wrap" }, canvas) : h("p", { class: "muted" }, t("fl_none")), list);
+	requestAnimationFrame(draw);
+	clearTimeout(S.flowDrawT);
+	window.onresize = () => { clearTimeout(S.flowDrawT); S.flowDrawT = setTimeout(() => { if (S.page === "flows") draw(); }, 120); };
+	if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (S.page === "flows") draw(); });
+}
+
+async function addTriggerTo(p, dp) {
+	if (!dp) return;
+	const rule = p.rules[0];
+	const trig = rule.conditions.flatMap(c => c.singles).map(s => s.dp);
+	if (trig.includes(dp)) return;
+	try {
+		await rest("POST", "flows/" + p.id + "/update", { name: p.name, active: p.active, triggers: [...trig, dp],
+			actions: rule.actions.map(a => ({ dp: a.dp, value: a.value })) });
+		toast(t("fl_saved", { name: p.name }));
+		S.flows = null; render();
+	} catch (e) { fail(e); }
+}
+
+// Editor: one flow, "when" keys and "then" actions
+function openFlow(p, presetTrigger) {
+	const cat = S.catalog || { triggers: [], targets: [] };
+	const editable = !p || p.editable;
+	const rule = p ? p.rules[0] : { conditions: [], actions: [] };
+	const draft = {
+		name: p ? p.name : "",
+		active: p ? p.active : true,
+		triggers: p ? rule.conditions.flatMap(c => c.singles).filter(s => s.press).map(s => s.dp) : (presetTrigger ? [presetTrigger] : []),
+		actions: p ? rule.actions.map(a => ({ dp: a.dp, value: a.value })) : []
+	};
+	const trigLabel = dp => {
+		for (const tr of cat.triggers) {
+			const k = keyName({ channel_name: tr.name });
+			if (tr.short === dp) return k.device + ", " + k.key + " " + t("fl_key_short");
+			if (tr.long === dp) return k.device + ", " + k.key + " " + t("fl_key_long");
+		}
+		const s = p && rule.conditions.flatMap(c => c.singles).find(x => x.dp === dp);
+		return s ? keyName(s).device + ", " + keyName(s).key + " " + pressLabel(s.press) : dp;
+	};
+	const groups = [["scene", t("fl_g_scene")], ["switch", t("fl_g_switch")], ["blind", t("fl_g_blind")], ["level", t("fl_g_level")], ["sysvar", t("fl_g_sysvar")]];
+	const tgName = tg => tg.kind === "scene" ? tg.name.replace(/^Hue Szene /, "Hue ") : cleanName(tg.name);
+	const valueCtl = (a, tg, onchange) => {
+		if (!tg) return h("span", { class: "muted" }, a.value);
+		if ((tg.kind === "scene" || tg.kind === "sysvar") && tg.values && tg.values.length > 1) {
+			return h("select", { style: "width:auto", onchange: e => onchange(e.target.value) }, tg.values.map((v, i) => { const o = h("option", { value: String(i) }, tg.kind === "scene" && v === "Aus" ? t("fl_off") : v); o.selected = String(a.value) === String(i); return o; }));
+		}
+		if (tg.kind === "blind" || tg.kind === "level") {
+			const out = h("span", { class: "num muted", style: "min-width:48px;text-align:right" }, Math.round(parseFloat(a.value || 0) * 100) + " %");
+			return h("span", { style: "display:flex;gap:8px;align-items:center;min-width:200px" },
+				h("input", { type: "range", min: 0, max: 100, step: 5, value: Math.round(parseFloat(a.value || 0) * 100),
+					oninput: e => { out.textContent = e.target.value + " %"; onchange(String(e.target.value / 100)); } }), out);
+		}
+		const opts = [["true", t("fl_on")], ["false", t("fl_off")]];
+		if (tg.toggle) opts.push(["toggle", t("fl_toggle")]);
+		const cur = a.dp === tg.toggle ? "toggle" : a.value;
+		const seg = h("div", { class: "seg", role: "group" });
+		opts.forEach(([v, l]) => seg.append(h("button", { "aria-pressed": String(cur === v), onclick: e => {
+			seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b === e.currentTarget)));
+			onchange(v);
+		} }, l)));
+		return seg;
+	};
+	openSheet(() => {
+		const body = h("div", { class: "sheet-body" });
+		const draw = () => {
+			const name = h("input", { value: draft.name, placeholder: t("fl_name_ph"), "aria-label": t("fl_name"), disabled: !editable, oninput: e => draft.name = e.target.value });
+			const whenList = h("div", {}, draft.triggers.map((dp, i) => h("div", { class: "row" },
+				h("span", { class: "flow-dot" }), h("div", { class: "grow" }, trigLabel(dp)),
+				editable ? h("button", { class: "btn sm quiet", onclick: () => { draft.triggers.splice(i, 1); draw(); } }, t("remove")) : null)));
+			// Add a key: device, key and short/long
+			const keys = cat.triggers.slice().sort((a, b) => a.name.localeCompare(b.name));
+			const keySel = h("select", { style: "width:auto;max-width:100%", "aria-label": t("fl_add_key") },
+				h("option", { value: "" }, t("fl_pick_key")), keys.map(k => h("option", { value: k.short }, keyName({ channel_name: k.name }).device + ", " + keyName({ channel_name: k.name }).key + (k.rooms.length ? " (" + k.rooms.join(", ") + ")" : ""))));
+			const lenSeg = h("div", { class: "seg", role: "group" });
+			let len = "short";
+			[["short", t("fl_key_short")], ["long", t("fl_key_long")]].forEach(([v, l]) => lenSeg.append(h("button", { "aria-pressed": String(v === len), onclick: e => {
+				len = v; lenSeg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b === e.currentTarget))); } }, l)));
+			const addKey = h("div", { class: "flow-add" }, keySel, lenSeg, h("button", { class: "btn sm", onclick: () => {
+				const k = keys.find(x => x.short === keySel.value);
+				if (!k) return;
+				const dp = len === "long" ? k.long : k.short;
+				if (dp && !draft.triggers.includes(dp)) draft.triggers.push(dp);
+				draw();
+			} }, t("fl_add")));
+			const thenList = h("div", {}, draft.actions.map((a, i) => {
+				const tg = targetOf(a.dp);
+				return h("div", { class: "row", style: "flex-wrap:wrap" },
+					h("span", { class: "flow-dot target" }), h("div", { class: "grow", style: "min-width:160px;font-weight:560" }, tg ? tgName(tg) : cleanName(a.dp)),
+					editable ? valueCtl(a, tg, v => {
+						if (tg && tg.toggle && v === "toggle") { a.dp = tg.toggle; a.value = "true"; }
+						else if (tg && tg.kind === "switch") { a.dp = tg.dp; a.value = v; }
+						else a.value = v;
+					}) : h("span", { class: "muted" }, actionText(Object.assign({ name: a.dp === (tg && tg.toggle) ? ".TOGGLE" : "" }, a))),
+					editable ? h("button", { class: "btn sm quiet", onclick: () => { draft.actions.splice(i, 1); draw(); } }, t("remove")) : null);
+			}));
+			const tSel = h("select", { style: "width:auto;max-width:100%", "aria-label": t("fl_add_target") }, h("option", { value: "" }, t("fl_pick_target")),
+				groups.map(([k, l]) => { const items = cat.targets.filter(x => x.kind === k); return items.length ? h("optgroup", { label: l }, items.sort((a, b) => tgName(a).localeCompare(tgName(b))).map(x => h("option", { value: x.dp }, tgName(x)))) : null; }));
+			const addTarget = h("div", { class: "flow-add" }, tSel, h("button", { class: "btn sm", onclick: () => {
+				const tg = cat.targets.find(x => x.dp === tSel.value);
+				if (!tg) return;
+				const value = tg.kind === "switch" ? "true" : tg.kind === "blind" || tg.kind === "level" ? "1" : "1";
+				draft.actions.push({ dp: tg.dp, value });
+				draw();
+			} }, t("fl_add")));
+			const issues = p ? (flowIssues().get(p.id) || []) : [];
+			body.replaceChildren(...[
+				!editable ? h("div", { class: "notice", style: "margin-bottom:12px" }, h("div", {}, h("div", { class: "t-h3" }, t("fl_ro_title")), h("p", { class: "muted" }, t("fl_ro_text")))) : null,
+				...issues.map(x => h("div", { class: "notice", style: "margin-bottom:12px" }, h("div", { class: "grow" },
+					h("div", { class: "t-h3" }, x.kind === "repeat" ? t("fl_repeat_title") : t("fl_twice_title")),
+					h("p", { class: "muted" }, x.kind === "repeat" ? t("fl_repeat_text") : t("fl_twice_text", { names: x.others.join(", ") }))),
+					x.kind === "repeat" && editable ? h("button", { class: "btn sm primary", onclick: () => {
+						const k = cat.triggers.find(y => y.long && (rule.conditions.flatMap(c => c.singles).find(s => s.dp === x.dp) || {}).channel === y.channel);
+						if (k) { draft.triggers = draft.triggers.map(d => d === x.dp ? k.long : d); toast(t("fl_repeat_fixed")); draw(); }
+					} }, t("fl_repeat_fix")) : null)),
+				h("label", { class: "field" }, t("fl_name"), name),
+				h("div", { class: "big-toggle", style: "margin:12px 0" }, h("div", { class: "grow", style: "font-weight:600" }, t("fl_active_label")),
+					h("input", { type: "checkbox", class: "switch", role: "switch", checked: draft.active, disabled: !p && false, onchange: e => draft.active = e.target.checked })),
+				editable || draft.triggers.length ? h("div", { class: "section" }, h("div", { class: "t-h3" }, t("fl_when")), h("p", { class: "muted t-small", style: "margin:2px 0 6px" }, t("fl_when_text")), whenList, editable ? addKey : null) : null,
+				h("div", { class: "section" }, h("div", { class: "t-h3" }, t("fl_then")), thenList, editable ? addTarget : null),
+				!editable && p ? h("div", { class: "section" }, h("div", { class: "t-h3" }, t("fl_all_conditions")),
+					h("ul", { class: "muted", style: "margin:6px 0 0;padding-left:18px" }, p.rules.flatMap((r, ri) => [
+						...r.conditions.flatMap(c => c.singles).map(s => h("li", {}, (ri ? t("fl_else") + ": " : "") + cleanName(s.channel_name || s.name) + " " + (s.press ? pressLabel(s.press) : (s.ct2 === "15" ? t("fl_only_check") : t("fl_trigger")) + " " + s.value))),
+						...r.actions.map(a => h("li", {}, (ri ? t("fl_else") + ": " : "") + targetName(a) + " " + actionText(a) + (a.delay_type && a.delay_type !== "0" ? " (" + t("fl_delayed") + ")" : "")))]))) : null].filter(Boolean));
+			foot.replaceChildren(
+				p ? h("button", { class: "btn quiet", style: "color:var(--bad)", onclick: async () => {
+					if (!confirm(t("fl_delete_q", { name: p.name }))) return;
+					try { await rest("POST", "flows/" + p.id + "/delete"); toast(t("fl_deleted")); S.flows = null; closeSheet(); } catch (e) { fail(e); }
+				} }, t("fl_delete")) : h("span"),
+				h("span", { class: "grow" }),
+				!editable && p ? h("button", { class: "btn primary", onclick: async () => {
+					try { await rest("POST", "flows/" + p.id + "/active", { on: !p.active }); toast(t("saved")); S.flows = null; closeSheet(); } catch (e) { fail(e); }
+				} }, p.active ? t("fl_disable") : t("fl_enable"))
+				: h("button", { class: "btn primary", onclick: async e => {
+					if (!draft.name.trim()) { toast(t("fl_need_name"), true); return; }
+					if (!draft.triggers.length || !draft.actions.length) { toast(t("fl_need_both"), true); return; }
+					e.currentTarget.disabled = true;
+					try {
+						const body = { name: draft.name.trim(), active: draft.active, triggers: draft.triggers, actions: draft.actions };
+						await rest("POST", p ? "flows/" + p.id + "/update" : "flows/create", body);
+						toast(t("fl_saved", { name: body.name })); S.flows = null; closeSheet();
+					} catch (x) { fail(x); e.currentTarget.disabled = false; }
+				} }, t("save")));
+		};
+		const foot = h("div", { class: "sheet-foot" });
+		draw();
+		return [sheetHead(p ? p.name : t("fl_new"), p ? (p.last && !p.last.startsWith("1970") ? t("fl_last", { d: p.last }) : t("fl_never")) : t("fl_new_text")), body, foot];
+	});
+}
+
 /* ====================================================================== bridge system */
 // Cloud connection, Hue account, firmware updates and apps with access, read from the bridge
 function systemPanel(b) {
@@ -1799,7 +2204,7 @@ async function boot() {
 
 $("#lang").value = lang;
 const startPage = (location.hash || "").slice(1);
-if (["rooms", "sensors", "settings", "diagnose"].includes(startPage)) S.page = startPage;
+if (["rooms", "sensors", "flows", "settings", "diagnose"].includes(startPage)) S.page = startPage;
 setNav();
 render();
 boot();

@@ -90,7 +90,7 @@ def demo_routes(page, state):
             state["sysvars"] = True
             return route.fulfill(json={"created": 3})
         if path == "update/check":
-            return route.fulfill(json={"installed": "4.0.4", "latest": "4.0.4", "available": False, "url": ""})
+            return route.fulfill(json={"installed": "4.1.0", "latest": "4.1.0", "available": False, "url": ""})
         if path.startswith("bridges/") and path.endswith("/objects") and state.get("sysvars"):
             resp = route.fetch()
             data = resp.json()
@@ -186,6 +186,11 @@ def screenshots(browser):
             page.wait_for_timeout(400)
             page.screenshot(path=OUT / "more-lamps.png")
             page.keyboard.press("Escape"); page.wait_for_timeout(500)
+        if scheme == "light":
+            page.click(".nav-item[data-page=flows]")
+            page.wait_for_selector(".flow-node.prog", timeout=20000)
+            page.wait_for_timeout(900)
+            page.screenshot(path=OUT / "flows.png")
         for nav in ("sensors", "settings", "diagnose"):
             page.click(f".nav-item[data-page={nav}]")
             page.wait_for_timeout(900)

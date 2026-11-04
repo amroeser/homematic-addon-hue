@@ -445,6 +445,41 @@ proc process {} {
 				}
 			}
 		}
+		flows {
+			# Flow designer: the CCU programs as trigger -> program -> target
+			set a1 [lindex $path 1]
+			set a2 [lindex $path 2]
+			if {$plen == 1 && [string equal $method "GET"]} {
+				return [hue::flows::programs_json]
+			}
+			if {[string equal $a1 "catalog"]} {
+				return [hue::flows::catalog_json]
+			}
+			if {![string equal $method "POST"]} { error "POST required" "Method Not Allowed" 405 }
+			set triggers [list]
+			for {set i 0} {$i < [::hue::json::len B triggers]} {incr i} { lappend triggers [arg triggers/$i] }
+			set actions [list]
+			for {set i 0} {$i < [::hue::json::len B actions]} {incr i} { lappend actions [list [arg actions/$i/dp] [arg actions/$i/value]] }
+			set active [expr {![has_arg active] || [is_true [arg active]]}]
+			if {[catch {
+				if {[string equal $a1 "create"]} {
+					set id [hue::flows::create [arg name] $triggers $actions $active]
+				} elseif {[regexp {^[0-9]+$} $a1] && [string equal $a2 "update"]} {
+					set id [hue::flows::update $a1 [arg name] $triggers $actions $active]
+				} elseif {[regexp {^[0-9]+$} $a1] && [string equal $a2 "active"]} {
+					hue::flows::set_active $a1 [is_true [arg on]]
+					set id $a1
+				} elseif {[regexp {^[0-9]+$} $a1] && [string equal $a2 "delete"]} {
+					hue::flows::delete $a1
+					set id $a1
+				} else {
+					error "invalid request"
+				}
+			} err]} {
+				error $err "Bad Request" 400
+			}
+			return [jobj id [jstr $id]]
+		}
 		extras {
 			# More lamps in a room: switch actuators of the CCU
 			set b [string tolower [lindex $path 1]]

@@ -44,7 +44,7 @@ def gl_rid(g):
 def env():
     e = dict(os.environ)
     e.update(HUE_TEST="1", HUE_TEST_DIR=str(RUN), HUE_ADDON_DIR=str(ADDON), HUE_CONF=str(RUN / "hue.conf"),
-             HUE_LOG_FILE=str(RUN / "hue.log"), HUED_PORT=str(HUED_PORT), HUE_LOCK_PORT=str(LOCK_PORT), LANGUAGE="en")
+             HUE_LOG_FILE=str(RUN / "hue.log"), HUE_FLOW_BACKUP_DIR=str(RUN / "flow-backups"), HUED_PORT=str(HUED_PORT), HUE_LOCK_PORT=str(LOCK_PORT), LANGUAGE="en")
     if DOCKER_CCU:
         e["HUED_ADDRESS"] = "0.0.0.0"
     return e
@@ -206,7 +206,7 @@ class AddonTest(unittest.TestCase):
                     if what and re.search(pat, target):
                         problems.append(f"{f.relative_to(ROOT)}:{n}: {what}: {line.strip()[:100]}")
         # Tcl reads sources in the system encoding (ISO-8859-1 on the CCU): no UTF-8 literals in new code
-        for f in [ADDON / "hued.tcl", ADDON / "lib" / "hue_v2.tcl", ADDON / "lib" / "json.tcl", ADDON / "lib" / "update.tcl", ADDON / "lib" / "extras.tcl", ADDON / "lib" / "system.tcl", ADDON / "www" / "rest.cgi"]:
+        for f in [ADDON / "hued.tcl", ADDON / "lib" / "hue_v2.tcl", ADDON / "lib" / "json.tcl", ADDON / "lib" / "update.tcl", ADDON / "lib" / "extras.tcl", ADDON / "lib" / "system.tcl", ADDON / "lib" / "flows.tcl", ADDON / "www" / "rest.cgi"]:
             for n, line in enumerate(f.read_text().splitlines(), 1):
                 if not line.lstrip().startswith("#") and re.search(r"[^\x00-\x7f]", line):
                     problems.append(f"{f.relative_to(ROOT)}:{n}: non-ASCII character in code: {line.strip()[:80]}")
@@ -734,6 +734,67 @@ class AddonTest(unittest.TestCase):
         for need in ("Tcl", "CUxD", "curl", "OpenSSL"):
             self.assertEqual(comps[need]["scope"], "required")
         self.assertIn("addon/hued.tcl", comps)
+
+    def test_62_flow_designer(self):
+        """Programs as flows: read, catalog, create, change only simple flows, delete; backups first."""
+        (RUN / "flows_dump.txt").write_text(
+            "P|10975|true|true|2026-11-05 11:25:53|Wohnzimmer_Hue_Gedimmt\n"
+            "R|10976|0|2\n"
+            "C|10977|2\n"
+            "S|10978|9346|18|1|1|true|false|9344|HmIP-RF.00175A498C5930:2.PRESS_SHORT|Wohnzimmer_Taster_Eingang:2\n"
+            "C|10979|2\n"
+            "S|10980|11145|18|1|1|true|false|11143|HmIP-RF.00175A498C5603:2.PRESS_LONG_START|Wohnzimmer_Taster_Schiebetuer:2\n"
+            "D|10981|10120|18|2|0||true|10118|CUxD.CUX2801503:1.TOGGLE|Wohnzimmer_Hue_Gedimmt:1\n"
+            "P|18719|true|true|2026-11-05 10:32:46|Buero_Schreibtisch_2_Schalter\n"
+            "R|18720|0|2\n"
+            "C|18721|1\n"
+            "S|18722|11594|18|1|1|true|false|11592|HmIP-RF.00175D89A3782C:4.PRESS_SHORT|Buero_Taster:4\n"
+            "C|18723|1\n"
+            "S|18724|18308|18|1|15|false|false|18306|CUxD.CUX2801604:1.STATE|Buero_Shelly_S2:1\n"
+            "D|18725|18308|18|2|0||true|18306|CUxD.CUX2801604:1.STATE|Buero_Shelly_S2:1\n"
+            "R|18726|1|0\n"
+            "D|18727|18308|18|2|0||false|18306|CUxD.CUX2801604:1.STATE|Buero_Shelly_S2:1\n", encoding="utf-8")
+        (RUN / "flows_catalog.txt").write_text(
+            "CH|9344|MULTI_MODE_INPUT_TRANSMITTER|PRESS_SHORT=9346/5/2;PRESS_LONG_START=9347/5/2;PRESS_LONG=9343/5/2;|Wohnzimmer;|Wohnzimmer_Taster_Eingang:2|Wohnzimmer_Taster_Eingang\n"
+            "CH|10118|SWITCH|STATE=10119/7/2;TOGGLE=10120/2/2;|Wohnzimmer;|Wohnzimmer_Hue_Gedimmt:1|Wohnzimmer_Hue_Gedimmt\n"
+            "CH|11509|BLIND_VIRTUAL_RECEIVER|LEVEL=11511/7/4;|Wohnzimmer;|Wohnzimmer_Rollladen_rechts:4|Wohnzimmer_Rollladen_rechts\n"
+            "CH|9348|MULTI_MODE_INPUT_TRANSMITTER|STATE=9350/5/2;|Wohnzimmer;|Taster:7|Taster\n"
+            "SV|20001|16|Aus;Hell;Gedimmt|Hue Szene Wohnzimmer\n", encoding="utf-8")
+        st, o = self.rest("GET", "flows")
+        self.assertEqual(st, 200, o)
+        p = {x["id"]: x for x in o["programs"]}
+        self.assertTrue(p["10975"]["editable"])
+        self.assertEqual([c["singles"][0]["press"] for c in p["10975"]["rules"][0]["conditions"]], ["SHORT", "LONG_START"])
+        self.assertFalse(p["18719"]["editable"])
+        st, c = self.rest("GET", "flows/catalog")
+        self.assertEqual(st, 200, c)
+        self.assertEqual([(x["name"], x["short"], x["long"]) for x in c["triggers"]], [("Wohnzimmer_Taster_Eingang:2", "9346", "9347")])
+        kinds = {x["name"]: (x["kind"], x["dp"], x.get("toggle")) for x in c["targets"]}
+        self.assertEqual(kinds["Wohnzimmer_Hue_Gedimmt:1"], ("switch", "10119", "10120"))
+        self.assertEqual(kinds["Wohnzimmer_Rollladen_rechts:4"][:2], ("blind", "11511"))
+        self.assertEqual(kinds["Hue Szene Wohnzimmer"][0], "scene")
+        self.assertNotIn("Taster:7", kinds)
+        log = RUN / "rega.log"
+        log.write_text("")
+        st, r = self.rest("POST", "flows/create", {"name": "Wohnzimmer Taste 2: Gedimmt", "triggers": ["9346"], "actions": [{"dp": "20001", "value": "2"}]})
+        self.assertEqual((st, r), (200, {"id": "99001"}))
+        script = log.read_text()
+        for part in ("dom.CreateObject(OT_PROGRAM)", "LeftVal(t0.ID())", "ConditionType2(1)", "DestinationDP(a0.ID())", "DestinationValue(2)", "system.Save()"):
+            self.assertIn(part, script)
+        st, r = self.rest("POST", "flows/create", {"name": "x", "triggers": ["9346"], "actions": [{"dp": "20001", "value": "2); dom.DeleteObject(1"}]})
+        self.assertEqual(st, 400, r)
+        st, r = self.rest("POST", "flows/create", {"name": 'a"b', "triggers": ["9346"], "actions": [{"dp": "20001", "value": "1"}]})
+        self.assertEqual(st, 400, r)
+        st, r = self.rest("POST", "flows/18719/update", {"name": "x", "triggers": ["9346"], "actions": [{"dp": "10120", "value": "true"}]})
+        self.assertEqual(st, 400, r)
+        st, r = self.rest("POST", "flows/10975/update", {"name": "Wohnzimmer_Hue_Gedimmt", "triggers": ["9346", "9347"], "actions": [{"dp": "10120", "value": "true"}]})
+        self.assertEqual(st, 200, r)
+        self.assertIn("RuleDelCondition", log.read_text())
+        backups = list((RUN / "flow-backups").glob("*-10975.txt"))
+        self.assertEqual(len(backups), 1)
+        self.assertIn("Wohnzimmer_Hue_Gedimmt", backups[0].read_text(encoding="utf-8"))
+        st, r = self.rest("POST", "flows/10975/delete")
+        self.assertEqual(st, 200, r)
 
     def test_30_v1_bridge_fallback(self):
         """Round bridge / old firmware: everything over v1, nothing breaks."""
