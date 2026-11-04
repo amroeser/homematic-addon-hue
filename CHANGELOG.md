@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.0.4
+
+- Bridge und Hue-Konto in der Diagnose: Internet, Hue-Konto, Zugriff von unterwegs und Uhrzeit auf einen Blick.
+- Updates der Bridge und aller Lampen und Zubehörteile: Status je Gerät, „Nach Updates suchen“, „Jetzt installieren“ und automatische Updates mit Uhrzeit.
+- Apps mit Zugriff auf die Bridge mit „zuletzt benutzt“, damit alte Zugänge auffallen. Verwalten lassen sie sich im Hue-Konto.
+- Anleitung für einen Mieter- oder Besitzerwechsel.
+
 ## 4.0.3
 
 - Lampen ohne Hue: Shellys hinter CUxD-Schaltern und HomeMatic-Aktoren ordnest du in den Raumdetails einem Hue-Raum zu. Sie schalten mit dem Raum an und aus, egal ob über die Addon-Seite, ein Programm, die Szenen-Auswahlliste, die Hue-App oder einen Hue-Schalter. Wahlweise nur aus. Je Szene einstellbar: an, aus oder unverändert. Das Addon schlägt passende Geräte aus der CCU vor und zeigt sie als Kacheln im Raum.

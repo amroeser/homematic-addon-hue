@@ -90,7 +90,7 @@ def demo_routes(page, state):
             state["sysvars"] = True
             return route.fulfill(json={"created": 3})
         if path == "update/check":
-            return route.fulfill(json={"installed": "4.0.3", "latest": "4.0.3", "available": False, "url": ""})
+            return route.fulfill(json={"installed": "4.0.4", "latest": "4.0.4", "available": False, "url": ""})
         if path.startswith("bridges/") and path.endswith("/objects") and state.get("sysvars"):
             resp = route.fetch()
             data = resp.json()

@@ -206,7 +206,7 @@ class AddonTest(unittest.TestCase):
                     if what and re.search(pat, target):
                         problems.append(f"{f.relative_to(ROOT)}:{n}: {what}: {line.strip()[:100]}")
         # Tcl reads sources in the system encoding (ISO-8859-1 on the CCU): no UTF-8 literals in new code
-        for f in [ADDON / "hued.tcl", ADDON / "lib" / "hue_v2.tcl", ADDON / "lib" / "json.tcl", ADDON / "lib" / "update.tcl", ADDON / "lib" / "extras.tcl", ADDON / "www" / "rest.cgi"]:
+        for f in [ADDON / "hued.tcl", ADDON / "lib" / "hue_v2.tcl", ADDON / "lib" / "json.tcl", ADDON / "lib" / "update.tcl", ADDON / "lib" / "extras.tcl", ADDON / "lib" / "system.tcl", ADDON / "www" / "rest.cgi"]:
             for n, line in enumerate(f.read_text().splitlines(), 1):
                 if not line.lstrip().startswith("#") and re.search(r"[^\x00-\x7f]", line):
                     problems.append(f"{f.relative_to(ROOT)}:{n}: non-ASCII character in code: {line.strip()[:80]}")
@@ -694,6 +694,29 @@ class AddonTest(unittest.TestCase):
             ctl("/_shelly", {"on": False})
             devices.write_text(old)
             self.hued_cmd("reload")
+
+    def test_60_bridge_system(self):
+        """Cloud, Hue account, updates of bridge and devices, apps with access; start updates."""
+        st, o = self.rest("GET", f"bridges/{BRIDGE}/system")
+        self.assertEqual(st, 200, o)
+        self.assertEqual((o["internet"], o["remote"], o["account"]), ("connected", "connected", True))
+        self.assertEqual(o["update"]["state"], "anyreadytoinstall")
+        self.assertEqual(o["update"]["time"], "T14:00:00")
+        ready = [d for d in o["devices"] if d["state"] == "ready_to_install"]
+        self.assertEqual([d["name"] for d in ready], ["Stehlampe"])
+        self.assertEqual(ready[0]["version"], "1.122.2")
+        self.assertEqual([a["name"] for a in o["apps"]], ["homematic-addon-hue#ccu", "Hue#iPhone von Mieter"])
+        self.assertTrue(o["apps"][0]["self"])
+        self.assertNotIn("oldtenantkey00000000", json.dumps(o))  # keys are never shown in full
+        ctl("/_log")
+        st, r = self.rest("POST", f"bridges/{BRIDGE}/swupdate", {"action": "auto", "on": True, "time": "03:30"})
+        self.assertEqual(st, 200, r)
+        st, r = self.rest("POST", f"bridges/{BRIDGE}/swupdate", {"action": "install"})
+        self.assertEqual(st, 200, r)
+        bodies = [p["body"] for p in self.puts() if p["path"].endswith("/config")]
+        self.assertEqual(bodies, [{"swupdate2": {"autoinstall": {"on": True, "updatetime": "T03:30:00"}}}, {"swupdate2": {"install": True}}])
+        st, r = self.rest("POST", f"bridges/{BRIDGE}/swupdate", {"action": "auto", "on": True, "time": "25:00"})
+        self.assertEqual(st, 400, r)
 
     def test_30_v1_bridge_fallback(self):
         """Round bridge / old firmware: everything over v1, nothing breaks."""

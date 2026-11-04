@@ -35,6 +35,11 @@ class Model:
         self.lock = threading.RLock()
         self.v2_enabled = True
         self.shelly_on = False
+        # Bridge system: cloud, account, updates
+        self.sw_state = {"1": "ready_to_install"}
+        self.swupdate2 = {"checkforupdate": False, "lastchange": "2026-11-01T03:12:00", "state": "anyreadytoinstall",
+                          "bridge": {"state": "noupdates", "lastinstall": "2026-10-20T02:10:00"},
+                          "autoinstall": {"updatetime": "T14:00:00", "on": False}}
         self.log = []
         self.subscribers = []
         self.lights = {
@@ -160,9 +165,11 @@ class Model:
             out.append(light)
             out.append({"id": self.device_rid(n), "id_v1": f"/lights/{n}", "type": "device",
                         "metadata": {"name": l["name"], "archetype": "classic_bulb"},
-                        "product_data": {"model_id": "LCT015"},
+                        "product_data": {"model_id": "LCT015", "product_name": "Hue color lamp", "software_version": "1.122.2"},
                         "services": [{"rid": self.light_rid(n), "rtype": "light"},
                                      {"rid": self.zc_rid(n), "rtype": "zigbee_connectivity"}]})
+            out.append({"id": rid(f"swu-{n}"), "type": "device_software_update", "owner": {"rid": self.device_rid(n), "rtype": "device"},
+                        "state": self.sw_state.get(n, "no_update"), "problems": []})
             out.append({"id": self.zc_rid(n), "id_v1": f"/lights/{n}", "type": "zigbee_connectivity",
                         "owner": {"rid": self.device_rid(n), "rtype": "device"},
                         "status": "connected" if l["reachable"] else "disconnected"})
@@ -417,10 +424,24 @@ class Handler(BaseHTTPRequestHandler):
                 if parts == ["scenes"]:
                     return self.send_json({s: {"name": v[0], "group": v[1], "type": "GroupScene", "lights": list(v[2])} for s, v in M.scenes.items()})
                 if parts == ["config"]:
-                    return self.send_json({"name": "Mock", "bridgeid": "001788FFFE000000", "apiversion": "1.68.0", "modelid": "BSB002", "swversion": "1968096020"})
+                    return self.send_json({"name": "Mock", "bridgeid": "001788FFFE000000", "apiversion": "1.68.0", "modelid": "BSB002", "swversion": "1968096020",
+                                           "internetservices": {"internet": "connected", "remoteaccess": "connected", "time": "connected", "swupdate": "connected"},
+                                           "portalstate": {"signedon": True, "incoming": False, "outgoing": True, "communication": "disconnected"},
+                                           "portalconnection": "connected", "swupdate2": M.swupdate2,
+                                           "whitelist": {USER: {"last use date": "2026-11-05T11:00:00", "create date": "2026-11-04T22:00:00", "name": "homematic-addon-hue#ccu"},
+                                                         "oldtenantkey00000000": {"last use date": "2025-03-01T08:00:00", "create date": "2023-01-01T10:00:00", "name": "Hue#iPhone von Mieter"}}})
             if method == "PUT":
                 self.record(method, body)
                 p = json.loads(body)
+                if parts == ["config"] and "swupdate2" in p:
+                    u = p["swupdate2"]
+                    if u.get("install"):
+                        M.swupdate2["state"] = "installing"
+                    if u.get("checkforupdate"):
+                        M.swupdate2["checkforupdate"] = True
+                    if "autoinstall" in u:
+                        M.swupdate2["autoinstall"].update(u["autoinstall"])
+                    return self.send_json([{"success": {f"/config/swupdate2/{k}": v}} for k, v in u.items()])
                 if len(parts) == 3 and parts[0] == "lights":
                     self.apply_v1(parts[1], p)
                     return self.send_json([{"success": {f"/lights/{parts[1]}/state/{k}": v}} for k, v in p.items()])

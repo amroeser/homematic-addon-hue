@@ -408,6 +408,17 @@ proc process {} {
 					}
 					return [hue::objects_json $id]
 				}
+				system {
+					# Cloud, Hue account, firmware updates, apps with access
+					return [hue::system::status_json $id]
+				}
+				swupdate {
+					if {![string equal $method "POST"]} { error "POST required" "Method Not Allowed" 405 }
+					if {[catch {hue::system::swupdate $id [arg action] [arg on] [arg time]} err]} {
+						error $err "Bad Request" 400
+					}
+					return [jstr "OK"]
+				}
 				repin {
 					# Read the TLS key again, e.g. after replacing the bridge
 					hue::set_bridge_param $id "tls_pubkey_sha256" ""

@@ -312,6 +312,9 @@ details.more-settings[open] > summary::before { content: "–"; }
 pre { margin: 0; padding: 14px; border-radius: var(--r-sm); background: var(--fill); overflow: auto; max-height: 50vh; font: .8125rem/1.5 ui-monospace, Menlo, Consolas, monospace; white-space: pre-wrap; word-break: break-word; }
 .examples { display: flex; gap: 6px; flex-wrap: wrap; }
 
+.sys-dev { display: flex; align-items: center; gap: 10px; padding: 6px 0; flex-wrap: wrap; }
+.sys-dev .grow { min-width: 160px; }
+.badge.warn { background: var(--amber-soft); color: var(--ink); }
 .sensor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .sensor { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 16px; }
 .sensor .reading { display: grid; gap: 2px; padding: 10px 0; min-width: 0; }
@@ -562,6 +565,22 @@ const I18N = {
 		extra_on: "An", extra_off: "Aus", extra_unknown: "Zustand unbekannt",
 		shelly_sync: "Shelly-Zustand abgleichen", shelly_sync_text: "Für Shellys hinter CUxD-Schaltern: Das Addon liest alle 10 Sekunden das Relais und korrigiert den Zustand in HomeMatic, etwa nach dem Wandschalter.",
 		scene_state: "Szenen-Tasten zeigen ihre Szene", scene_state_text: "Eine Szenen-Taste steht nur auf „an“, solange ihre Szene aktiv ist. So wechseln Programme mit „Umschalten“ zuverlässig zwischen den Szenen eines Raums.",
+		sys_title: "Bridge und Hue-Konto: {{name}}", sys_firmware: "Firmware {{v}}, API {{api}}", sys_failed: "Status der Bridge nicht lesbar: {{e}}",
+		sys_internet: "Internet", sys_internet_ok: "Die Bridge ist mit dem Internet verbunden.", sys_internet_bad: "Keine Internetverbindung. Updates und die Hue-App unterwegs funktionieren nicht.",
+		sys_account: "Hue-Konto", sys_account_ok: "Die Bridge ist mit einem Hue-Konto verbunden.", sys_account_bad: "Kein Hue-Konto verbunden. Melde dich in der Hue-App an, um sie unterwegs zu nutzen.",
+		sys_remote: "Zugriff von unterwegs", sys_remote_ok: "Die Hue-App kann die Bridge auch außer Haus erreichen.", sys_remote_bad: "Von unterwegs nicht erreichbar.",
+		sys_time: "Uhrzeit", sys_time_ok: "Die Uhrzeit wird aus dem Internet gestellt.", sys_time_bad: "Uhrzeit nicht synchronisiert. Zeitpläne der Hue-App können abweichen.",
+		sys_updates: "Updates", sys_upd_none: "Bridge und alle Geräte sind aktuell.", sys_upd_ready: "{{n}} Updates bereit zur Installation.", sys_upd_ready_1: "1 Update bereit zur Installation.", sys_upd_loading: "Updates werden geladen.", sys_upd_installing: "Updates werden installiert. Lampen können kurz flackern.",
+		sys_check: "Nach Updates suchen", sys_checking: "Die Bridge sucht nach Updates.", sys_install: "Jetzt installieren", sys_installing: "Installation gestartet.",
+		sys_dev_ready_to_install: "Bereit", sys_dev_update_pending: "Wird geladen", sys_dev_installing: "Wird installiert",
+		sys_auto: "Automatische Updates", sys_auto_text: "Die Bridge installiert Updates selbst zur gewählten Uhrzeit.", sys_auto_time: "Uhrzeit für Updates",
+		sys_apps: "Apps mit Zugriff ({{n}})", sys_apps_text: "Jede App, die je mit der Bridge gekoppelt wurde. Entfernen lassen sie sich nur im Hue-Konto.",
+		sys_used: "zuletzt {{d}}", sys_never: "nie", sys_this_addon: "Dieses Addon", sys_manage: "Im Hue-Konto verwalten",
+		sys_tenant: "Mieter- oder Besitzerwechsel",
+		sys_tenant_1: "Der bisherige Nutzer entfernt die Bridge aus seinem Hue-Konto (Hue-App oder account.meethue.com).",
+		sys_tenant_2: "Geht das nicht: Bridge in der Hue-App zurücksetzen. Räume, Szenen und alle App-Zugänge werden dabei gelöscht.",
+		sys_tenant_3: "Der neue Nutzer richtet die Bridge in seiner Hue-App mit seinem Konto ein.",
+		sys_tenant_4: "Nur nach einem Zurücksetzen: Bridge hier unter Einstellungen neu koppeln. Die HomeMatic-Geräte bleiben erhalten.",
 		tour6_t: "Lampen ohne Hue", tour6_x: "Deckenlampe am Shelly, Stehlampe an der HomeMatic-Steckdose: Ordne sie beim Raum unter „Mehr“ zu. Dann schalten sie mit dem Raum an und aus, und jede Szene kann sie mitnehmen."
 	},
 	en: {
@@ -664,6 +683,22 @@ const I18N = {
 		extra_on: "On", extra_off: "Off", extra_unknown: "State unknown",
 		shelly_sync: "Read back Shelly state", shelly_sync_text: "For Shellys behind CUxD switches: every 10 seconds the addon reads the relay and corrects the state in HomeMatic, for example after the wall switch.",
 		scene_state: "Scene buttons show their scene", scene_state_text: "A scene button is only “on” while its scene is active. Programs that toggle switch reliably between the scenes of a room.",
+		sys_title: "Bridge and Hue account: {{name}}", sys_firmware: "Firmware {{v}}, API {{api}}", sys_failed: "Cannot read the bridge status: {{e}}",
+		sys_internet: "Internet", sys_internet_ok: "The bridge is connected to the internet.", sys_internet_bad: "No internet connection. Updates and the Hue app away from home do not work.",
+		sys_account: "Hue account", sys_account_ok: "The bridge is linked to a Hue account.", sys_account_bad: "No Hue account linked. Sign in with the Hue app to use it away from home.",
+		sys_remote: "Access away from home", sys_remote_ok: "The Hue app can reach the bridge from outside.", sys_remote_bad: "Not reachable from outside.",
+		sys_time: "Time", sys_time_ok: "The time is set from the internet.", sys_time_bad: "Time not synchronised. Hue app schedules may be off.",
+		sys_updates: "Updates", sys_upd_none: "The bridge and all devices are up to date.", sys_upd_ready: "{{n}} updates ready to install.", sys_upd_ready_1: "1 update ready to install.", sys_upd_loading: "Updates are downloading.", sys_upd_installing: "Updates are installing. Lights may flicker briefly.",
+		sys_check: "Check for updates", sys_checking: "The bridge is checking for updates.", sys_install: "Install now", sys_installing: "Installation started.",
+		sys_dev_ready_to_install: "Ready", sys_dev_update_pending: "Downloading", sys_dev_installing: "Installing",
+		sys_auto: "Automatic updates", sys_auto_text: "The bridge installs updates by itself at the chosen time.", sys_auto_time: "Time for updates",
+		sys_apps: "Apps with access ({{n}})", sys_apps_text: "Every app ever paired with the bridge. They can only be removed in the Hue account.",
+		sys_used: "last used {{d}}", sys_never: "never", sys_this_addon: "This addon", sys_manage: "Manage in the Hue account",
+		sys_tenant: "New tenant or owner",
+		sys_tenant_1: "The previous user removes the bridge from their Hue account (Hue app or account.meethue.com).",
+		sys_tenant_2: "If that is not possible: reset the bridge in the Hue app. Rooms, scenes and all app access are deleted.",
+		sys_tenant_3: "The new user sets up the bridge in their Hue app with their account.",
+		sys_tenant_4: "Only after a reset: pair the bridge again here under Settings. The HomeMatic devices are kept.",
 		tour6_t: "Lamps without Hue", tour6_x: "Ceiling lamp on a Shelly, floor lamp on a HomeMatic plug: assign them under “More” in the room. They switch on and off with the room, and every scene can include them."
 	}
 };
@@ -749,7 +784,7 @@ function lampRgb(l) {
 function hexToRgb(hex) { return [1, 3, 5].map(i => parseInt(hex.substr(i, 2), 16)); }
 
 /* ====================================================================== state */
-const S = { sid: new URLSearchParams(location.search).get("sid"), config: null, bridges: [], bridge: null, objects: null,
+const S = { sys: {}, sid: new URLSearchParams(location.search).get("sid"), config: null, bridges: [], bridge: null, objects: null,
 	map: [], hued: "", huedPid: null, page: "rooms", pollTimer: null, objectsJson: "", busy: 0, update: null, apiInfo: {}, loadError: null };
 
 function mapped(type, id) {
@@ -1489,6 +1524,7 @@ function renderDiagnose() {
 	page.replaceChildren(
 		h("div", { class: "page-head" }, h("div", { class: "grow" }, h("h1", { class: "t-title" }, t("diagnose_title")))),
 		h("section", { class: "panel" }, checks),
+		...S.bridges.filter(b => S.apiInfo[b.id] !== "error").map(systemPanel),
 		h("section", { class: "panel" }, h("div", { class: "panel-head" }, h("h2", { class: "t-h3" }, t("try_command")), h("p", { class: "muted t-small" }, t("try_text"))),
 			h("div", { class: "row", style: "display:grid;gap:12px" }, h("div", { style: "display:flex;gap:10px" }, input, h("button", { class: "btn primary", onclick: run }, t("run"))), h("div", { class: "examples" }, examples), out)),
 		h("section", { class: "panel" }, h("div", { class: "panel-head" }, h("h2", { class: "t-h3" }, t("log"))),
@@ -1497,6 +1533,67 @@ function renderDiagnose() {
 				h("button", { class: "btn sm quiet", onclick: async () => { try { await rest("GET", "truncate-log"); log.textContent = ""; toast(t("log_cleared")); } catch (e) { fail(e); } } }, t("clear_log")),
 				h("a", { class: "btn sm quiet", href: "debug.cgi?sid=" + (S.sid || ""), download: "hue-debug.txt" }, t("debug_data"))),
 			h("div", { class: "row", style: "display:block;border-top:0;padding-top:0" }, log)));
+}
+
+/* ====================================================================== bridge system */
+// Cloud connection, Hue account, firmware updates and apps with access, read from the bridge
+function systemPanel(b) {
+	const box = h("section", { class: "panel" }, h("div", { class: "panel-head" }, h("h2", { class: "t-h3" }, t("sys_title", { name: b.name || b.id }))),
+		h("div", { class: "row" }, h("p", { class: "muted" }, t("loading"))));
+	const fmtDate = v => {
+		if (!v || v === "none") return t("sys_never");
+		const d = new Date(String(v).replace(" ", "T"));
+		return isNaN(d) ? v : d.toLocaleDateString(lang === "de" ? "de-DE" : "en-GB", { day: "numeric", month: "short", year: "numeric" });
+	};
+	const draw = x => {
+		const ok = v => v === "connected" || v === true;
+		const line = (good, title, text) => h("div", { class: "check " + (good ? "" : "warn") },
+			h("span", { class: "mark" }, icon(good ? "check" : "warn")),
+			h("div", { class: "grow" }, h("div", { style: "font-weight:600" }, title), h("p", { class: "muted t-small" }, text)));
+		const u = x.update || {};
+		const busy = u.state === "installing" || u.state === "transferring" || u.checking === true;
+		const pending = x.devices.filter(d => d.state && d.state !== "no_update");
+		const ready = x.devices.filter(d => d.state === "ready_to_install").length + (u.bridge === "readytoinstall" || u.bridge === "allreadytoinstall" ? 1 : 0);
+		const stateText = u.state === "installing" ? t("sys_upd_installing") : u.state === "transferring" ? t("sys_upd_loading")
+			: ready === 1 ? t("sys_upd_ready_1") : ready ? t("sys_upd_ready", { n: ready }) : pending.length ? t("sys_upd_loading") : t("sys_upd_none");
+		const act = async (body, msg) => {
+			try { await rest("POST", "bridges/" + b.id + "/swupdate", body); toast(msg); setTimeout(load, 1500); } catch (e) { fail(e); }
+		};
+		const time = h("input", { type: "time", value: String(u.time || "T03:00:00").slice(1, 6), style: "width:auto", "aria-label": t("sys_auto_time"),
+			onchange: e => act({ action: "auto", on: true, time: e.target.value }, t("saved")) });
+		const auto = h("input", { type: "checkbox", class: "switch", role: "switch", "aria-label": t("sys_auto"), checked: u.auto === true,
+			onchange: e => { time.disabled = !e.target.checked; act({ action: "auto", on: e.target.checked, time: time.value }, t("saved")); } });
+		time.disabled = u.auto !== true;
+		const stateLabel = s => I18N[lang]["sys_dev_" + s] ? t("sys_dev_" + s) : s;
+		box.replaceChildren(
+			h("div", { class: "panel-head" }, h("h2", { class: "t-h3" }, t("sys_title", { name: b.name || b.id })),
+				h("p", { class: "muted t-small" }, t("sys_firmware", { v: x.firmware || "?", api: x.apiversion || "?" }))),
+			line(ok(x.internet), t("sys_internet"), ok(x.internet) ? t("sys_internet_ok") : t("sys_internet_bad")),
+			line(ok(x.account), t("sys_account"), ok(x.account) ? t("sys_account_ok") : t("sys_account_bad")),
+			line(ok(x.remote), t("sys_remote"), ok(x.remote) ? t("sys_remote_ok") : t("sys_remote_bad")),
+			line(ok(x.time), t("sys_time"), ok(x.time) ? t("sys_time_ok") : t("sys_time_bad")),
+			h("div", { class: "row" }, h("div", { class: "grow" }, h("div", { style: "font-weight:600" }, t("sys_updates")), h("p", { class: "muted t-small" }, stateText)),
+				h("button", { class: "btn sm quiet", disabled: busy, onclick: () => act({ action: "check" }, t("sys_checking")) }, t("sys_check")),
+				ready ? h("button", { class: "btn sm primary", disabled: busy, onclick: () => act({ action: "install" }, t("sys_installing")) }, t("sys_install")) : null),
+			pending.length ? h("div", { class: "row", style: "display:block" }, pending.map(d => h("div", { class: "sys-dev" },
+				h("span", { class: "grow" }, d.name, d.model ? h("span", { class: "muted" }, "  " + d.model) : null), h("span", { class: "badge" + (d.state === "ready_to_install" ? " warn" : "") }, stateLabel(d.state))))) : null,
+			h("div", { class: "row" }, h("div", { class: "grow" }, h("div", { style: "font-weight:600" }, t("sys_auto")), h("p", { class: "muted t-small" }, t("sys_auto_text"))), time, auto),
+			h("div", { class: "row", style: "display:block" },
+				h("div", { style: "font-weight:600" }, t("sys_apps", { n: x.apps.length })),
+				h("p", { class: "muted t-small", style: "margin:2px 0 8px" }, t("sys_apps_text")),
+				x.apps.map(a => h("div", { class: "sys-dev" }, h("span", { class: "grow" }, a.name || a.key, a.self ? h("span", { class: "badge ok", style: "margin-left:8px" }, t("sys_this_addon")) : null),
+					h("span", { class: "muted t-small num" }, t("sys_used", { d: fmtDate(a.used) })))),
+				h("a", { class: "btn sm", href: "https://account.meethue.com/apps", target: "_blank", rel: "noopener", style: "margin-top:10px" }, t("sys_manage"))),
+			h("details", { class: "row", style: "display:block" }, h("summary", { style: "cursor:pointer;font-weight:600" }, t("sys_tenant")),
+				h("ol", { class: "muted", style: "margin:10px 0 0;padding-left:20px;line-height:1.6" }, ["sys_tenant_1", "sys_tenant_2", "sys_tenant_3", "sys_tenant_4"].map(k => h("li", {}, t(k))))));
+	};
+	const load = async () => {
+		try { const x = await rest("GET", "bridges/" + b.id + "/system"); S.sys[b.id] = x; if (box.isConnected || !box.parentNode) draw(x); }
+		catch (e) { box.replaceChildren(h("div", { class: "panel-head" }, h("h2", { class: "t-h3" }, t("sys_title", { name: b.name || b.id }))), h("div", { class: "row" }, h("p", { class: "muted" }, t("sys_failed", { e: e.message || e })))); }
+	};
+	if (S.sys[b.id]) draw(S.sys[b.id]);
+	load();
+	return box;
 }
 
 /* ====================================================================== update */

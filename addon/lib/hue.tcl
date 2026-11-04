@@ -1951,6 +1951,7 @@ proc ::hue::objects_json_v1 {bridge_id} {
 
 source [file join $::hue_addon_dir lib hue_v2.tcl]
 source [file join $::hue_addon_dir lib extras.tcl]
+source [file join $::hue_addon_dir lib system.tcl]
 
 hue::read_global_config
 
