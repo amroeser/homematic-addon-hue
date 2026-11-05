@@ -11,7 +11,7 @@
 [![Lizenz](https://img.shields.io/badge/Lizenz-GPLv3-2b8a57)](LICENSE)
 ![Zentralen](https://img.shields.io/badge/CCU3%20·%20OpenCCU%20·%20RaspberryMatic-unterst%C3%BCtzt-5a606b)
 
-[**Herunterladen**](https://github.com/amroeser/homematic-addon-hue/releases/latest) &nbsp;·&nbsp; [Schnellstart](#schnellstart) &nbsp;·&nbsp; [Dokumentation](#dokumentation) &nbsp;·&nbsp; [Architektur](docs/ARCHITECTURE.md) &nbsp;·&nbsp; [Sicherheit](SECURITY.md) &nbsp;·&nbsp; [Änderungen](CHANGELOG.md)
+[**Herunterladen**](https://github.com/amroeser/homematic-addon-hue/releases/latest) &nbsp;·&nbsp; [Schnellstart](#schnellstart) &nbsp;·&nbsp; [Dokumentation](#dokumentation) &nbsp;·&nbsp; [Architektur](docs/ARCHITECTURE.md) &nbsp;·&nbsp; [Sicherheit](SECURITY.md) &nbsp;·&nbsp; [Verhaltenskodex](CODE_OF_CONDUCT.md) &nbsp;·&nbsp; [Änderungen](CHANGELOG.md)
 
 <br>
 

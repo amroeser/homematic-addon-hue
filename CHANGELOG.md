@@ -1,5 +1,9 @@
 # Changelog
 
+## Unveröffentlicht
+
+- Releases tragen eine signierte Build-Provenance. Prüfen mit `gh attestation verify hm-hue.tar.gz -R amroeser/homematic-addon-hue`, siehe [SECURITY.md](SECURITY.md).
+
 ## 4.1.2
 
 - Hue Bridge Pro: MotionAware-Bereiche erscheinen als Bewegungsmelder unter *Sensoren* und in den Systemvariablen `Hue_motionarea_<bridge>_<id>` (Bewegung) und `Hue_securityarea_<bridge>_<id>` (Hue Secure). Der Name kommt aus dem Bereich in der Hue-App. Bereiche, für die die Bridge keinen Bewegungswert sendet, zeigen „Keine Bewegung“ statt eines Fehlers.

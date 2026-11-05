@@ -83,15 +83,18 @@ Das Addon läuft auf der Zentrale mit den Rechten des Webservers und der Addons,
 ### Updates und Lieferkette
 
 - Das Ein-Klick-Update lädt `VERSION`, `hm-hue.tar.gz` und `hm-hue.tar.gz.sha256` per HTTPS aus dem neuesten GitHub-Release. Vor der Installation vergleicht es die SHA-256-Prüfsumme und bricht bei einer Abweichung ab.
-- Paket und Prüfsumme kommen aus derselben Quelle. Die Prüfsumme schützt vor beschädigten oder unvollständigen Downloads, nicht vor einem kompromittierten GitHub-Konto oder Release. Das Paket ist nicht signiert.
+- Paket und Prüfsumme kommen aus derselben Quelle. Die Prüfsumme schützt vor beschädigten oder unvollständigen Downloads, nicht vor einem kompromittierten GitHub-Konto oder Release.
 - Releases werden in GitHub Actions aus einem Tag gebaut, der zur Datei `VERSION` passt, und erst nach bestandenen Tests veröffentlicht. Technisch erzwungen ist das nicht: Wer Schreibrechte am Repo hat, könnte ein Release auch von Hand anlegen. Das Archiv hat festen Besitzer und sortierte Einträge, ist aber nicht bitgleich reproduzierbar.
 - Jedes Release enthält eine Software-Stückliste im Format CycloneDX (`hm-hue.cdx.json`). Fremdkomponenten und Lizenzen stehen in [CREDITS.md](CREDITS.md). Zur Laufzeit lädt die Addon-Seite nichts aus dem Internet; Schrift und Code liegen im Paket.
-- Wer die Prüfsumme selbst kontrollieren möchte:
+- Ab Version 4.1.3 trägt jedes Release eine signierte Build-Provenance (GitHub Artifact Attestation, Sigstore, SLSA Build Level 2). Sie belegt, dass `hm-hue.tar.gz` und `hm-hue.cdx.json` im Workflow dieses Repos aus einem bestimmten Commit gebaut wurden. Das Ein-Klick-Update auf der Zentrale kann sie nicht prüfen, nur die Prüfsumme.
+- Im Workflow haben Jobs nur Leserechte, Schreib- und Signierrechte bekommt allein der Release-Job. Fremde Actions sind per Commit-SHA gepinnt, Dependabot schlägt Updates vor.
+- Wer Prüfsumme und Herkunft selbst kontrollieren möchte (zweiter Schritt mit der [GitHub CLI](https://cli.github.com)):
 
   ```sh
   curl -LO https://github.com/amroeser/homematic-addon-hue/releases/latest/download/hm-hue.tar.gz
   curl -LO https://github.com/amroeser/homematic-addon-hue/releases/latest/download/hm-hue.tar.gz.sha256
   sha256sum -c hm-hue.tar.gz.sha256
+  gh attestation verify hm-hue.tar.gz -R amroeser/homematic-addon-hue
   ```
 
 ### Netzwerkverbindungen im Überblick

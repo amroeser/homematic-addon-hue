@@ -6,14 +6,17 @@ on:
     tags: ["v*"]
   pull_request:
 
+# Least privilege: read only, the release job asks for more
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - name: Install Tcl 8.6 (without tcllib, the addon must not need it)
         run: sudo apt-get update && sudo apt-get install -y tcl8.6 openssl curl
       - name: Run tests
@@ -23,12 +26,24 @@ jobs:
     needs: test
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write      # create the GitHub release
+      id-token: write      # sign the build provenance (Sigstore)
+      attestations: write  # store the attestation
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - name: Check that the tag matches VERSION
         run: test "v$(cat VERSION)" = "${GITHUB_REF_NAME}"
       - name: Build package
         run: ./pack_addon.sh
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            dist/hm-hue.tar.gz
+            dist/hm-hue.cdx.json
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}

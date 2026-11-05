@@ -248,6 +248,7 @@ flowchart LR
 - `test/run_in_openccu.sh` und `test/run_in_ccu3.sh` führen dieselben Tests mit dem Tcl der echten Firmware aus (Tcl 8.2 per emuliertem ARM).
 - `pack_addon.sh` baut ein Archiv mit festem Besitzer und sortierten Einträgen (nicht bitgleich reproduzierbar, Zeitstempel stammen aus dem Checkout), die Prüfsumme und eine CycloneDX-SBOM (`tools/make_sbom.py`), die auch die Addon-Seite ausliefert.
 - Ein Release entsteht nur durch einen Tag, der zur Datei `VERSION` passt. Die Release-Notizen kommen aus `CHANGELOG.md`.
+- Der Release-Job signiert für Paket und SBOM eine Build-Provenance (`actions/attest-build-provenance`). Alle übrigen Jobs laufen nur mit Leserechten, Actions sind per SHA gepinnt und werden von Dependabot aktuell gehalten.
 
 ## Entwurfsentscheidungen
 
