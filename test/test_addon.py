@@ -1088,6 +1088,14 @@ class AddonTest(unittest.TestCase):
             self.assertIn(k, conds)
         self.assertNotIn(("value", "9346"), conds)  # key presses are triggers, not values
 
+    def test_64_flow_editor_view(self):
+        """Browser side of the editor: which programs the canvas can show and edit (needs node)."""
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node not installed")
+        p = subprocess.run([node, str(ROOT / "test" / "fe_view_test.js")], capture_output=True, text=True, timeout=60)
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+
     def test_30_v1_bridge_fallback(self):
         """Round bridge / old firmware: everything over v1, nothing breaks."""
         ctl("/_v2", {"enabled": False})

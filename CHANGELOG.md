@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.1.4
+
+- Abläufe: Programme wie „Taste kurz oder lang“ ohne Bedingung und „(Taste kurz und A) oder (Taste lang und A)“ galten im Editor fälschlich als „Nur in der CCU änderbar“. Jetzt sind sie bearbeitbar.
+- Abläufe: Bedingungen und Aktionen nennen Ausgänge von Wandtaster-Modulen eindeutig („Büro · Taster · Ausgang 2“), je Ausgang nur noch einmal mit dem Ist-Zustand; gleichnamige Kanäle tragen ihre Kanalnummer. „Helligkeit (aktuell)“ ist von „Helligkeit“ unterscheidbar.
+- Abläufe: ruhigere Darstellung. Graue Linien nur zwischen Auslöser, Bedingung und Aktionen; „Sonst“ und „Sonst, wenn“ erst nach einer Bedingung, ohne leere Zweige.
+
 ## 4.1.3
 
 - Abläufe: neuer Editor. Auslöser (Taste, Gerät, Systemvariable, Zeit), Bedingung mit „und“/„oder“, Aktionen bei Ja und Nein, „Sonst, wenn“, Verzögerungen, tagsüber/nachts und Zeiträume. Bearbeitbar sind jetzt auch Programme mit Bedingungen, „Sonst“ und Verzögerungen; nur Programme mit Skripten bleiben der CCU vorbehalten.

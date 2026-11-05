@@ -369,15 +369,13 @@ dialog.xl { width: min(1240px, calc(100vw - 32px)); }
 .fe-sub { font-size: .75rem; color: var(--ink-2); }
 .fe-pass { font-size: .8125rem; color: var(--ink-3); padding: 10px 0; }
 .fe-badge { justify-self: start; font-size: .6875rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--fill); color: var(--ink-2); }
-.fe-badge.yes { background: var(--ok-soft); color: var(--ok); }
-.fe-badge.no { background: var(--bad-soft); color: var(--bad); }
+.fe-badge.yes, .fe-badge.no { background: var(--fill-2); color: var(--ink); }
 .fe-add { justify-self: start; border: 1px dashed var(--line); background: none; color: var(--ink-2); padding: 6px 10px; border-radius: 10px; font-size: .8125rem; }
 .fe-add:hover { border-color: var(--amber); color: var(--ink); }
 .fe-add.small { padding: 3px 8px; font-size: .75rem; }
 .fe-lines { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; z-index: 0; }
 .fe-lines .edge { fill: none; stroke: color-mix(in srgb, var(--ink-3) 60%, transparent); stroke-width: 1.6; }
-.fe-lines .edge.yes { stroke: var(--ok); }
-.fe-lines .edge.no { stroke: var(--bad); stroke-dasharray: 5 4; }
+.fe-lines .edge.dashed { stroke-dasharray: 5 4; }
 .fe-more { grid-column: 1 / -1; }
 .fe-sentence { font-size: .875rem; color: var(--ink-2); padding: 12px 14px; border-radius: var(--r-md); background: var(--fill); }
 .fe-sentence p { margin: 2px 0; }
@@ -591,12 +589,12 @@ const I18N = {
 		fe_value: "Wert", fe_mode: "Wirkung", fe_apply: "Übernehmen", fe_target: "Was soll passieren", fe_delay: "Verzögerung", fe_delay_hint: "0 = sofort",
 		fe_on_change: "löst bei Änderung aus", fe_on_update: "löst bei Aktualisierung aus", fe_check_only: "nur prüfen", fe_on_time: "löst zur Zeit aus",
 		fe_or_group: "Oder-Alternative", fe_and_group: "Weitere Bedingung", fe_flip: "Und/Oder tauschen", fe_stop_delays: "Laufende Verzögerungen vorher beenden",
-		fe_yes: "ja", fe_no: "nein", fe_is: "{{a}} ist {{b}}", fe_between: "zwischen {{a}} und {{b}}", fe_range_op: "zwischen", fe_after: "nach {{d}}",
+		fe_yes: "ja", fe_no: "nein", fe_channel: "Kanal {{n}}", fe_output: "Ausgang {{n}}", fe_is: "{{a}} ist {{b}}", fe_between: "zwischen {{a}} und {{b}}", fe_range_op: "zwischen", fe_after: "nach {{d}}",
 		fe_time: "Zeit", fe_daily: "täglich", fe_weekly: "wöchentlich", fe_workdays: "Mo–Fr", fe_weekend: "Sa–So", fe_day: "tagsüber", fe_night: "nachts",
 		fe_allday: "ganztägig", fe_from_to: "{{a}}–{{b}} Uhr", fe_at: "um {{a}} Uhr", fe_range: "Zeitraum", fe_at_time: "Uhrzeit", fe_when_time: "Wann", fe_days: "Tage",
 		fe_mo: "Mo", fe_tu: "Di", fe_we: "Mi", fe_th: "Do", fe_fr: "Fr", fe_sa: "Sa", fe_su: "So",
 		fe_p_state: "Zustand", fe_p_level: "Position", fe_p_motion: "Bewegung", fe_p_presence_detection_state: "Anwesenheit", fe_p_illumination: "Helligkeit",
-		fe_p_current_illumination: "Helligkeit", fe_p_actual_temperature: "Temperatur", fe_p_humidity: "Luftfeuchte",
+		fe_p_current_illumination: "Helligkeit (aktuell)", fe_p_actual_temperature: "Temperatur", fe_p_humidity: "Luftfeuchte",
 		fe_true_state: "an", fe_false_state: "aus", fe_true_motion: "Bewegung erkannt", fe_false_motion: "keine Bewegung", fe_true_presence_detection_state: "anwesend", fe_false_presence_detection_state: "abwesend",
 		fe_g_presence: "Anwesenheit", fe_g_motion: "Bewegung", fe_g_lux: "Helligkeit", fe_g_climate: "Temperatur und Feuchte", fe_g_state: "Schalter und Lampen", fe_g_level: "Dimmer und Rollläden",
 		fe_g_hue_sensor: "Hue-Sensoren", fe_g_sysvar: "Systemvariablen", fe_g_scene: "Hue-Szenen", fe_g_other: "Weitere",
@@ -767,12 +765,12 @@ const I18N = {
 		fe_value: "Value", fe_mode: "Effect", fe_apply: "Apply", fe_target: "What should happen", fe_delay: "Delay", fe_delay_hint: "0 = immediately",
 		fe_on_change: "triggers on change", fe_on_update: "triggers on update", fe_check_only: "check only", fe_on_time: "triggers at the time",
 		fe_or_group: "Or alternative", fe_and_group: "Another condition", fe_flip: "Swap and/or", fe_stop_delays: "Stop running delays first",
-		fe_yes: "yes", fe_no: "no", fe_is: "{{a}} is {{b}}", fe_between: "between {{a}} and {{b}}", fe_range_op: "between", fe_after: "after {{d}}",
+		fe_yes: "yes", fe_no: "no", fe_channel: "channel {{n}}", fe_output: "output {{n}}", fe_is: "{{a}} is {{b}}", fe_between: "between {{a}} and {{b}}", fe_range_op: "between", fe_after: "after {{d}}",
 		fe_time: "Time", fe_daily: "daily", fe_weekly: "weekly", fe_workdays: "Mon–Fri", fe_weekend: "Sat–Sun", fe_day: "during the day", fe_night: "at night",
 		fe_allday: "all day", fe_from_to: "{{a}}–{{b}}", fe_at: "at {{a}}", fe_range: "Time span", fe_at_time: "Time of day", fe_when_time: "When", fe_days: "Days",
 		fe_mo: "Mon", fe_tu: "Tue", fe_we: "Wed", fe_th: "Thu", fe_fr: "Fri", fe_sa: "Sat", fe_su: "Sun",
 		fe_p_state: "state", fe_p_level: "position", fe_p_motion: "motion", fe_p_presence_detection_state: "presence", fe_p_illumination: "brightness",
-		fe_p_current_illumination: "brightness", fe_p_actual_temperature: "temperature", fe_p_humidity: "humidity",
+		fe_p_current_illumination: "brightness (current)", fe_p_actual_temperature: "temperature", fe_p_humidity: "humidity",
 		fe_true_state: "on", fe_false_state: "off", fe_true_motion: "motion", fe_false_motion: "no motion", fe_true_presence_detection_state: "present", fe_false_presence_detection_state: "absent",
 		fe_g_presence: "Presence", fe_g_motion: "Motion", fe_g_lux: "Brightness", fe_g_climate: "Temperature and humidity", fe_g_state: "Switches and lamps", fe_g_level: "Dimmers and blinds",
 		fe_g_hue_sensor: "Hue sensors", fe_g_sysvar: "System variables", fe_g_scene: "Hue scenes", fe_g_other: "More",
@@ -1974,6 +1972,18 @@ const FE = {
 		}
 		return keepKey && m ? n + ", " + t("fl_key", { n: m[1] }) : n;
 	},
+	// Labels that tell apart channels of one device: "Büro Taster · Kanal 8"
+	uniq(list, fn) {
+		const base = new Map(list.map(x => [x, fn(x)])), count = {};
+		for (const l of base.values()) count[l] = (count[l] || 0) + 1;
+		for (const [x, l] of base) {
+			const m = /:(\d+)$/.exec(x.name || "");
+			const out = /^out(\d+)$/.exec(x.sub || "");
+			if (out) base.set(x, l.replace(/ – .*$/, "") + " · " + t("fe_output", { n: out[1] }) + (/ – /.test(l) ? " – " + l.split(" – ").pop() : ""));
+			else if (count[l] > 1 && m) base.set(x, l + " · " + t("fe_channel", { n: m[1] }));
+		}
+		return base;
+	},
 	hhmm: secs => String(Math.floor(secs / 3600)).padStart(2, "0") + ":" + String(Math.floor(secs % 3600 / 60)).padStart(2, "0"),
 	secs: hm => { const m = /^(\d{1,2}):(\d{2})/.exec(hm || ""); return m ? Math.min(86399, +m[1] * 3600 + +m[2] * 60) : -1; },
 	days: ["fe_mo", "fe_tu", "fe_we", "fe_th", "fe_fr", "fe_sa", "fe_su"],
@@ -2025,21 +2035,33 @@ const FE = {
 		const triggers = [], tk = new Set();
 		for (const g of when.groups) for (const it of g) if (FE.isTrig(it) && !tk.has(FE.key(it))) { tk.add(FE.key(it)); triggers.push(it); }
 		const checks = [], ck = new Set();
+		const hasChecks = when.groups.some(g => g.some(it => !FE.isTrig(it)));
 		let ok = true;
 		for (const g of when.groups) {
 			const c = g.filter(it => !FE.isTrig(it));
 			const gt = new Set(g.filter(FE.isTrig).map(FE.key));
 			const inner = g.length > 1 ? String(g[1].op) : FE.inv(when.op);
-			if (when.op === "or") {
-				// Every alternative needs the same triggers, triggers and checks joined by "and"
-				if (triggers.length && (gt.size !== tk.size || [...tk].some(k => !gt.has(k)))) ok = false;
-				if (c.length && gt.size && inner !== "1") ok = false;
-			} else if (gt.size && c.length) ok = false;
+			if (when.op === "or" && hasChecks) {
+				// With checks every alternative needs them and the same triggers, joined by "and"
+				// ("key or key" alone needs nothing of that)
+				if (!c.length) ok = false;
+				if (gt.size && inner !== "1") ok = false;
+				if (tk.size > 1 && gt.size > 1) ok = false;
+			} else if (when.op === "and" && gt.size && c.length) ok = false;
 			if (!c.length) continue;
 			const k = c.map(FE.key).join("&");
 			if (!ck.has(k)) { ck.add(k); checks.push(c); }
 		}
 		if (when.op === "and" && when.groups.filter(g => g.some(FE.isTrig)).length > 1) ok = false;
+		// "(key 1 and A) or (key 2 and A)": every trigger with every check, the form rebuild() writes
+		if (when.op === "or" && hasChecks && tk.size) {
+			const pairs = new Set();
+			for (const g of when.groups) {
+				const ckey = g.filter(it => !FE.isTrig(it)).map(FE.key).join("&");
+				for (const it of g.filter(FE.isTrig)) pairs.add(FE.key(it) + "#" + ckey);
+			}
+			for (const k of tk) for (const c of ck) if (!pairs.has(k + "#" + c)) ok = false;
+		}
 		return { triggers, checks: { op: when.op, groups: checks }, ok };
 	},
 	// Canvas edits back to CCU conditions, in the form the WebUI and real programs use
@@ -2158,6 +2180,7 @@ async function openFlow(p, presetTrigger) {
 
 	// Edit helpers: change a branch through its canvas view
 	const edit = (b, fn) => {
+		if (!draft.branches[b]) draft.branches.push({ when: { op: "or", groups: [] }, then: [], stop_delays: true });
 		const v = FE.view(draft.branches[b]);
 		const r = fn(v.triggers, v.checks) || {};
 		draft.branches[b].when = FE.rebuild(r.triggers || v.triggers, r.checks || v.checks);
@@ -2191,7 +2214,7 @@ async function openFlow(p, presetTrigger) {
 			conds.push(h("div", { class: "fe-slot", "data-b": b },
 				b > 0 ? h("div", { class: "fe-badge no" }, t("fl_else_if")) : null,
 				condTxt || extra ? node("cond", condTxt || t("fe_always"), extra, () => { sel = { type: "cond", b }; draw(); }, sel && sel.type === "cond" && sel.b === b, res)
-					: h("div", { class: "fe-pass" }, t("fe_no_condition")),
+					: editable && layoutOk ? null : h("div", { class: "fe-pass" }, t("fe_no_condition")),
 				editable && layoutOk && !condTxt ? h("button", { class: "fe-add", onclick: () => { sel = { type: "cond", b }; draw(); addCheck(b, -1); } }, "+ " + t("fe_add_condition")) : null));
 			acts.push(h("div", { class: "fe-slot", "data-b": b },
 				condTxt ? h("div", { class: "fe-badge yes" }, t("fe_yes_then")) : h("div", { class: "fe-badge" }, t("fl_then")),
@@ -2205,8 +2228,9 @@ async function openFlow(p, presetTrigger) {
 				editable && layoutOk ? h("button", { class: "fe-add", onclick: () => { if (!draft.else) draft.else = { then: [], stop_delays: true }; sel = { type: "action", b: -1, i: -1 }; draw(); } }, "+ " + t(draft.else ? "fe_add_action" : "fe_add_else")) : null));
 		}
 		wrap.append(col("c1", t("fe_triggers"), trig), col("c2", t("fe_conditions"), conds), col("c3", t("fe_actions"), acts));
-		if (editable && layoutOk) wrap.append(h("div", { class: "fe-more" }, h("button", { class: "btn sm quiet", onclick: () => {
-			draft.branches.push({ when: { op: "or", groups: [] }, then: [], stop_delays: true }); dirty.add(draft.branches.length - 1); sel = { type: "cond", b: draft.branches.length - 1 }; draw(); addCheck(draft.branches.length - 1, -1);
+		// "Else if" only after a branch that has a condition; the branch exists once its condition is applied
+		if (editable && layoutOk && vs[vs.length - 1].checks.groups.length) wrap.append(h("div", { class: "fe-more" }, h("button", { class: "btn sm quiet", onclick: () => {
+			sel = null; draw(); addCheck(draft.branches.length, -1);
 		} }, "+ " + t("fe_add_else_if"))));
 		return wrap;
 	}
@@ -2227,19 +2251,24 @@ async function openFlow(p, presetTrigger) {
 		};
 		const trig = [...wrap.querySelectorAll(".c1 .fe-node")];
 		const slots2 = [...wrap.querySelectorAll(".c2 .fe-slot")], slots3 = [...wrap.querySelectorAll(".c3 .fe-slot")];
-		const first2 = slots2[0] && (slots2[0].querySelector(".fe-node, .fe-pass"));
-		for (const n of trig) if (first2) path(pt(n, "r"), pt(first2, "l"));
+		// Target in the actions column: first action, else its label
+		const target = i => slots3[i] && (slots3[i].querySelector(".fe-node") || slots3[i].querySelector(".fe-badge"));
+		const cond = i => slots2[i] && slots2[i].querySelector(".fe-node");
+		// Triggers lead to the condition, or straight to the actions without one
+		const start = cond(0) || target(0);
+		for (const n of trig) if (start) path(pt(n, "r"), pt(start, "l"));
 		slots2.forEach((s, i) => {
-			const c = s.querySelector(".fe-node, .fe-pass") || s.querySelector(".fe-badge");
-			const a = slots3[i] && slots3[i].querySelector(".fe-badge");
-			if (c && a) path(pt(c, "r"), pt(a, "l"), s.classList.contains("else") ? "no" : "yes");
-			const next = slots2[i + 1] && slots2[i + 1].querySelector(".fe-badge");
-			if (next && c && c !== next) {
+			const c = cond(i) || (s.classList.contains("else") && s.querySelector(".fe-badge"));
+			const a = target(i);
+			if (c && a) path(pt(c, "r"), pt(a, "l"));
+			// "No": down to the next condition or the else
+			const next = c && !s.classList.contains("else") && slots2[i + 1] && slots2[i + 1].querySelector(".fe-badge");
+			if (next) {
 				const r = c.getBoundingClientRect(), n = next.getBoundingClientRect();
 				const x = r.left - box.left + 18;
 				const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
 				p.setAttribute("d", `M${x},${r.bottom - box.top} L${x},${n.top - box.top}`);
-				p.setAttribute("class", "edge no");
+				p.setAttribute("class", "edge dashed");
 				svg.append(p);
 			}
 		});
@@ -2307,13 +2336,14 @@ async function openFlow(p, presetTrigger) {
 	}
 	function addCheck(b, gi) {
 		const it = null;
+		const isNew = !draft.branches[b];
 		const pick = conditionEditor(it, false, nit => edit(b, (tr, ch) => {
 			const gs = ch.groups.map(x => x.slice());
 			if (gi >= 0) gs[gi].push(nit); else gs.push([nit]);
 			return { checks: { op: ch.op || "or", groups: gs } };
 		}));
 		const box = $(".fe-inspect");
-		box.replaceChildren(h("div", { class: "fe-ihead" }, h("div", { class: "t-h3 grow" }, t("fe_add_condition")), h("button", { class: "btn icon-btn", "aria-label": t("close"), onclick: () => draw() }, icon("close"))), pick);
+		box.replaceChildren(h("div", { class: "fe-ihead" }, h("div", { class: "t-h3 grow" }, isNew ? t("fl_else_if") : t("fe_add_condition")), h("button", { class: "btn icon-btn", "aria-label": t("close"), onclick: () => draw() }, icon("close"))), pick);
 	}
 
 	// Editor for one condition: source, comparison, value, trigger mode
@@ -2363,8 +2393,9 @@ async function openFlow(p, presetTrigger) {
 				const list = (cat.conditions || []).filter(c => c.kind === kind).slice().sort((a, b) => (a.room || "").localeCompare(b.room || "") || a.name.localeCompare(b.name));
 				const groups = {};
 				for (const c of list) (groups[c.group || "other"] = groups[c.group || "other"] || []).push(c);
+				const names = FE.uniq(list, c => (c.room ? c.room + " · " : "") + (c.kind === "sysvar" ? c.name : FE.label(c.name, c.room)) + (c.param && c.kind === "value" ? " – " + t("fe_p_" + c.param.toLowerCase()) : ""));
 				const src = h("select", {}, h("option", { value: "" }, t("fe_pick_source")), Object.entries(groups).map(([g, cs]) => h("optgroup", { label: t("fe_g_" + g) },
-					cs.map(c => { const o = h("option", { value: c.dp }, (c.room ? c.room + " · " : "") + (c.kind === "sysvar" ? c.name : FE.label(c.name, c.room)) + (c.param && c.kind === "value" ? " – " + t("fe_p_" + c.param.toLowerCase()) : "")); o.selected = it && it.dp === c.dp; return o; }))));
+					cs.sort((x, y) => names.get(x).localeCompare(names.get(y), undefined, { numeric: true })).map(c => { const o = h("option", { value: c.dp }, names.get(c)); o.selected = it && it.dp === c.dp; return o; }))));
 				const valArea = h("div", {});
 				const mode = h("select", {}, (asTrigger ? [["4", "fe_on_change"], ["13", "fe_on_update"]] : [["15", "fe_check_only"], ["4", "fe_on_change"], ["13", "fe_on_update"]]).map(([v, l]) => { const o = h("option", { value: v }, t(l)); o.selected = String(it && it.kind === kind ? it.ct2 : asTrigger ? "4" : "15") === v; return o; }));
 				let getter = null;
@@ -2414,10 +2445,11 @@ async function openFlow(p, presetTrigger) {
 		const order = ["scene", "hue_scene_key", "hue_light", "lamp", "shelly", "plug", "switch", "level", "blind", "awning", "output", "sysvar"];
 		const groups = {};
 		for (const tg of cat.targets) (groups[FE.groupOf(tg)] = groups[FE.groupOf(tg)] || []).push(tg);
-		const tgName = tg => tg.kind === "scene" ? tg.name.replace(/^Hue Szene /, "") : (tg.room ? tg.room + " · " : "") + FE.label(tg.name, tg.room);
+		const tgNames = FE.uniq(cat.targets, tg => tg.kind === "scene" ? tg.name.replace(/^Hue Szene /, "") : (tg.room ? tg.room + " · " : "") + FE.label(tg.name, tg.room));
+		const tgName = tg => tgNames.get(tg);
 		const curTg = a ? FE.targetOf(a) : null;
 		const sel1 = h("select", {}, h("option", { value: "" }, t("fl_pick_target")),
-			order.filter(g => groups[g]).map(g => h("optgroup", { label: t("fe_t_" + g) }, groups[g].sort((x, y) => tgName(x).localeCompare(tgName(y))).map(tg => { const o = h("option", { value: tg.dp }, tgName(tg)); o.selected = curTg === tg; return o; }))));
+			order.filter(g => groups[g]).map(g => h("optgroup", { label: t("fe_t_" + g) }, groups[g].sort((x, y) => tgName(x).localeCompare(tgName(y), undefined, { numeric: true })).map(tg => { const o = h("option", { value: tg.dp }, tgName(tg)); o.selected = curTg === tg; return o; }))));
 		const valBox = h("div", {});
 		let draftA = a ? Object.assign({}, a) : null;
 		const fillVal = () => {

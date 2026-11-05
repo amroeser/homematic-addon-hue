@@ -292,9 +292,15 @@ foreach(sid, dom.GetObject(ID_SYSTEM_VARIABLES).EnumUsedIDs()) {
 	set buttons [list]
 	set actuators [list]
 	set vr [list]
+	array set trx {}
+	array set trxtype {}
 	foreach line $lines {
 		set f [split $line "|"]
 		if {[regexp {VIRTUAL_RECEIVER} [lindex $f 2]] && [regexp {^(.*):([0-9]+)$} [lindex $f 8] -> d n]} { lappend vr "$d/[lindex $f 2]/$n" }
+		if {[regexp {_(TRANSCEIVER|TRANSMITTER)$} [lindex $f 2]] && ![regexp {^(KEY_TRANSCEIVER|MULTI_MODE_INPUT_TRANSMITTER)$} [lindex $f 2]] && [regexp {^(.*):([0-9]+)$} [lindex $f 8] -> d n]} {
+			lappend trx($d) $n
+			set trxtype($d/$n) [lindex $f 2]
+		}
 		if {[string equal [lindex $f 2] "MULTI_MODE_INPUT_TRANSMITTER"]} { lappend buttons [lindex $f 7] }
 		if {[regexp {(STATE|LEVEL)=[0-9]+/[0-9]*[2367]/} [lindex $f 3]] && ![string match "*PRESS_SHORT*" [lindex $f 3]]} { lappend actuators [lindex $f 7] }
 	}
@@ -312,8 +318,21 @@ foreach(sid, dom.GetObject(ID_SYSTEM_VARIABLES).EnumUsedIDs()) {
 			set rl [list]
 			foreach r [split $rooms ";"] { if {$r != ""} { lappend rl [$S $r] } }
 			set room [room_of $rooms $name $roomnames]
-			# Values a flow can check or start from (not the LEDs of wall switches)
-			if {![regexp {^(MULTI_MODE_INPUT_TRANSMITTER|KEY_TRANSCEIVER|KEY)$} $ht]} {
+			# Values a flow can check or start from (not the LEDs of wall switches,
+			# one of the three virtual receivers per output)
+			set dupvr 0
+			set sub ""
+			if {[regexp {^(.*):([0-9]+)$} $addr -> vdev vnum]} {
+				if {[regexp {VIRTUAL_RECEIVER} $ht]} {
+					set prev [expr {$vnum - 1}]
+					set dupvr [expr {[lsearch -exact $vr "$vdev/$ht/$prev"] >= 0 || [info exists trxtype($vdev/$prev)]}]
+					while {$prev > 0 && ![info exists trxtype($vdev/$prev)]} { incr prev -1 }
+					if {[info exists trx($vdev)] && [llength $trx($vdev)] > 1 && [info exists trxtype($vdev/$prev)]} { set sub "out[expr {[lsearch -exact $trx($vdev) $prev] + 1}]" }
+				} elseif {[info exists trx($vdev)] && [llength $trx($vdev)] > 1 && [lsearch -exact $trx($vdev) $vnum] >= 0} {
+					set sub "out[expr {[lsearch -exact $trx($vdev) $vnum] + 1}]"
+				}
+			}
+			if {!$dupvr && ![regexp {^(MULTI_MODE_INPUT_TRANSMITTER|KEY_TRANSCEIVER|KEY|MAINTENANCE)$} $ht] && ![string match "*:0" $addr]} {
 				foreach k {STATE LEVEL MOTION PRESENCE_DETECTION_STATE ILLUMINATION CURRENT_ILLUMINATION ACTUAL_TEMPERATURE HUMIDITY} {
 					if {[info exists D($k)] && ([lindex $D($k) 1] & 5)} {
 						set grp "state"
@@ -325,7 +344,7 @@ foreach(sid, dom.GetObject(ID_SYSTEM_VARIABLES).EnumUsedIDs()) {
 							LEVEL { set grp "level" }
 						}
 						lappend conditions [::hue::json::objl [list kind [$S value] dp [$S [lindex $D($k) 0]] channel [$S $cid] name [$S $name] \
-							device [$S $dname] rooms [::hue::json::arr $rl] room [$S $room] group [$S $grp] param [$S $k] vtype [$S [lindex $D($k) 2]] values "\[\]"]]
+							device [$S $dname] rooms [::hue::json::arr $rl] room [$S $room] group [$S $grp] sub [$S $sub] param [$S $k] vtype [$S [lindex $D($k) 2]] values "\[\]"]]
 					}
 				}
 			}
@@ -375,7 +394,7 @@ foreach(sid, dom.GetObject(ID_SYSTEM_VARIABLES).EnumUsedIDs()) {
 				if {[lsearch -exact $vr "$dev/$ht/[expr {$num - 1}]"] >= 0} { continue }
 			}
 			lappend targets [::hue::json::objl [list kind [$S $kind] dp [$S $dp] toggle [$S $toggle] channel [$S $cid] name [$S $name] \
-				device [$S $dname] rooms [::hue::json::arr $rl] room [$S $room] group [$S $grp] type [$S $ht]]]
+				device [$S $dname] rooms [::hue::json::arr $rl] room [$S $room] group [$S $grp] sub [$S $sub] type [$S $ht]]]
 		} elseif {[string equal [lindex $f 0] "SVC"] && [llength $f] >= 6} {
 			foreach {x sid vt st vlist} $f break
 			set name [join [lrange $f 5 end] "|"]
