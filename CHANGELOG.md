@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.1.5
+
+- Abläufe: Warnungen bei Doppelbelegungen. Dieselbe Taste in mehreren Programmen (alle Zweige), widersprüchliche Aktionen für dieselbe Taste (z. B. „an“ und „aus“, oder zweimal „umschalten“, das sich aufhebt), widersprüchliche Aktionen in einem Zweig, Tasten, die in der CCU zusätzlich direkt mit einem Aktor verknüpft sind, und Programme ohne Auslöser. Der Editor prüft schon beim Bearbeiten, nicht erst nach dem Speichern.
+- Abläufe: Tipps mit Ein-Klick-Korrektur: „wenn aus, dann an, sonst aus“ als „umschalten“, Bedingungen, die bei vorhandenem „Sonst“ selbst auslösen, laufende Verzögerungen vorher beenden, lange Taste einmal auslösen, mehrere Hue-Lampen eines Raums lieber als Raum oder Szene, Programme, die sich selbst erneut starten können.
+
 ## 4.1.4
 
 - Abläufe: Programme wie „Taste kurz oder lang“ ohne Bedingung und „(Taste kurz und A) oder (Taste lang und A)“ galten im Editor fälschlich als „Nur in der CCU änderbar“. Jetzt sind sie bearbeitbar.

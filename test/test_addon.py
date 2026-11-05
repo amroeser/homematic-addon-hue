@@ -1089,12 +1089,26 @@ class AddonTest(unittest.TestCase):
         self.assertNotIn(("value", "9346"), conds)  # key presses are triggers, not values
 
     def test_64_flow_editor_view(self):
-        """Browser side of the editor: which programs the canvas can show and edit (needs node)."""
+        """Browser side of the editor: which programs the canvas can show, warnings and tips (needs node)."""
         node = shutil.which("node")
         if not node:
             self.skipTest("node not installed")
-        p = subprocess.run([node, str(ROOT / "test" / "fe_view_test.js")], capture_output=True, text=True, timeout=60)
-        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        for script in ("fe_view_test.js", "fe_analysis_test.js"):
+            p = subprocess.run([node, str(ROOT / "test" / script)], capture_output=True, text=True, timeout=60)
+            self.assertEqual(p.returncode, 0, script + ": " + p.stdout + p.stderr)
+
+    def test_65_flow_direct_links(self):
+        """Direct links of keys (HomeMatic links without program) for the double-switch warning."""
+        links = RUN / "links.txt"
+        links.write_text("00175A498C5930:4 00089D899E0F95:2 Wohnzimmer_Taster_Eingang:4 mit Wohnzimmer Stehlampe:2\n", encoding="utf-8")
+        try:
+            st, r = self.rest("GET", "flows/links")
+            self.assertEqual(st, 200, r)
+            # Group links of thermostats are left out, the interface is part of the address
+            self.assertEqual(r, [{"sender": "HmIP-RF.00175A498C5930:4", "receiver": "HmIP-RF.00089D899E0F95:2",
+                                  "name": "Wohnzimmer_Taster_Eingang:4 mit Wohnzimmer Stehlampe:2"}])
+        finally:
+            links.unlink()
 
     def test_30_v1_bridge_fallback(self):
         """Round bridge / old firmware: everything over v1, nothing breaks."""

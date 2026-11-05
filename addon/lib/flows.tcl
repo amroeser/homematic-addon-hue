@@ -1020,3 +1020,26 @@ proc ::hue::flows::run {pid} {
 	if {![regexp {RUN\|} $out]} { error "Program not started: $out" }
 	return $pid
 }
+
+# Direct links of the CCU (key -> actuator without a program), as JSON list
+# {sender, receiver, name}. Slow on big installations: the UI loads it on its own.
+proc ::hue::flows::links_json {} {
+	set S ::hue::json::str
+	set out [list]
+	foreach {iface url} {HmIP-RF http://127.0.0.1:2010 BidCos-RF xmlrpc_bin://127.0.0.1:2001} {
+		if {[catch {xmlrpc $url getLinks [list string ""] [list int 0]} links]} { continue }
+		foreach l $links {
+			catch {unset L}
+			if {[catch {array set L $l}]} { continue }
+			if {![info exists L(SENDER)] || ![info exists L(RECEIVER)]} { continue }
+			# Group links of thermostats are no key links
+			set desc ""
+			if {[info exists L(DESCRIPTION)]} { set desc $L(DESCRIPTION) }
+			if {[string match "*deviceLinkOfGroup*" $desc]} { continue }
+			set name ""
+			if {[info exists L(NAME)]} { set name $L(NAME) }
+			lappend out [::hue::json::objl [list sender [$S "${iface}.$L(SENDER)"] receiver [$S "${iface}.$L(RECEIVER)"] name [$S $name]]]
+		}
+	}
+	return [::hue::json::arr $out]
+}

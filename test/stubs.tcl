@@ -170,6 +170,18 @@ proc xmlrpc {url method args} {
 			}
 			return [list]
 		}
+		getLinks {
+			# Direct links: links.txt, one per line "<sender> <receiver> <name>", only for HmIP-RF
+			if {![string match "http://*:2010" $url]} { return [list] }
+			set out [list]
+			foreach line [split [::hue_test_read links.txt] "\n"] {
+				set line [string trim $line]
+				if {$line == ""} { continue }
+				lappend out [list DESCRIPTION "Standardverknuepfung" FLAGS 0 NAME [lrange $line 2 end] RECEIVER [lindex $line 1] SENDER [lindex $line 0]]
+			}
+			lappend out [list DESCRIPTION "\${deviceLinkOfGroup}1" NAME "group" RECEIVER "X:2" SENDER "Y:1"]
+			return $out
+		}
 		default {
 			::hue_test_append xmlrpc.log "$method $args"
 			return ""

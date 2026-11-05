@@ -89,6 +89,25 @@ Jede Einzelbedingung und Aktion trägt zusätzlich `name` und `channel_name` fü
 
 Vorschau: `POST flows/values` liefert Uhrzeit, Wochentag, Sonnenauf- und -untergang (`system.SunriseTime`, `system.SunsetTime`) und die Werte der Datenpunkte. Der Browser wertet aus, Tasten gelten als gedrückt; es wird nichts geschaltet. `POST flows/<id>/run` führt das Programm einmal aus (`ProgramExecute`).
 
+## Warnungen und Tipps
+
+`flowAnalysis` (Browser) prüft alle aktiven Programme gemeinsam; im Editor ersetzt der Entwurf sein Programm, sodass Hinweise schon vor dem Speichern erscheinen.
+
+| Art | Erkennung |
+|---|---|
+| Taste doppelt belegt | Dieselbe Taste (Datenpunkt) als Auslöser in mehreren aktiven Programmen, alle Zweige |
+| Widersprüchliche Aktionen | Gleiche Taste, gleiches Ziel (Kanal), anderer Wert im ersten Zweig; oder beide schalten dasselbe Ziel um (heben sich auf); oder ein Zweig schaltet ein Ziel gleichzeitig unterschiedlich |
+| Taste auch direkt verknüpft | Kanal der Taste ist Sender einer Direktverknüpfung (`GET flows/links`, XML-RPC `getLinks` auf HmIP-RF und BidCos-RF, ohne Gruppenverknüpfungen von Thermostaten) |
+| Kein Auslöser | Im WENN ist alles „nur prüfen“ |
+| Lange Taste wiederholt | `PRESS_LONG` statt `PRESS_LONG_START` |
+| Tipp: umschalten | „Wert aus → an, sonst aus“ auf ein Ziel mit `TOGGLE` |
+| Tipp: Bedingung löst aus | Taste plus auslösender Gerätewert bei vorhandenem „Sonst“ |
+| Tipp: Schleife | Auslösender Gerätewert, dessen Kanal das Programm selbst schaltet |
+| Tipp: Raum statt Lampen | Drei oder mehr Hue-Lampen eines Raums in einem Zweig |
+| Tipp: Verzögerungen | Verzögerte Aktion ohne „laufende Verzögerungen beenden“ |
+
+Tipps mit Korrektur ändern nur den Entwurf; gespeichert wird wie immer erst mit *Speichern*. Tests: `test/fe_view_test.js`, `test/fe_analysis_test.js` (über `test_64`), `test_65_flow_direct_links`.
+
 ## Katalog
 
 `GET flows/catalog` liefert `triggers`, `targets` und `conditions`, jeweils mit `room` (Raum, sonst das Namenspräfix, wenn es ein bekannter Raum ist) und `group`:

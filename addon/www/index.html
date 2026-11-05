@@ -353,6 +353,8 @@ dialog.xl { width: min(1240px, calc(100vw - 32px)); }
 .fe-split { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
 .fe-main { display: grid; gap: 12px; min-width: 0; }
 .fe-main .notice { margin: 0; }
+.fe-main .notice.tip { background: var(--fill); }
+.fe-main .notice > span:first-child { align-self: flex-start; margin-top: 3px; }
 .fe-scroll { overflow-x: auto; padding-bottom: 6px; }
 .fe-canvas { position: relative; display: grid; grid-template-columns: minmax(190px, 1fr) minmax(200px, 1fr) minmax(200px, 1fr); column-gap: 56px; min-width: 700px; padding: 10px; border-radius: var(--r-md); background-image: radial-gradient(var(--line) 1px, transparent 1px); background-size: 18px 18px; }
 .fe-col { display: grid; gap: 10px; align-content: start; position: relative; z-index: 1; }
@@ -580,6 +582,17 @@ const I18N = {
 		fl_delete: "Löschen", fl_delete_q: "„{{name}}“ aus der CCU löschen? Eine Sicherung bleibt auf der CCU.", fl_disable: "Pausieren", fl_enable: "Aktivieren",
 		fl_need_name: "Bitte gib dem Ablauf einen Namen.", fl_need_both: "Ein Ablauf braucht mindestens eine Taste und eine Aktion.",
 		fl_last: "Zuletzt ausgeführt: {{d}}", fl_never: "Noch nicht ausgeführt",
+		fe_tip: "Tipp", fe_fixed: "Geändert, jetzt speichern.", fe_tips_n: "{{n}} Tipps", fe_tips_1: "1 Tipp", fe_w_toggle2: "{{key}}: „{{a}}“ und „{{b}}“ schalten {{x}} beide um. Sie heben sich gegenseitig auf.",
+		fe_w_twice: "{{key}} startet auch: {{names}}. Beide Programme laufen gleichzeitig.",
+		fe_w_conflict_title: "Widersprüchliche Aktionen", fe_w_conflict: "{{key}}: „{{a}}“ schaltet {{x}}, „{{b}}“ schaltet {{y}}. Was am Ende gilt, hängt von der Reihenfolge ab.",
+		fe_w_self_title: "Widersprüchliche Aktionen", fe_w_self: "Ein Zweig schaltet dasselbe Ziel gleichzeitig unterschiedlich, zuletzt: {{x}}.",
+		fe_w_link_title: "Taste auch direkt verknüpft", fe_w_link: "{{key}} ist in der CCU zusätzlich direkt verknüpft mit {{to}}. Das Gerät schaltet dann doppelt.",
+		fe_w_notrig_title: "Kein Auslöser", fe_w_notrig: "Alle Bedingungen sind „nur prüfen“. Das Programm startet nie von selbst.",
+		fe_w_loop_title: "Mögliche Schleife", fe_w_loop: "„{{x}}“ startet das Programm, und das Programm schaltet dasselbe Gerät. Es kann sich dadurch selbst erneut starten.",
+		fe_t_toggle_title: "Einfacher mit „umschalten“", fe_t_toggle: "„Wenn aus, dann an, sonst aus“ für {{x}} geht auch mit einer einzigen Aktion „umschalten“.", fe_t_toggle_fix: "Umstellen",
+		fe_t_checkonly_title: "Bedingung löst selbst aus", fe_t_checkonly: "{{x}} startet das Programm ebenfalls. Weil es ein „Sonst“ gibt, läuft „Sonst“ dann bei jeder Änderung. Meist ist „nur prüfen“ gemeint.", fe_t_checkonly_fix: "Nur prüfen",
+		fe_t_room_title: "Raum statt einzelner Lampen", fe_t_room: "{{n}} Hue-Lampen in {{r}} werden einzeln geschaltet. Ein Raum-Gerät oder eine Szene schaltet sie gleichzeitig mit einem Funkbefehl.",
+		fe_t_delay_title: "Verzögerungen laufen weiter", fe_t_delay: "Bei erneutem Auslösen laufen ältere Verzögerungen weiter und schalten später noch. Meist sollen sie vorher beendet werden.", fe_t_delay_fix: "Vorher beenden",
 		fe_triggers: "Auslöser", fe_conditions: "Bedingung", fe_actions: "Aktionen", fe_trigger: "Auslöser", fe_condition: "Bedingung", fe_action: "Aktion",
 		fe_add_trigger: "Auslöser", fe_add_condition: "Bedingung", fe_add_action: "Aktion", fe_add_else: "Sonst", fe_add_else_if: "Sonst, wenn …",
 		fe_yes_then: "Ja, dann", fe_no_else: "Nein, sonst", fe_no_condition: "Ohne Bedingung", fe_always: "Immer", fe_and_if: "und wenn",
@@ -756,6 +769,17 @@ const I18N = {
 		fl_delete: "Delete", fl_delete_q: "Delete “{{name}}” from the CCU? A backup is kept on the CCU.", fl_disable: "Pause", fl_enable: "Activate",
 		fl_need_name: "Please give the flow a name.", fl_need_both: "A flow needs at least one key and one action.",
 		fl_last: "Last run: {{d}}", fl_never: "Not run yet",
+		fe_tip: "Tip", fe_fixed: "Changed, now save.", fe_tips_n: "{{n}} tips", fe_tips_1: "1 tip", fe_w_toggle2: "{{key}}: “{{a}}” and “{{b}}” both toggle {{x}}. They cancel each other out.",
+		fe_w_twice: "{{key}} also starts: {{names}}. Both programs run at the same time.",
+		fe_w_conflict_title: "Conflicting actions", fe_w_conflict: "{{key}}: “{{a}}” switches {{x}}, “{{b}}” switches {{y}}. What wins depends on the order.",
+		fe_w_self_title: "Conflicting actions", fe_w_self: "One branch switches the same target differently at the same time, last: {{x}}.",
+		fe_w_link_title: "Key also linked directly", fe_w_link: "{{key}} is also linked directly to {{to}} in the CCU. The device then switches twice.",
+		fe_w_notrig_title: "No trigger", fe_w_notrig: "All conditions are “check only”. The program never starts by itself.",
+		fe_w_loop_title: "Possible loop", fe_w_loop: "“{{x}}” starts the program, and the program switches the same device. It can start itself again.",
+		fe_t_toggle_title: "Simpler with “toggle”", fe_t_toggle: "“If off then on, else off” for {{x}} also works with a single “toggle” action.", fe_t_toggle_fix: "Change",
+		fe_t_checkonly_title: "Condition starts the program", fe_t_checkonly: "{{x}} also starts the program. Because there is an “else”, “else” then runs on every change. Usually “check only” is meant.", fe_t_checkonly_fix: "Check only",
+		fe_t_room_title: "Room instead of single lamps", fe_t_room: "{{n}} Hue lamps in {{r}} are switched one by one. A room device or a scene switches them at once with one radio command.",
+		fe_t_delay_title: "Delays keep running", fe_t_delay: "When triggered again, older delays keep running and switch later. Usually they should be stopped first.", fe_t_delay_fix: "Stop first",
 		fe_triggers: "Triggers", fe_conditions: "Condition", fe_actions: "Actions", fe_trigger: "Trigger", fe_condition: "Condition", fe_action: "Action",
 		fe_add_trigger: "Trigger", fe_add_condition: "Condition", fe_add_action: "Action", fe_add_else: "Else", fe_add_else_if: "Else if …",
 		fe_yes_then: "Yes, then", fe_no_else: "No, else", fe_no_condition: "No condition", fe_always: "Always", fe_and_if: "and if",
@@ -1755,6 +1779,13 @@ async function loadFlows(force) {
 	if (S.flows && !force) return;
 	const [f, c] = await Promise.all([rest("GET", "flows"), S.catalog && !force ? Promise.resolve(S.catalog) : rest("GET", "flows/catalog")]);
 	S.flows = f.programs; S.catalog = c;
+	// Direct links take a few seconds on the CCU: load them on their own
+	if (!S.links || force) rest("GET", "flows/links").then(ls => {
+		const m = {};
+		for (const l of ls || []) (m[l.sender] = m[l.sender] || []).push(String(l.name || l.receiver).replace(/^.* (mit|with) /, ""));
+		S.links = m;
+		if (!$("#sheet").open) render();
+	}).catch(() => { S.links = {}; });
 }
 const pressLabel = p => ({ SHORT: t("fl_short"), LONG_START: t("fl_long"), LONG: t("fl_long_rep") })[p] || "";
 function cleanName(n) { return String(n || "").replace(/:\d+$/, "").replace(/_/g, " "); }
@@ -1807,21 +1838,142 @@ function targetName(a) {
 	if (tg && tg.kind === "scene") return tg.name.replace(/^Hue Szene /, "Hue ");
 	return cleanName(a.channel_name || a.name || (tg && tg.name));
 }
-// Triggers used by more than one active program, and long presses that repeat
-function flowIssues() {
-	const byDp = new Map();
-	const issues = new Map();
-	for (const p of S.flows) {
-		if (!p.active) continue;
-		for (const c of (p.rules[0] || { conditions: [] }).conditions) for (const s of c.singles) {
-			if (!s.press) continue;
-			if (!byDp.has(s.dp)) byDp.set(s.dp, []);
-			if (!byDp.get(s.dp).includes(p)) byDp.get(s.dp).push(p);
-			if (s.press === "LONG") issues.set(p.id, [...(issues.get(p.id) || []), { kind: "repeat", dp: s.dp }]);
+// Checks across all programs: keys used twice, conflicting actions for one key, direct links,
+// loops, programs without trigger, and tips. Works on the overview data and on the draft
+// in the editor (then the draft replaces its program, and tips can fix the draft).
+function flowSummary(p) {
+	const branches = p.rules.filter((r, i) => i === 0 || r.conditions.length).map(r => ({
+		items: r.conditions.flatMap(c => c.singles).map(s => ({ dp: s.dp, press: s.press, ct2: String(s.ct2), name: s.name, ch: s.channel, label: s.press ? keyName(s).device + ", " + keyName(s).key + " " + pressLabel(s.press) : cleanName(s.channel_name || s.name) })),
+		acts: r.actions.map(a => ({ dp: a.dp, value: a.value, channel: a.channel, name: a.name, channel_name: a.channel_name, delay: a.delay_type === "28" ? String(a.delay || "").slice(-8) : "" }))
+	}));
+	const els = p.rules.slice(1).find(r => !r.conditions.length && r.actions.length);
+	return { id: p.id, name: p.name, active: p.active, branches, hasElse: !!els };
+}
+function draftSummary(d) {
+	return { id: d.id || "new", name: d.name || t("fl_new"), active: d.active, draft: d, hasElse: !!(d.else && d.else.then.length),
+		branches: d.branches.map(b => ({
+			items: b.when.groups.flat().map(it => ({ dp: it.dp, press: it.press, ct2: String(it.ct2), name: it.name, ch: it.ch, kind: it.kind, label: FE.itemText(it) })),
+			acts: b.then.map(a => ({ dp: a.dp, value: a.value, channel: a.ch, name: a.name, channel_name: a.channel_name, delay: a.delay })) })) };
+}
+function flowAnalysis(draft) {
+	const sums = (S.flows || []).filter(p => !draft || p.id !== draft.id).map(flowSummary);
+	if (draft) sums.push(draftSummary(draft));
+	const out = new Map(), add = (id, x) => out.set(id, [...(out.get(id) || []), x]);
+	const actText = a => FE.actText(Object.assign({ ch: a.channel }, a));
+	const tkey = a => targetKey({ channel: a.channel, dp: a.dp });
+	const isTrig = it => it.ct2 !== "15";
+	// Keys: programs per key datapoint (all branches), and the actions they start first
+	const byKey = new Map();
+	for (const s of sums) {
+		if (!s.active && !s.draft) continue;
+		for (const it of s.branches.flatMap(b => b.items)) if (it.press) {
+			if (!byKey.has(it.dp)) byKey.set(it.dp, { label: it.label, name: it.name, list: [] });
+			if (!byKey.get(it.dp).list.includes(s)) byKey.get(it.dp).list.push(s);
 		}
 	}
-	for (const [dp, ps] of byDp) if (ps.length > 1) for (const p of ps) issues.set(p.id, [...(issues.get(p.id) || []), { kind: "twice", dp, others: ps.filter(x => x !== p).map(x => x.name) }]);
-	return issues;
+	for (const [dp, k] of byKey) {
+		if (k.list.length < 2) continue;
+		for (const s of k.list) add(s.id, { level: "warn", title: t("fl_twice_title"), text: t("fe_w_twice", { key: k.label, names: k.list.filter(x => x !== s).map(x => x.name).join(", ") }) });
+		// Same key, same target, different value: the result depends on the order
+		for (let i = 0; i < k.list.length; i++) for (let j = i + 1; j < k.list.length; j++) {
+			const A = k.list[i], B = k.list[j];
+			for (const a of A.branches[0].acts) for (const b of B.branches[0].acts) {
+				if (tkey(a) !== tkey(b)) continue;
+				const tg = FE.targetOf(a);
+				const toggles = tg && tg.toggle && a.dp === tg.toggle && b.dp === tg.toggle;
+				if (!toggles && (a.dp + "=" + a.value) === (b.dp + "=" + b.value)) continue;
+				// Two toggles of one target cancel each other out
+				const txt = toggles ? t("fe_w_toggle2", { key: k.label, a: A.name, b: B.name, x: FE.label(tg.name) })
+					: t("fe_w_conflict", { key: k.label, a: A.name, x: actText(a), b: B.name, y: actText(b) });
+				add(A.id, { level: "warn", title: t("fe_w_conflict_title"), text: txt });
+				add(B.id, { level: "warn", title: t("fe_w_conflict_title"), text: txt });
+			}
+		}
+	}
+	for (const s of sums) {
+		const items = s.branches.flatMap(b => b.items), b0 = s.branches[0] || { items: [], acts: [] };
+		// Contradicting actions in one branch at the same moment
+		for (const b of s.branches) {
+			const seen = new Map();
+			for (const a of b.acts) {
+				if (a.delay) continue;
+				const k = tkey(a), sig = a.dp + "=" + a.value;
+				if (seen.has(k) && seen.get(k) !== sig) add(s.id, { level: "warn", title: t("fe_w_self_title"), text: t("fe_w_self", { x: actText(a) }) });
+				seen.set(k, sig);
+			}
+		}
+		// Long press that repeats while held
+		for (const it of items) if (it.press === "LONG") {
+			const tr = (S.catalog.triggers || []).find(x => x.channel === it.ch || x.long === it.dp);
+			add(s.id, { level: "warn", title: t("fl_repeat_title"), text: t("fl_repeat_text"),
+				fix: s.draft && tr && tr.long && tr.long !== it.dp ? [t("fl_repeat_fix"), d => { for (const br of d.branches) for (const g of br.when.groups) for (const x of g) if (x.dp === it.dp) Object.assign(x, { dp: tr.long, press: "LONG_START", name: String(x.name).replace(/PRESS_LONG$/, "PRESS_LONG_START") }); }] : null });
+		}
+		// Key also linked directly to an actuator: it switches twice
+		if (S.links) {
+			const done = new Set();
+			for (const it of items) if (it.press) {
+				const addr = String(it.name || "").replace(/\.PRESS_\w+$/, "");
+				const l = S.links[addr];
+				if (!l || !l.length || done.has(addr)) continue;
+				done.add(addr);
+				const k = keyName({ channel_name: it.label.split(",")[0] + ":" + ((/:(\d+)$/.exec(addr) || [])[1] || "") });
+				add(s.id, { level: "warn", title: t("fe_w_link_title"), text: t("fe_w_link", { key: k.device + ", " + k.key, to: l.map(x => FE.label(x)).join(", ") }) });
+			}
+		}
+		// Never starts by itself
+		if (!b0.items.some(isTrig)) add(s.id, { level: "warn", title: t("fe_w_notrig_title"), text: t("fe_w_notrig") });
+		// A value that starts the program and is switched by it: it can start itself again
+		for (const it of items) if (isTrig(it) && !it.press && it.ch) {
+			const hit = s.branches.flatMap(b => b.acts).find(a => a.channel === it.ch);
+			if (hit) add(s.id, { level: "tip", title: t("fe_w_loop_title"), text: t("fe_w_loop", { x: it.label }) });
+		}
+		// Tip: "if lamp off then on else off" is a toggle
+		const d = s.draft;
+		const checks0 = b0.items.filter(x => !isTrig(x));
+		const tgt = b0.acts.length === 1 && FE.targetOf(b0.acts[0]);
+		if (checks0.length === 1 && s.branches.length === 1 && s.hasElse && tgt && tgt.toggle && checks0[0].ch === b0.acts[0].channel) {
+			const elseActs = d ? d.else.then : ((S.flows.find(p => p.id === s.id) || { rules: [] }).rules.slice(1).find(r => !r.conditions.length) || { actions: [] }).actions;
+			if (elseActs.length === 1 && elseActs[0].dp === b0.acts[0].dp && elseActs[0].value !== b0.acts[0].value)
+				add(s.id, { level: "tip", title: t("fe_t_toggle_title"), text: t("fe_t_toggle", { x: FE.label(tgt.name) }),
+					fix: d ? [t("fe_t_toggle_fix"), dr => {
+						const v = FE.view(dr.branches[0]);
+						dr.branches[0].when = FE.rebuild(v.triggers, { op: "or", groups: [] });
+						dr.branches[0].then = [Object.assign(FE.newAction(tgt), { dp: tgt.toggle, value: "true", name: tgt.name + ".TOGGLE" })];
+						dr.else = null;
+					}] : null });
+		}
+		// Tip: a condition that starts the program while there is an "else"
+		const keyTrig = b0.items.some(x => x.press);
+		const valTrig = b0.items.filter(x => isTrig(x) && !x.press);
+		if (s.hasElse && keyTrig && valTrig.length)
+			add(s.id, { level: "tip", title: t("fe_t_checkonly_title"), text: t("fe_t_checkonly", { x: valTrig.map(x => x.label).join(", ") }),
+				fix: d ? [t("fe_t_checkonly_fix"), dr => { for (const g of dr.branches[0].when.groups) for (const x of g) if (!x.press && String(x.ct2) !== "15") x.ct2 = "15"; }] : null });
+		// Tip: several Hue lamps of one room one by one
+		for (const b of s.branches) {
+			const rooms = {};
+			for (const a of b.acts) { const tg = FE.targetOf(a); if (tg && tg.group === "hue_light" && tg.room) rooms[tg.room] = (rooms[tg.room] || 0) + 1; }
+			for (const [r, n] of Object.entries(rooms)) if (n >= 3) add(s.id, { level: "tip", title: t("fe_t_room_title"), text: t("fe_t_room", { r, n }) });
+		}
+		// Tip: delays without stopping the old ones
+		if (d) d.branches.concat(d.else ? [d.else] : []).forEach(b => {
+			if (b.stop_delays === false && b.then.some(a => a.delay)) add(s.id, { level: "tip", title: t("fe_t_delay_title"), text: t("fe_t_delay"),
+				fix: [t("fe_t_delay_fix"), dr => { for (const x of dr.branches.concat(dr.else ? [dr.else] : [])) if (x.then.some(a => a.delay)) x.stop_delays = true; }] });
+		});
+	}
+	// The same finding once per program
+	for (const [id, xs] of out) out.set(id, xs.filter((x, i) => xs.findIndex(y => y.text === x.text) === i));
+	return out;
+}
+// Overview: warnings per program
+function flowIssues() {
+	const all = flowAnalysis(null), w = new Map();
+	for (const [id, xs] of all) { const ws = xs.filter(x => x.level === "warn"); if (ws.length) w.set(id, ws); }
+	return w;
+}
+function flowTips() {
+	let n = 0;
+	for (const xs of flowAnalysis(null).values()) n += xs.filter(x => x.level === "tip").length;
+	return n;
 }
 
 function renderFlows() {
@@ -1842,6 +1994,7 @@ function renderFlows() {
 		oninput: e => { S.flowFilter = e.target.value; clearTimeout(S.flowT); S.flowT = setTimeout(() => { renderFlows(); const i = $("#page-flows input[type=search]"); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 200); } });
 	const bar = h("div", { class: "flow-bar" }, search,
 		nIssues ? h("span", { class: "badge warn" }, icon("warn"), nIssues === 1 ? t("fl_issues_1") : t("fl_issues", { n: nIssues })) : h("span", { class: "badge ok" }, icon("check"), t("fl_no_issues")),
+		(n => n ? h("span", { class: "badge" }, icon("bulb"), n === 1 ? t("fe_tips_1") : t("fe_tips_n", { n })) : null)(flowTips()),
 		h("button", { class: "btn sm quiet", onclick: async () => { S.flows = null; S.catalog = null; render(); } }, t("fl_reload")));
 
 	// Canvas: left the keys and other triggers, middle the programs, right the targets
@@ -2550,12 +2703,13 @@ async function openFlow(p, presetTrigger) {
 	}
 
 	function draw() {
-		const issues = p ? (flowIssues().get(p.id) || []) : [];
+		const issues = editable && layoutOk ? (flowAnalysis(draft).get(draft.id || "new") || []) : (p ? (flowIssues().get(p.id) || []) : []);
 		const ro = !editable ? t("fe_ro_" + (draft.reason || "other")) : !layoutOk ? t("fe_ro_layout") : "";
 		const canvasBox = h("div", { class: "fe-main" },
 			ro ? h("div", { class: "notice" }, h("div", {}, h("div", { class: "t-h3" }, t("fl_ro_title")), h("p", { class: "muted" }, ro))) : null,
-			...issues.map(x => h("div", { class: "notice" }, h("div", {}, h("div", { class: "t-h3" }, x.kind === "repeat" ? t("fl_repeat_title") : t("fl_twice_title")),
-				h("p", { class: "muted" }, x.kind === "repeat" ? t("fl_repeat_text") : t("fl_twice_text", { names: x.others.join(", ") }))))),
+			...issues.map(x => h("div", { class: "notice" + (x.level === "tip" ? " tip" : "") }, icon(x.level === "tip" ? "bulb" : "warn"),
+				h("div", { class: "grow" }, h("div", { class: "t-h3" }, (x.level === "tip" ? t("fe_tip") + ": " : "") + x.title), h("p", { class: "muted" }, x.text)),
+				x.fix && editable && layoutOk ? h("button", { class: "btn sm", onclick: () => { x.fix[1](draft); dirty.add(0); sel = null; toast(t("fe_fixed")); draw(); } }, x.fix[0]) : null)),
 			previewNote(),
 			editable && layoutOk ? h("div", { class: "fe-scroll" }, canvas()) : (p ? h("div", { class: "section" }, flowLogic(p)) : null),
 			editable && layoutOk ? sentence() : null);

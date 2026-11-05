@@ -455,6 +455,9 @@ proc process {} {
 			if {[string equal $a1 "catalog"]} {
 				return [hue::flows::catalog_json]
 			}
+			if {[string equal $a1 "links"]} {
+				return [hue::flows::links_json]
+			}
 			# Editor: one program as flow, save a flow, values for the preview, run
 			if {$plen == 2 && [regexp {^[0-9]+$} $a1] && [string equal $method "GET"]} {
 				if {[catch {hue::flows::flow_json $a1} res]} { error $res "Not Found" 404 }
