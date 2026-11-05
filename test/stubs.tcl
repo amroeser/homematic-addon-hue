@@ -106,6 +106,7 @@ proc rega_script {script} {
 		}
 		return [list STDOUT $out]
 	}
+	if {[regexp {^!hue:flows:tolatin} $script]} { return [list STDOUT "a"] }
 	if {[regexp {^!hue:flows:run} $script] && [regexp {GetObject\(([0-9]+)\)} $script -> id]} { return [list STDOUT "RUN|$id\n"] }
 	if {[regexp {^!hue:extras:candidates} $script]} {
 		return [list STDOUT [::hue_test_read ccu_channels.txt]]

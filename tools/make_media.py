@@ -10,6 +10,7 @@ Parts that need a real CCU (bridge search, pairing, creating CUxD devices and
 system variables) are answered with fixed demo data, so no real device appears.
 """
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -191,6 +192,13 @@ def screenshots(browser):
             page.wait_for_selector(".flow-node.prog", timeout=20000)
             page.wait_for_timeout(900)
             page.screenshot(path=OUT / "flows.png")
+            # The editor: triggers, condition with yes/no, actions
+            page.locator(".flow-node.prog", has_text="Flur Bewegung").first.click()
+            page.wait_for_selector(".fe-canvas", timeout=20000)
+            page.wait_for_timeout(700)
+            page.screenshot(path=OUT / "flow-editor.png")
+            page.locator("#sheet .sheet-head .icon-btn").first.click()
+            page.wait_for_timeout(600)
         for nav in ("sensors", "settings", "diagnose"):
             page.click(f".nav-item[data-page={nav}]")
             page.wait_for_timeout(900)
@@ -309,7 +317,8 @@ def main():
             f.unlink()
     tmp = OUT / ".video-tmp"
     with sync_playwright() as p:
-        browser = p.chromium.launch()
+        # HUE_MEDIA_CHANNEL=chrome uses an installed Chrome instead of Playwright's Chromium
+        browser = p.chromium.launch(channel=os.environ.get("HUE_MEDIA_CHANNEL") or None)
         screenshots(browser)
         videos = {"demo-onboarding": (video_onboarding(browser, tmp), 960),
                   "demo-guide": (video_guide(browser, tmp), 960),

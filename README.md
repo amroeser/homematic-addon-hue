@@ -131,6 +131,16 @@ Welche Taste was schaltet, als Bild statt als Liste. Im Editor baust du Auslöse
 </td>
 </tr>
 <tr>
+<td width="58%"><img src="docs/media/flow-editor.png" alt="Ablauf-Editor: Auslöser, Bedingung mit Ja und Nein, Aktionen"></td>
+<td valign="middle">
+
+### Abläufe bauen wie ein Bild
+
+Auslöser links, Bedingung in der Mitte, rechts was bei Ja und bei Nein passiert. Der Editor warnt vor doppelt belegten Tasten und widersprüchlichen Aktionen und schlägt Vereinfachungen vor.
+
+</td>
+</tr>
+<tr>
 <td width="58%"><img src="docs/media/more-lamps.png" alt="Weitere Lampen eines Raums mit Vorschlägen aus der CCU"></td>
 <td valign="middle">
 

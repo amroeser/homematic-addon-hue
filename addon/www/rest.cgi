@@ -463,6 +463,13 @@ proc process {} {
 				if {[catch {hue::flows::flow_json $a1} res]} { error $res "Not Found" 404 }
 				return $res
 			}
+			if {[regexp {^[0-9]+$} $a1] && [string equal $a2 "backups"] && [string equal $method "GET"]} {
+				if {$plen == 4} {
+					if {[catch {hue::flows::backup_flow_json $a1 [lindex $path 3]} res]} { error $res "Not Found" 404 }
+					return $res
+				}
+				return [hue::flows::backups_json $a1]
+			}
 			if {![string equal $method "POST"]} { error "POST required" "Method Not Allowed" 405 }
 			if {[string equal $a1 "save"]} {
 				if {[catch {hue::flows::save B [arg id] [arg rev]} res]} {

@@ -60,7 +60,7 @@ Jede Einzelbedingung und Aktion trägt zusätzlich `name` und `channel_name` fü
 | `kind` | `key`, `value` (Gerät), `sysvar`, `time` |
 | `lvt` | 18 Gerät, 19 Systemvariable, 24 Zeit |
 | `rt1`, `rt2` | Werttyp: 2 Logik, 4 Zahl, 16 Ganzzahl, 20 Zeichenkette |
-| `tm` | Zeitmodul: `type` (9 täglich, 5 wöchentlich), `sot` (0, 3 tagsüber, 6 nachts), `time` (Sekunden des Tages, -1 = keine Uhrzeit), `dur`, `wd` (Mo = 1 … So = 64), `rep`, `count`, `begin`, `end` |
+| `tm` | Zeitmodul: `type` (9 täglich, 5 wöchentlich), `sot` (0, 3 tagsüber, 6 nachts), `time` (Sekunden des Tages, -1 = keine Uhrzeit), `dur`, `wd` (Mo = 1 … So = 64), `rep` (alle n Tage/Wochen), `count`, `begin`, `end` (gültig von–bis) |
 | Aktion `param` | 18 Gerät, 19 Systemvariable |
 | `delay` | `HH:MM:SS` oder leer |
 | `editable`, `reason` | nur lesbar bei `script`, `unknown_condition`, `unknown_action`, `mixed_ops` (und/oder gemischt in einer Gruppe), `layout` |
@@ -75,6 +75,8 @@ Jede Einzelbedingung und Aktion trägt zusätzlich `name` und `channel_name` fü
 - Verzögerung: `DestinationValueParamType(28)`, `DestinationValueParam("HH:MM:SS")`.
 - Zeitbedingung: `dom.CreateObject(OT_CALENDARDP)` mit den Eigenschaften, die auch die WebUI setzt (`Time("0")` ohne Uhrzeit, sonst `"2007-01-01 HH:MM:SS"`), Bedingung mit `LeftValType(24)`, `RightVal1ValType(ivtObjectId)`, `RightVal1(<Zeitmodul>)`.
 
+Namen: tclrega übergibt Skripte als UTF-8, ReGa und die WebUI speichern Namen in ISO-8859-1. Programmnamen mit Umlauten werden deshalb mit `ToLatin()` umgewandelt (RaspberryMatic, OpenCCU); fehlt die Methode, schreibt das Addon „ae“, „oe“, „ue“, „ss“.
+
 `rev` ist ein FNV-1a-Hash über den Dump des Programms (reines Tcl, ohne Zusatzprogramme).
 
 ## Canvas
@@ -88,6 +90,13 @@ Jede Einzelbedingung und Aktion trägt zusätzlich `name` und `channel_name` fü
 `FE.rebuild` erzeugt nach einer Änderung dieselben Formen. In SONST-WENN-Zweigen gehören Auslöser zur Bedingung und werden mit angezeigt.
 
 Vorschau: `POST flows/values` liefert Uhrzeit, Wochentag, Sonnenauf- und -untergang (`system.SunriseTime`, `system.SunsetTime`) und die Werte der Datenpunkte. Der Browser wertet aus, Tasten gelten als gedrückt; es wird nichts geschaltet. `POST flows/<id>/run` führt das Programm einmal aus (`ProgramExecute`).
+
+## Sicherungen, Rückgängig, Namen
+
+- `GET flows/<id>/backups` listet die Sicherungen eines Programms (neueste zuerst), `GET flows/<id>/backups/<datei>` liefert eine als Flow. Der Editor lädt sie als Entwurf; gespeichert wird erst mit *Speichern* (mit `rev`-Prüfung gegen den aktuellen Stand). Nur Dateinamen `JJJJMMTT-hhmmss-<id>.txt` werden angenommen.
+- Rückgängig: Der Editor merkt sich bis zu 50 frühere Stände des Entwurfs.
+- Katalog: `label` mit dem Namen aus der Hue-Bridge (Raum, Lampe, Raum · Szene; bei Sensor-Variablen der Sensorname). Die Bridge wird dafür einmal je Katalog gelesen.
+- `GET flows/links` wird fünf Minuten in `/tmp/hue-flow-links.json` zwischengespeichert.
 
 ## Warnungen und Tipps
 
@@ -105,6 +114,7 @@ Vorschau: `POST flows/values` liefert Uhrzeit, Wochentag, Sonnenauf- und -unterg
 | Tipp: Schleife | Auslösender Gerätewert, dessen Kanal das Programm selbst schaltet |
 | Tipp: Raum statt Lampen | Drei oder mehr Hue-Lampen eines Raums in einem Zweig |
 | Tipp: Verzögerungen | Verzögerte Aktion ohne „laufende Verzögerungen beenden“ |
+| Tipp: Gerät ohne Raum | Ziel einer Aktion ohne Raum in der CCU |
 
 Tipps mit Korrektur ändern nur den Entwurf; gespeichert wird wie immer erst mit *Speichern*. Tests: `test/fe_view_test.js`, `test/fe_analysis_test.js` (über `test_64`), `test_65_flow_direct_links`.
 

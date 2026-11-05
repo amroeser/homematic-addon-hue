@@ -1110,6 +1110,38 @@ class AddonTest(unittest.TestCase):
         finally:
             links.unlink()
 
+    def test_66_flow_backups_and_names(self):
+        """Earlier versions of a program: list and load as draft; names with umlauts are written as Latin-1."""
+        (RUN / "flows_dump.txt").write_text(self.EDITOR_DUMP, encoding="utf-8")
+        pid = self.EDITOR_DUMP.split("|")[1]
+        st, r = self.rest("GET", "flows/" + pid)
+        self.assertEqual(st, 200, r)
+        flow, rev = r["flow"], r["rev"]
+        backups = RUN / "flow-backups"
+        for f in backups.glob("*-" + pid + ".txt"):
+            f.unlink()
+        log = RUN / "rega.log"
+        log.write_text("")
+        flow["name"] = "Küche Ü: Hell"
+        st, r = self.rest("POST", "flows/save", {"id": pid, "rev": rev, "flow": flow})
+        self.assertEqual(st, 200, r)
+        script = log.read_text(encoding="utf-8", errors="replace")
+        # ToLatin() where ReGa has it (the stub answers "a" like RaspberryMatic)
+        self.assertIn('string pn = "Küche Ü: Hell";', script)
+        self.assertIn("pn = pn.ToLatin();", script)
+        st, bs = self.rest("GET", "flows/" + pid + "/backups")
+        self.assertEqual(st, 200, bs)
+        self.assertEqual(len(bs), 1, bs)
+        self.assertRegex(bs[0]["time"], r"^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$")
+        st, b = self.rest("GET", "flows/" + pid + "/backups/" + bs[0]["file"])
+        self.assertEqual(st, 200, b)
+        self.assertEqual(b["flow"]["id"], pid)
+        self.assertTrue(b["flow"]["editable"])
+        # Only own backup files, no paths
+        for bad in ("..%2F..%2Fhue.conf", "20260101-000000-1.txt", "x.txt"):
+            st, r = self.rest("GET", "flows/" + pid + "/backups/" + bad)
+            self.assertEqual(st, 404, (bad, r))
+
     def test_30_v1_bridge_fallback(self):
         """Round bridge / old firmware: everything over v1, nothing breaks."""
         ctl("/_v2", {"enabled": False})

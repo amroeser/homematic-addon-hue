@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.1.6
+
+- Abläufe: Namen mit Umlauten kamen in der CCU als „BÃ¼ro“ an. Das Addon schreibt sie jetzt in ISO-8859-1 wie die WebUI (über `ToLatin()`; ohne diese Methode werden Umlaute umschrieben).
+- Abläufe: Hue-Geräte und -Sensoren tragen ihre Namen aus der Hue-App, z. B. „Hue Wohnzimmer · Szene Ruhephase“ statt „Wohnzimmer_Hue_Netf“ oder „Bewegung · Bewegungsmelder“ statt einer ID.
+- Abläufe: frühere Fassungen eines Programms lassen sich im Editor laden und wieder speichern; „Rückgängig“ (auch Strg/⌘+Z) vor dem Speichern.
+- Abläufe: Zeitbedingungen mit „alle n Tage/Wochen“ und Gültigkeit von–bis.
+- Abläufe: Tipp für Geräte ohne Raum in der CCU. Direktverknüpfungen werden fünf Minuten zwischengespeichert.
+- Geprüft: Testsuite mit dem Tcl 8.2 der CCU3, Anzeige vom Editor angelegter Zeitmodule in der WebUI, Rundlauf aller Programme einer echten Zentrale. Neue Screenshots.
+
 ## 4.1.5
 
 - Abläufe: Warnungen bei Doppelbelegungen. Dieselbe Taste in mehreren Programmen (alle Zweige), widersprüchliche Aktionen für dieselbe Taste (z. B. „an“ und „aus“, oder zweimal „umschalten“, das sich aufhebt), widersprüchliche Aktionen in einem Zweig, Tasten, die in der CCU zusätzlich direkt mit einem Aktor verknüpft sind, und Programme ohne Auslöser. Der Editor prüft schon beim Bearbeiten, nicht erst nach dem Speichern.

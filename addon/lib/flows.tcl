@@ -31,6 +31,7 @@ namespace eval ::hue::flows {
 	variable backup_dir "/usr/local/etc/config/hue-flow-backups"
 	if {[info exists ::env(HUE_FLOW_BACKUP_DIR)]} { set backup_dir $::env(HUE_FLOW_BACKUP_DIR) }
 	variable backup_keep 40
+	variable links_cache "/tmp/hue-flow-links.json"
 }
 
 proc ::hue::flows::rega {script} {
@@ -271,11 +272,44 @@ foreach(sid, dom.GetObject(ID_SYSTEM_VARIABLES).EnumUsedIDs()) {
 	set lines [split [string map {"\r" ""} $out] "\n"]
 	# CUxD devices of this addon (Hue lights, rooms, scene keys) and CUxD switches of Shellys
 	array set HUE {}
+	array set LABEL {}
+	set hbridges [list]
 	catch {
 		foreach d [::hue::get_cuxd_device_details] {
 			foreach {a b o n sc} $d break
 			regsub {:[0-9]+$} $a "" a
-			set HUE($a) [list $o $sc]
+			set HUE($a) [list $o $sc $b $n]
+			if {[lsearch -exact $hbridges $b] < 0} { lappend hbridges $b }
+		}
+	}
+	# Names from the bridge: rooms, lamps, scenes, sensors (system variables Hue_motion_<bridge>_<rid> ...)
+	foreach line $lines {
+		if {[regexp {^SVC?\|[0-9]+\|.*\|Hue_[a-z]+_([0-9a-fA-F]+)_} $line -> b] && [lsearch -exact $hbridges [string tolower $b]] < 0} { lappend hbridges [string tolower $b] }
+	}
+	foreach b $hbridges {
+		if {[catch {
+			if {[::hue::v2::active $b]} {
+				::hue::v2::ensure_loaded $b
+				foreach x [::hue::v2::sensor_list $b] { if {[lindex $x 3] != ""} { set LABEL(sv:[lindex $x 0]) [lindex $x 3] } }
+			}
+		} err]} { ::hue::write_log 3 "Flow catalog: no names from bridge ${b}: ${err}" }
+	}
+	foreach dev [array names HUE] {
+		catch {
+			foreach {o sc b n} $HUE($dev) break
+			if {![::hue::v2::active $b]} { error "v1" }
+			if {[string equal $o "light"]} {
+				set label [::hue::v2::device_name $b [::hue::v2::light_rid $b $n]]
+			} else {
+				set gl [::hue::v2::group_rid $b $n]
+				set label [::hue::v2::rget $b [::hue::v2::rget $b $gl owner/rid] metadata/name]
+				if {$label == "" && [string equal $n "0"]} { set label "Alle" }
+			}
+			if {$sc != ""} {
+				set sn [::hue::v2::rget $b [::hue::v2::scene_rid $b $sc] metadata/name]
+				if {$sn != ""} { set label "$label \u00b7 $sn" }
+			}
+			if {$label != ""} { set LABEL(dev:$dev) $label }
 		}
 	}
 	array set SHELLY {}
@@ -394,7 +428,8 @@ foreach(sid, dom.GetObject(ID_SYSTEM_VARIABLES).EnumUsedIDs()) {
 				if {[lsearch -exact $vr "$dev/$ht/[expr {$num - 1}]"] >= 0} { continue }
 			}
 			lappend targets [::hue::json::objl [list kind [$S $kind] dp [$S $dp] toggle [$S $toggle] channel [$S $cid] name [$S $name] \
-				device [$S $dname] rooms [::hue::json::arr $rl] room [$S $room] group [$S $grp] sub [$S $sub] type [$S $ht]]]
+				device [$S $dname] rooms [::hue::json::arr $rl] room [$S $room] group [$S $grp] sub [$S $sub] type [$S $ht] \
+				label [$S [expr {[info exists LABEL(dev:$dev)] ? $LABEL(dev:$dev) : ""}]]]]
 		} elseif {[string equal [lindex $f 0] "SVC"] && [llength $f] >= 6} {
 			foreach {x sid vt st vlist} $f break
 			set name [join [lrange $f 5 end] "|"]
@@ -405,7 +440,8 @@ foreach(sid, dom.GetObject(ID_SYSTEM_VARIABLES).EnumUsedIDs()) {
 			if {[regexp {^Hue_(motion|motionarea|securityarea|lux|temp|button|reachable)_} $name]} { set grp "hue_sensor" }
 			if {[string match "Hue Szene *" $name]} { set grp "scene" }
 			lappend conditions [::hue::json::objl [list kind [$S sysvar] dp [$S $sid] channel [$S ""] name [$S $name] \
-				device [$S ""] rooms "\[\]" room [$S ""] group [$S $grp] param [$S $st] vtype [$S $vt] values [::hue::json::arr $vl]]]
+				device [$S ""] rooms "\[\]" room [$S ""] group [$S $grp] param [$S $st] vtype [$S $vt] values [::hue::json::arr $vl] \
+				label [$S [expr {[info exists LABEL(sv:$name)] ? $LABEL(sv:$name) : ""}]]]]
 		} elseif {[string equal [lindex $f 0] "SV"] && [llength $f] >= 5} {
 			foreach {x sid vt vlist} $f break
 			set name [join [lrange $f 4 end] "|"]
@@ -651,6 +687,8 @@ proc ::hue::flows::when_json {conds tName reasonVar} {
 		set gop ""
 		foreach s $singles {
 			foreach {sid lv lvt ct ct2 r1 r2 chid lname chname sop rt1 rt2 neg} $s break
+			# Older dumps without the operator: the default of the group
+			if {$sop == ""} { set sop [expr {$cop == 1 ? 2 : 1}] }
 			# Inside a group one operator (the WebUI evaluates left to right)
 			if {$k > 0} {
 				if {$gop == ""} { set gop $sop }
@@ -915,6 +953,28 @@ proc ::hue::flows::acts_script {arrName path rv} {
 	return [list $s $n]
 }
 
+# Names with umlauts: tclrega hands the script to ReGa as UTF-8, but ReGa and the WebUI
+# keep names in ISO-8859-1 ("Büro" would show as "BÃ¼ro"). ReGa of RaspberryMatic/OpenCCU
+# converts with ToLatin(); without it (original CCU3 firmware) the name is transliterated.
+proc ::hue::flows::has_tolatin {} {
+	variable tolatin
+	if {![info exists tolatin]} {
+		set tolatin [string equal [string trim [rega "!hue:flows:tolatin\nstring s = \"a\";\nWrite(s.ToLatin());"]] "a"]
+	}
+	return $tolatin
+}
+proc ::hue::flows::latin_name {name} {
+	if {![regexp {[^\x00-\x7f]} $name] || [has_tolatin]} { return $name }
+	set n [string map {"\u00e4" "ae" "\u00f6" "oe" "\u00fc" "ue" "\u00c4" "Ae" "\u00d6" "Oe" "\u00dc" "Ue" "\u00df" "ss"} $name]
+	regsub -all {[^\x00-\x7f]} $n "" n
+	return $n
+}
+proc ::hue::flows::latin_call {var} {
+	upvar 1 name name
+	if {[regexp {[^\x00-\x7f]} $name] && [has_tolatin]} { return "${var} = ${var}.ToLatin();\n" }
+	return ""
+}
+
 # Create or replace a program from a flow (request body in array B, flow under "flow")
 # Returns {id rev}
 proc ::hue::flows::save {arrName pid rev} {
@@ -980,7 +1040,7 @@ proc ::hue::flows::save {arrName pid rev} {
 	} else {
 		append head "object p = dom.CreateObject(OT_PROGRAM);\ndom.GetObject(ID_PROGRAMS).Add(p.ID());\np.Visible(true);\nobject r0 = p.Rule();\n"
 	}
-	append head "p.Name(\"$name\");\np.Active($a);\n"
+	append head "string pn = \"[latin_name $name]\";\n[latin_call pn]p.Name(pn);\np.Active($a);\n"
 	set tail "system.Save();\nWriteLine(\"OK|\" # p.ID());"
 	set out [rega "$head$body$tail"]
 	if {![regexp {OK\|([0-9]+)} $out -> id]} { error "Program not saved: $out" }
@@ -1024,6 +1084,15 @@ proc ::hue::flows::run {pid} {
 # Direct links of the CCU (key -> actuator without a program), as JSON list
 # {sender, receiver, name}. Slow on big installations: the UI loads it on its own.
 proc ::hue::flows::links_json {} {
+	variable links_cache
+	# Cached for five minutes: getLinks takes seconds on the CCU
+	if {![info exists ::env(HUE_TEST)] && [file exists $links_cache] && [clock seconds] - [file mtime $links_cache] < 300} {
+		set fd [open $links_cache r]
+		fconfigure $fd -encoding utf-8
+		set data [read $fd]
+		close $fd
+		return $data
+	}
 	set S ::hue::json::str
 	set out [list]
 	foreach {iface url} {HmIP-RF http://127.0.0.1:2010 BidCos-RF xmlrpc_bin://127.0.0.1:2001} {
@@ -1041,5 +1110,40 @@ proc ::hue::flows::links_json {} {
 			lappend out [::hue::json::objl [list sender [$S "${iface}.$L(SENDER)"] receiver [$S "${iface}.$L(RECEIVER)"] name [$S $name]]]
 		}
 	}
+	set data [::hue::json::arr $out]
+	catch {
+		set fd [open $links_cache w]
+		fconfigure $fd -encoding utf-8
+		puts -nonewline $fd $data
+		close $fd
+	}
+	return $data
+}
+
+# Backups of a program, newest first: {file time}
+proc ::hue::flows::backups_json {pid} {
+	variable backup_dir
+	set pid [id $pid]
+	set S ::hue::json::str
+	set out [list]
+	foreach f [lsort -decreasing [glob -nocomplain [file join $backup_dir "*-${pid}.txt"]]] {
+		set n [file tail $f]
+		if {![regexp {^([0-9]{4})([0-9]{2})([0-9]{2})-([0-9]{2})([0-9]{2})([0-9]{2})-[0-9]+\.txt$} $n -> y mo d h mi sec]} { continue }
+		lappend out [::hue::json::objl [list file [$S $n] time [$S "$y-$mo-$d $h:$mi:$sec"]]]
+	}
 	return [::hue::json::arr $out]
+}
+
+# A backup as flow for the editor (not saved: the editor loads it as draft)
+proc ::hue::flows::backup_flow_json {pid file} {
+	variable backup_dir
+	set pid [id $pid]
+	if {![regexp "^\[0-9\]{8}-\[0-9\]{6}-${pid}\\.txt\$" $file]} { error "Invalid backup" }
+	set fd [open [file join $backup_dir $file] r]
+	fconfigure $fd -encoding utf-8
+	set text [read $fd]
+	close $fd
+	set m [single_model $text]
+	if {$m == ""} { error "Backup is empty" }
+	return "\{\"flow\":[lindex $m 1]\}"
 }

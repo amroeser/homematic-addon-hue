@@ -582,7 +582,11 @@ const I18N = {
 		fl_delete: "Löschen", fl_delete_q: "„{{name}}“ aus der CCU löschen? Eine Sicherung bleibt auf der CCU.", fl_disable: "Pausieren", fl_enable: "Aktivieren",
 		fl_need_name: "Bitte gib dem Ablauf einen Namen.", fl_need_both: "Ein Ablauf braucht mindestens eine Taste und eine Aktion.",
 		fl_last: "Zuletzt ausgeführt: {{d}}", fl_never: "Noch nicht ausgeführt",
-		fe_tip: "Tipp", fe_fixed: "Geändert, jetzt speichern.", fe_tips_n: "{{n}} Tipps", fe_tips_1: "1 Tipp", fe_w_toggle2: "{{key}}: „{{a}}“ und „{{b}}“ schalten {{x}} beide um. Sie heben sich gegenseitig auf.",
+		fe_every: "Wiederholen", fe_every_hint: "alle n Tage bzw. Wochen, 1 = jeden", fe_every_days: "alle {{n}} Tage", fe_every_weeks: "alle {{n}} Wochen", fe_valid: "Gültig (optional)", fe_until: "bis {{d}}",
+		fe_undo: "Rückgängig", fe_backups: "Frühere Fassungen", fe_backups_text: "Vor jeder Änderung sichert das Addon das Programm auf der CCU. Laden übernimmt eine Fassung in den Editor; gespeichert wird erst mit „Speichern“.",
+		fe_backups_none: "Keine Sicherungen vorhanden.", fe_backup_load: "Laden", fe_backup_loaded: "Fassung vom {{d}} geladen. Mit „Speichern“ übernehmen.", fe_backup_ro: "Diese Fassung kann der Editor nicht darstellen.",
+		fe_t_noroom_title: "Gerät ohne Raum", fe_t_noroom: "{{x}} hat in der CCU keinen Raum. Mit Raum findest und sortierst du es im Editor leichter (CCU: Einstellungen → Geräte).",
+		fe_tip: "Tipp", fe_scene_word: "Szene", fe_hs_motion: "Bewegung", fe_hs_motionarea: "MotionAware", fe_hs_securityarea: "Hue Secure", fe_hs_lux: "Helligkeit", fe_hs_temp: "Temperatur", fe_hs_button: "Hue-Taste", fe_hs_reachable: "Erreichbar", fe_fixed: "Geändert, jetzt speichern.", fe_tips_n: "{{n}} Tipps", fe_tips_1: "1 Tipp", fe_w_toggle2: "{{key}}: „{{a}}“ und „{{b}}“ schalten {{x}} beide um. Sie heben sich gegenseitig auf.",
 		fe_w_twice: "{{key}} startet auch: {{names}}. Beide Programme laufen gleichzeitig.",
 		fe_w_conflict_title: "Widersprüchliche Aktionen", fe_w_conflict: "{{key}}: „{{a}}“ schaltet {{x}}, „{{b}}“ schaltet {{y}}. Was am Ende gilt, hängt von der Reihenfolge ab.",
 		fe_w_self_title: "Widersprüchliche Aktionen", fe_w_self: "Ein Zweig schaltet dasselbe Ziel gleichzeitig unterschiedlich, zuletzt: {{x}}.",
@@ -769,7 +773,11 @@ const I18N = {
 		fl_delete: "Delete", fl_delete_q: "Delete “{{name}}” from the CCU? A backup is kept on the CCU.", fl_disable: "Pause", fl_enable: "Activate",
 		fl_need_name: "Please give the flow a name.", fl_need_both: "A flow needs at least one key and one action.",
 		fl_last: "Last run: {{d}}", fl_never: "Not run yet",
-		fe_tip: "Tip", fe_fixed: "Changed, now save.", fe_tips_n: "{{n}} tips", fe_tips_1: "1 tip", fe_w_toggle2: "{{key}}: “{{a}}” and “{{b}}” both toggle {{x}}. They cancel each other out.",
+		fe_every: "Repeat", fe_every_hint: "every n days or weeks, 1 = every", fe_every_days: "every {{n}} days", fe_every_weeks: "every {{n}} weeks", fe_valid: "Valid (optional)", fe_until: "until {{d}}",
+		fe_undo: "Undo", fe_backups: "Earlier versions", fe_backups_text: "Before every change the addon backs up the program on the CCU. Load puts a version into the editor; it is saved only with “Save”.",
+		fe_backups_none: "No backups yet.", fe_backup_load: "Load", fe_backup_loaded: "Version of {{d}} loaded. Use “Save” to keep it.", fe_backup_ro: "The editor cannot show this version.",
+		fe_t_noroom_title: "Device without room", fe_t_noroom: "{{x}} has no room in the CCU. With a room it is easier to find and sort in the editor (CCU: Settings → Devices).",
+		fe_tip: "Tip", fe_scene_word: "scene", fe_hs_motion: "Motion", fe_hs_motionarea: "MotionAware", fe_hs_securityarea: "Hue Secure", fe_hs_lux: "Brightness", fe_hs_temp: "Temperature", fe_hs_button: "Hue button", fe_hs_reachable: "Reachable", fe_fixed: "Changed, now save.", fe_tips_n: "{{n}} tips", fe_tips_1: "1 tip", fe_w_toggle2: "{{key}}: “{{a}}” and “{{b}}” both toggle {{x}}. They cancel each other out.",
 		fe_w_twice: "{{key}} also starts: {{names}}. Both programs run at the same time.",
 		fe_w_conflict_title: "Conflicting actions", fe_w_conflict: "{{key}}: “{{a}}” switches {{x}}, “{{b}}” switches {{y}}. What wins depends on the order.",
 		fe_w_self_title: "Conflicting actions", fe_w_self: "One branch switches the same target differently at the same time, last: {{x}}.",
@@ -1954,6 +1962,9 @@ function flowAnalysis(draft) {
 			for (const a of b.acts) { const tg = FE.targetOf(a); if (tg && tg.group === "hue_light" && tg.room) rooms[tg.room] = (rooms[tg.room] || 0) + 1; }
 			for (const [r, n] of Object.entries(rooms)) if (n >= 3) add(s.id, { level: "tip", title: t("fe_t_room_title"), text: t("fe_t_room", { r, n }) });
 		}
+		// Tip: devices without a room in the CCU (suggestions and search need it)
+		const noRoom = [...new Set(s.branches.flatMap(b => b.acts).map(a => FE.targetOf(a)).filter(tg => tg && tg.kind !== "scene" && tg.kind !== "sysvar" && !tg.room && !(tg.rooms || []).length).map(tg => FE.tgLabel(tg)))];
+		if (noRoom.length) add(s.id, { level: "tip", title: t("fe_t_noroom_title"), text: t("fe_t_noroom", { x: noRoom.join(", ") }) });
 		// Tip: delays without stopping the old ones
 		if (d) d.branches.concat(d.else ? [d.else] : []).forEach(b => {
 			if (b.stop_delays === false && b.then.some(a => a.delay)) add(s.id, { level: "tip", title: t("fe_t_delay_title"), text: t("fe_t_delay"),
@@ -2146,11 +2157,14 @@ const FE = {
 			const wd = +tm.wd;
 			parts.push(wd === 31 ? t("fe_workdays") : wd === 96 ? t("fe_weekend") : FE.days.filter((d, i) => wd & (1 << i)).map(d => t(d)).join(", ") || t("fe_weekly"));
 		} else parts.push(+tm.wd === 31 ? t("fe_workdays") : +tm.wd === 96 ? t("fe_weekend") : t("fe_daily"));
+		if (+tm.rep > 1) parts.push(t(+tm.type === 5 ? "fe_every_weeks" : "fe_every_days", { n: tm.rep }));
 		if (+tm.sot === 3) parts.push(t("fe_day"));
 		else if (+tm.sot === 6) parts.push(t("fe_night"));
 		else if (+tm.time < 0) parts.push(t("fe_allday"));
 		else if (+tm.dur > 0) parts.push(t("fe_from_to", { a: FE.hhmm(+tm.time), b: FE.hhmm((+tm.time + +tm.dur) % 86400) }));
 		else parts.push(t("fe_at", { a: FE.hhmm(+tm.time) }));
+		const d = s => { const m = /^(\d{4})-(\d\d)-(\d\d)/.exec(s || ""); return m && +m[1] >= 2000 ? m[3] + "." + m[2] + "." + m[1] : ""; };
+		if (d(tm.end)) parts.push(t("fe_until", { d: d(tm.end) }));
 		return parts.join(", ");
 	},
 	cmpText(it) {
@@ -2166,10 +2180,10 @@ const FE = {
 		if (it.kind === "key") { const k = keyName(it); return k.device + ", " + k.key + " " + pressLabel(it.press); }
 		const c = FE.condOf(it);
 		const param = c && c.param ? String(c.param).toLowerCase() : String(it.name || "").split(".").pop().toLowerCase();
-		let src = it.kind === "sysvar" ? (it.name || (c && c.name) || it.dp) : FE.label(it.channel_name || it.name || (c && c.name));
+		let src = it.kind === "sysvar" ? (c ? FE.srcName(c) : it.name || it.dp) : FE.label(it.channel_name || it.name || (c && c.name));
 		if (it.kind === "sysvar" && c && c.values && c.values.length > 1 && /^\d+$/.test(String(it.rv1)) && String(it.ct) === "1") return src + " = " + (c.values[+it.rv1] || it.rv1);
 		// Logic values in words: "Wohnzimmer Lampe ist aus", "Präsenzmelder: abwesend"
-		if (String(it.rt1) === "2" && /^(true|false)$/.test(String(it.rv1)) && /^(1|5)$/.test(String(it.ct)) && it.kind !== "sysvar") {
+		if (/^(2|)$/.test(String(it.rt1 || "")) && /^(true|false)$/.test(String(it.rv1)) && /^(1|5)$/.test(String(it.ct)) && it.kind !== "sysvar") {
 			const w = t("fe_" + it.rv1 + "_" + param);
 			if (!w.startsWith("fe_")) return param === "state" ? t("fe_is", { a: src, b: w }) : src + ": " + w;
 		}
@@ -2180,6 +2194,18 @@ const FE = {
 	condText(ch) {
 		const inner = ch.op === "or" ? "fl_and" : "fl_or", outer = ch.op === "or" ? "fl_or" : "fl_and";
 		return ch.groups.map(g => g.map(FE.itemText).join(" " + t(inner) + " ")).map((s, i, a) => a.length > 1 ? "(" + s + ")" : s).join(" " + t(outer) + " ");
+	},
+	// Hue devices by their names in the Hue app: "Hue Wohnzimmer · Szene Ruhephase"
+	tgLabel(tg) {
+		if (!tg.label) return FE.label(tg.name);
+		const parts = tg.label.split(" · ");
+		return "Hue " + parts[0] + (parts[1] ? " · " + t("fe_scene_word") + " " + parts[1] : "");
+	},
+	// Hue sensor variables by the name of the sensor in the Hue app
+	srcName(c) {
+		if (c.kind !== "sysvar") return FE.label(c.name, c.room);
+		const m = /^Hue_(motion|motionarea|securityarea|lux|temp|button|reachable)_/.exec(c.name || "");
+		return m && c.label ? t("fe_hs_" + m[1]) + " · " + c.label : c.name;
 	},
 	modeText: it => ({ "1": "", "4": t("fe_on_change"), "13": t("fe_on_update"), "15": t("fe_check_only") })[String(it.ct2)] || "",
 	// Branch as the canvas shows it: triggers, checks {op, groups} and whether that is faithful
@@ -2247,7 +2273,7 @@ const FE = {
 	targetOf: a => (S.catalog.targets || []).find(x => x.dp === a.dp || x.toggle === a.dp),
 	actText(a) {
 		const tg = FE.targetOf(a);
-		const n = tg ? (tg.kind === "scene" ? tg.name.replace(/^Hue Szene /, "Hue ") : FE.label(tg.name)) : FE.label(a.channel_name || a.name);
+		const n = tg ? (tg.kind === "scene" ? tg.name.replace(/^Hue Szene /, "Hue ") : FE.tgLabel(tg)) : FE.label(a.channel_name || a.name);
 		const what = actionText(Object.assign({}, a, { name: a.name || (tg && a.dp === tg.toggle ? ".TOGGLE" : tg && tg.kind === "level" || tg && tg.kind === "blind" ? ".LEVEL" : "") }));
 		return n + ": " + what + (a.delay ? " " + t("fe_after", { d: FE.delayText(a.delay) }) : "");
 	},
@@ -2324,7 +2350,9 @@ async function openFlow(p, presetTrigger) {
 	const editable = draft.editable;
 	const views = () => draft.branches.map(FE.view);
 	const layoutOk = editable && views().every(v => v.ok);
-	let sel = null;          // {type: "trigger"|"cond"|"action"|"branch", b, i}
+	let sel = null;          // {type: "trigger"|"cond"|"action"|"branch"|"backups", b, i}
+	const history = [];      // earlier states of the draft, for undo
+	let lastSnap = "";
 	let preview = null;      // values from the CCU
 	const cat = S.catalog || { triggers: [], targets: [], conditions: [] };
 	const sheet = $("#sheet");
@@ -2439,6 +2467,24 @@ async function openFlow(p, presetTrigger) {
 		const head = (title) => h("div", { class: "fe-ihead" }, h("div", { class: "t-h3 grow" }, title), h("button", { class: "btn icon-btn", "aria-label": t("close"), onclick: close }, icon("close")));
 		const del = (fn) => editable && layoutOk && !(sel && (sel.type === "trigger" || sel.type === "action") && sel.i < 0) ? h("button", { class: "btn sm quiet", style: "color:var(--bad)", onclick: () => { fn(); sel = null; draw(); } }, t("remove")) : null;
 		const vs = views();
+		if (sel.type === "backups") {
+			box.append(head(t("fe_backups")), h("p", { class: "muted t-small" }, t("fe_backups_text")));
+			const list = h("div", { class: "fe-groups" }, h("p", { class: "muted" }, "…"));
+			box.append(list);
+			rest("GET", "flows/" + draft.id + "/backups").then(bs => {
+				list.replaceChildren(...(bs.length ? bs.map(b => h("div", { class: "fe-row", style: "justify-content:space-between" }, h("span", {}, b.time),
+					h("button", { class: "btn sm", onclick: async () => {
+						try {
+							const { flow } = await rest("GET", "flows/" + draft.id + "/backups/" + b.file);
+							if (!flow.editable) { toast(t("fe_backup_ro"), true); return; }
+							for (const k of ["name", "active", "branches", "else"]) draft[k] = flow[k];
+							nameIn.value = draft.name;
+							sel = null; toast(t("fe_backup_loaded", { d: b.time })); draw();
+						} catch (e) { fail(e); }
+					} }, t("fe_backup_load")))) : [h("p", { class: "muted" }, t("fe_backups_none"))]));
+			}).catch(fail);
+			return box;
+		}
 		if (sel.type === "trigger") {
 			const cur = sel.i >= 0 ? vs[0].triggers[sel.i] : null;
 			box.append(head(cur ? t("fe_trigger") : t("fe_add_trigger")));
@@ -2528,17 +2574,25 @@ async function openFlow(p, presetTrigger) {
 				const from = h("input", { type: "time", value: +tm.time >= 0 ? FE.hhmm(+tm.time) : "18:00" });
 				const to = h("input", { type: "time", value: +tm.time >= 0 && +tm.dur ? FE.hhmm((+tm.time + +tm.dur) % 86400) : "22:00" });
 				const days = h("div", { class: "fe-days" }, FE.days.map((d, i) => h("label", {}, h("input", { type: "checkbox", "data-bit": 1 << i, checked: +tm.wd ? !!(+tm.wd & (1 << i)) : true }), t(d))));
+				const ymd = v => { const m = /^(\d{4}-\d\d-\d\d)/.exec(v || ""); return m && +m[1].slice(0, 4) >= 2000 ? m[1] : ""; };
+				const every = h("input", { type: "number", min: 1, max: 365, value: +tm.rep > 1 ? +tm.rep : 1, style: "max-width:80px" });
+				const vFrom = h("input", { type: "date", value: ymd(tm.begin) });
+				const vUntil = h("input", { type: "date", value: ymd(tm.end) });
 				const trig = h("select", {}, [["15", "fe_check_only"], ["13", "fe_on_time"]].map(([v, l]) => { const o = h("option", { value: v }, t(l)); o.selected = String(it ? it.ct2 : asTrigger ? "13" : "15") === v; return o; }));
 				const times = h("div", { class: "fe-row" }, from, h("span", { class: "muted" }, "–"), to);
 				const sync = () => { times.hidden = !["range", "at"].includes(whenSel.value); to.hidden = whenSel.value !== "range"; };
 				whenSel.onchange = sync; sync();
 				area.append(h("label", { class: "field" }, t("fe_when_time"), whenSel), times, h("div", { class: "field" }, t("fe_days"), days),
+					h("div", { class: "field" }, t("fe_every"), h("div", { class: "fe-row" }, every, h("span", { class: "muted t-small" }, t("fe_every_hint")))),
+					h("div", { class: "field" }, t("fe_valid"), h("div", { class: "fe-row" }, vFrom, h("span", { class: "muted" }, "–"), vUntil)),
 					h("label", { class: "field" }, t("fe_mode"), trig),
 					h("button", { class: "btn primary sm", onclick: () => {
 						const w = whenSel.value, a = FE.secs(from.value), z = FE.secs(to.value);
 						let wd = 0; days.querySelectorAll("input").forEach(c => { if (c.checked) wd |= +c.dataset.bit; });
+						const n = Math.max(1, Math.min(365, parseInt(every.value, 10) || 1));
 						const ntm = Object.assign({}, tm, { type: wd === 127 || wd === 0 ? 9 : 5, wd: wd === 127 ? 0 : wd, sot: w === "day" ? 3 : w === "night" ? 6 : 0,
-							time: w === "range" || w === "at" ? Math.max(0, a) : -1, dur: w === "range" ? ((z - a + 86400) % 86400) : 0 });
+							time: w === "range" || w === "at" ? Math.max(0, a) : -1, dur: w === "range" ? ((z - a + 86400) % 86400) : 0,
+							rep: n > 1 ? n : 0, begin: vFrom.value || "", end: vUntil.value || "" });
 						if (ntm.type === 9 && wd && wd !== 127) ntm.type = 9;
 						done(Object.assign({}, it && it.kind === "time" ? it : FE.newTime(), { tm: ntm, ct2: trig.value }));
 					} }, t("fe_apply")));
@@ -2546,7 +2600,7 @@ async function openFlow(p, presetTrigger) {
 				const list = (cat.conditions || []).filter(c => c.kind === kind).slice().sort((a, b) => (a.room || "").localeCompare(b.room || "") || a.name.localeCompare(b.name));
 				const groups = {};
 				for (const c of list) (groups[c.group || "other"] = groups[c.group || "other"] || []).push(c);
-				const names = FE.uniq(list, c => (c.room ? c.room + " · " : "") + (c.kind === "sysvar" ? c.name : FE.label(c.name, c.room)) + (c.param && c.kind === "value" ? " – " + t("fe_p_" + c.param.toLowerCase()) : ""));
+				const names = FE.uniq(list, c => (c.room ? c.room + " · " : "") + FE.srcName(c) + (c.param && c.kind === "value" ? " – " + t("fe_p_" + c.param.toLowerCase()) : ""));
 				const src = h("select", {}, h("option", { value: "" }, t("fe_pick_source")), Object.entries(groups).map(([g, cs]) => h("optgroup", { label: t("fe_g_" + g) },
 					cs.sort((x, y) => names.get(x).localeCompare(names.get(y), undefined, { numeric: true })).map(c => { const o = h("option", { value: c.dp }, names.get(c)); o.selected = it && it.dp === c.dp; return o; }))));
 				const valArea = h("div", {});
@@ -2598,7 +2652,7 @@ async function openFlow(p, presetTrigger) {
 		const order = ["scene", "hue_scene_key", "hue_light", "lamp", "shelly", "plug", "switch", "level", "blind", "awning", "output", "sysvar"];
 		const groups = {};
 		for (const tg of cat.targets) (groups[FE.groupOf(tg)] = groups[FE.groupOf(tg)] || []).push(tg);
-		const tgNames = FE.uniq(cat.targets, tg => tg.kind === "scene" ? tg.name.replace(/^Hue Szene /, "") : (tg.room ? tg.room + " · " : "") + FE.label(tg.name, tg.room));
+		const tgNames = FE.uniq(cat.targets, tg => tg.kind === "scene" ? tg.name.replace(/^Hue Szene /, "") : tg.label ? FE.tgLabel(tg) : (tg.room ? tg.room + " · " : "") + FE.label(tg.name, tg.room));
 		const tgName = tg => tgNames.get(tg);
 		const curTg = a ? FE.targetOf(a) : null;
 		const sel1 = h("select", {}, h("option", { value: "" }, t("fl_pick_target")),
@@ -2702,7 +2756,18 @@ async function openFlow(p, presetTrigger) {
 		}
 	}
 
+	function undo() {
+		if (!history.length) return;
+		const prev = JSON.parse(history.pop());
+		for (const k of Object.keys(draft)) delete draft[k];
+		Object.assign(draft, prev);
+		nameIn.value = draft.name || "";
+		lastSnap = JSON.stringify(draft);
+		sel = null; draw();
+	}
 	function draw() {
+		const snap = JSON.stringify(draft);
+		if (snap !== lastSnap) { if (lastSnap) history.push(lastSnap); lastSnap = snap; if (history.length > 50) history.shift(); }
 		const issues = editable && layoutOk ? (flowAnalysis(draft).get(draft.id || "new") || []) : (p ? (flowIssues().get(p.id) || []) : []);
 		const ro = !editable ? t("fe_ro_" + (draft.reason || "other")) : !layoutOk ? t("fe_ro_layout") : "";
 		const canvasBox = h("div", { class: "fe-main" },
@@ -2723,7 +2788,9 @@ async function openFlow(p, presetTrigger) {
 				if (!confirm(t("fl_delete_q", { name: p.name }))) return;
 				try { await rest("POST", "flows/" + p.id + "/delete"); toast(t("fl_deleted")); S.flows = null; closeSheet(); } catch (e) { fail(e); }
 			} }, t("fl_delete")) : h("span"),
+			p && editable ? h("button", { class: "btn quiet", onclick: () => { sel = { type: "backups" }; draw(); } }, t("fe_backups")) : null,
 			h("span", { class: "grow" }),
+			editable && layoutOk ? h("button", { class: "btn quiet", disabled: !history.length, title: "⌘Z / Strg+Z", onclick: undo }, t("fe_undo")) : null,
 			h("button", { class: "btn quiet", onclick: runPreview }, t("fe_preview")),
 			p ? h("button", { class: "btn quiet", onclick: async () => {
 				if (!confirm(t("fe_run_q", { name: p.name }))) return;
@@ -2734,6 +2801,11 @@ async function openFlow(p, presetTrigger) {
 					try { await rest("POST", "flows/" + p.id + "/active", { on: !p.active }); toast(t("saved")); S.flows = null; closeSheet(); } catch (e) { fail(e); }
 				} }, p.active ? t("fl_disable") : t("fl_enable")) : null].filter(Boolean));
 	}
+	const onKey = e => {
+		if (!sheet.open) { document.removeEventListener("keydown", onKey); return; }
+		if ((e.metaKey || e.ctrlKey) && e.key === "z" && !/^(INPUT|SELECT|TEXTAREA)$/.test((e.target || {}).tagName || "")) { e.preventDefault(); undo(); }
+	};
+	document.addEventListener("keydown", onKey);
 	openSheet(() => {
 		draw();
 		return [sheetHead(p ? p.name : t("fl_new"), p ? (p.last && !p.last.startsWith("1970") ? t("fl_last", { d: p.last }) : t("fl_never")) : t("fe_new_text")), body, foot];
