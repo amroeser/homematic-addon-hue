@@ -607,10 +607,18 @@ class AddonTest(unittest.TestCase):
             ctl("/_scene_add", {"id": "Kueche000000001", "name": "Früh Stück", "group": "1"})
             ok = until(lambda: var.read_text().split("\n")[0] == "Aus;(entfernt);Guten Morgen;Frueh Stueck", 15)
             self.assertTrue(ok, var.read_text())
+            # A scene of an owner without a name (bridge_home): no variable "Hue Szene " that
+            # ReGa cannot find again and would create as "Hue Szene 1", "Hue Szene 2", ...
+            ctl("/_scene_add", {"id": "Alles0000000001", "name": "Alles hell", "group": "0"})
+            ctl("/_scene_add", {"id": "Kueche000000002", "name": "Abend", "group": "1"})
+            ok = until(lambda: var.read_text().split("\n")[0].endswith(";Abend"), 15)
+            self.assertTrue(ok, var.read_text())
+            self.assertEqual([f.name for f in RUN.glob("scenevar_Hue_Szene*") if f.name != var.name], [])
         finally:
             conf.write_text(old)
             M_restore = ctl("/_scene_add", {"id": "AbCdEfGhIjKlMnO", "name": "Abend", "group": "1"})
-            ctl("/_scene_delete", {"id": "Kueche000000001"})
+            for sid in ("Kueche000000001", "Kueche000000002", "Alles0000000001"):
+                ctl("/_scene_delete", {"id": sid})
             self.hued_cmd("reload")
 
     def test_57_scene_switch_follows_its_scene(self):
@@ -818,6 +826,267 @@ class AddonTest(unittest.TestCase):
         self.assertIn("Wohnzimmer_Hue_Gedimmt", backups[0].read_text(encoding="utf-8"))
         st, r = self.rest("POST", "flows/10975/delete")
         self.assertEqual(st, 200, r)
+        # The dump above uses the old format (R lines without else-if flag, S lines without operator and value
+        # types): the editor still reads it. 18719 is "key and Shelly off (check only), else" as in the WebUI.
+        st, o = self.rest("GET", "flows")
+        p = {x["id"]: x for x in o["programs"]}
+        self.assertTrue(p["10975"]["editor"], p["10975"])
+        self.assertTrue(p["18719"]["editor"], p["18719"])
+        st, f = self.rest("GET", "flows/18719")
+        self.assertEqual(st, 200, f)
+        self.assertTrue(f["rev"])
+        flow = f["flow"]
+        self.assertEqual(len(flow["branches"]), 1)
+        self.assertEqual(flow["branches"][0]["when"]["op"], "and")
+        self.assertEqual([[i["kind"] for i in g] for g in flow["branches"][0]["when"]["groups"]], [["key"], ["value"]])
+        self.assertEqual([a["value"] for a in flow["else"]["then"]], ["false"])
+
+    # Programs as they exist on a real CCU (RaspberryMatic, 2026-11), in the current dump format
+    EDITOR_DUMP = (
+        # (a) key short or long, and lamp off (check only): on, else off
+        "P|13110|true|true|2026-11-05 10:00:00|Wohnzimmer Lampe\n"
+        "R|13111|0|2|true|true\n"
+        "C|13112|1\n"
+        "S|13113|9346|18|1|1|true|false|9344|HmIP-RF.0001:2.PRESS_SHORT|Wohnzimmer_Taster_Eingang:2|2|2|2|false\n"
+        "S|13114|9343|18|1|1|true|false|9344|HmIP-RF.0001:2.PRESS_LONG|Wohnzimmer_Taster_Eingang:2|2|2|2|false\n"
+        "C|13115|1\n"
+        "S|13116|10119|18|1|15|false|false|10118|CUxD.CUX2801503:1.STATE|Wohnzimmer_Lampe:1|2|2|2|false\n"
+        "D|13117|10119|18|2|0||true|10118|CUxD.CUX2801503:1.STATE|Wohnzimmer_Lampe:1\n"
+        "R|13118|1|0|false|true\n"
+        "D|13119|10119|18|2|0||false|10118|CUxD.CUX2801503:1.STATE|Wohnzimmer_Lampe:1\n"
+        # (b) cross product: (key and lamp W on) or (key and lamp F on): both off, else both on
+        "P|13200|true|true|2026-11-05 09:00:00|Schlafzimmer_Bettlicht_Tuer\n"
+        "R|13201|0|2|true|true\n"
+        "C|13202|2\n"
+        "S|13203|11594|18|1|1|true|false|11592|HmIP-RF.0002:4.PRESS_SHORT|Schlafzimmer_Taster:4|1|2|2|false\n"
+        "S|13204|18308|18|1|15|true|false|18306|CUxD.CUX2801604:1.STATE|Schlafzimmer_Shelly_W:1|1|2|2|false\n"
+        "C|13205|2\n"
+        "S|13206|11594|18|1|1|true|false|11592|HmIP-RF.0002:4.PRESS_SHORT|Schlafzimmer_Taster:4|1|2|2|false\n"
+        "S|13207|18408|18|1|15|true|false|18406|CUxD.CUX2801605:1.STATE|Schlafzimmer_Shelly_F:1|1|2|2|false\n"
+        "D|13208|18408|18|2|0||false|18406|CUxD.CUX2801605:1.STATE|Schlafzimmer_Shelly_F:1\n"
+        "D|13209|18308|18|2|0||false|18306|CUxD.CUX2801604:1.STATE|Schlafzimmer_Shelly_W:1\n"
+        "R|13210|1|0|false|true\n"
+        "D|13211|18408|18|2|0||true|18406|CUxD.CUX2801605:1.STATE|Schlafzimmer_Shelly_F:1\n"
+        "D|13212|18308|18|2|0||true|18306|CUxD.CUX2801604:1.STATE|Schlafzimmer_Shelly_W:1\n"
+        # (c) dark, presence (check only) and lamp off (on change): on; else if no presence (on change): off
+        "P|13300|true|true|2026-11-05 08:00:00|Hausflur_Praesenzmelder\n"
+        "R|13301|0|1|true|true\n"
+        "C|13302|2\n"
+        "S|13303|12001|18|10|15|45.000000|0.000000|12000|HmIP-RF.0003:1.ILLUMINATION|Hausflur_Praesenzmelder:1|1|4|4|false\n"
+        "S|13304|12002|18|1|15|true|false|12000|HmIP-RF.0003:1.PRESENCE_DETECTION_STATE|Hausflur_Praesenzmelder:1|1|2|2|false\n"
+        "S|13305|12101|18|1|4|false|false|12100|CUxD.CUX2801700:1.STATE|Hausflur_Hue_gedimmt:1|1|2|2|false\n"
+        "D|13306|12101|18|2|0||true|12100|CUxD.CUX2801700:1.STATE|Hausflur_Hue_gedimmt:1\n"
+        "R|13307|1|1|true|true\n"
+        "C|13308|2\n"
+        "S|13309|12002|18|1|4|false|false|12000|HmIP-RF.0003:1.PRESENCE_DETECTION_STATE|Hausflur_Praesenzmelder:1|1|2|2|false\n"
+        "D|13310|12101|18|2|0||false|12100|CUxD.CUX2801700:1.STATE|Hausflur_Hue_gedimmt:1\n"
+        # (d) delayed actions and (f) an empty "else if" placeholder left by the WebUI
+        "P|13400|true|true|2026-11-05 07:00:00|Flur_alles_aus\n"
+        "R|13401|0|1|true|true\n"
+        "C|13402|2\n"
+        "S|13403|9900|18|1|1|true|false|9898|HmIP-RF.0004:1.PRESS_SHORT|Flur_Taster_Eingang:1|1|2|2|false\n"
+        "D|13404|10119|18|2|0||false|10118|CUxD.CUX2801503:1.STATE|Wohnzimmer_Lampe:1\n"
+        "D|13405|11511|18|4|28|2026-11-05 00:00:03|0.000000|11509|BidCos-RF.0005:4.LEVEL|Wohnzimmer_Rollladen_rechts:4\n"
+        "R|13406|1|0|true|true\n"
+        # (e) key, only at night (time module, check only)
+        "P|13500|false|true|1970-01-01 01:00:00|Nachtlicht\n"
+        "R|13501|0|1|true|true\n"
+        "C|13502|2\n"
+        "S|13503|9346|18|1|1|true|false|9344|HmIP-RF.0001:2.PRESS_SHORT|Wohnzimmer_Taster_Eingang:2|1|2|2|false\n"
+        "S|13504|2026-11-05 19:23:22|24|3|15|13510||65535|||1|18|0|false\n"
+        "T|13510|9|6|0|0|0|0|0|0|2026-11-04 00:00:00|\n"
+        "D|13505|10119|18|2|0||true|10118|CUxD.CUX2801503:1.STATE|Wohnzimmer_Lampe:1\n"
+        # (g) script action: only in the CCU
+        "P|13600|true|true|2026-11-05 06:00:00|Skript\n"
+        "R|13601|0|1|true|true\n"
+        "C|13602|2\n"
+        "S|13603|9900|18|1|1|true|false|9898|HmIP-RF.0004:1.PRESS_SHORT|Flur_Taster_Eingang:1|1|2|2|false\n"
+        "D|13604|0|1|20|0|||65535||\n"
+        # (h) mixed operators inside a group: only in the CCU
+        "P|13700|true|true|2026-11-05 05:00:00|Gemischt\n"
+        "R|13701|0|1|true|true\n"
+        "C|13702|2\n"
+        "S|13703|9900|18|1|1|true|false|9898|HmIP-RF.0004:1.PRESS_SHORT|Flur_Taster_Eingang:1|1|2|2|false\n"
+        "S|13704|10119|18|1|15|true|false|10118|CUxD.CUX2801503:1.STATE|Wohnzimmer_Lampe:1|1|2|2|false\n"
+        "S|13705|18308|18|1|15|true|false|18306|CUxD.CUX2801604:1.STATE|Schlafzimmer_Shelly_W:1|2|2|2|false\n"
+        "D|13706|10119|18|2|0||false|10118|CUxD.CUX2801503:1.STATE|Wohnzimmer_Lampe:1\n")
+
+    def editor_save(self, pid, flow, rev):
+        log = RUN / "rega.log"
+        log.write_text("")
+        st, r = self.rest("POST", "flows/save", {"id": pid, "rev": rev, "flow": flow})
+        # One logged script per line: return the save script only (reading the program comes first)
+        saves = [line for line in log.read_text().splitlines() if line.startswith("!hue:flows:save")]
+        self.assertLessEqual(len(saves), 1, saves)
+        return st, r, saves[0] if saves else ""
+
+    def test_63_flow_editor(self):
+        """Flow editor: CCU programs as branches with conditions and actions, saved back 1:1."""
+        (RUN / "flows_dump.txt").write_text(self.EDITOR_DUMP, encoding="utf-8")
+        (RUN / "flows_catalog.txt").write_text(
+            "CH|9344|MULTI_MODE_INPUT_TRANSMITTER|PRESS_SHORT=9346/5/2;PRESS_LONG_START=9347/5/2;PRESS_LONG=9343/5/2;|Wohnzimmer;|Wohnzimmer_Taster_Eingang:2|Wohnzimmer_Taster_Eingang|9340|HmIP-RF.0001:2\n"
+            "CH|10118|SWITCH|STATE=10119/7/2;TOGGLE=10120/2/2;|Wohnzimmer;|Wohnzimmer_Lampe:1|Wohnzimmer_Lampe|10110|CUX2801503:1\n"
+            "CH|12000|PRESENCEDETECTOR_TRANSCEIVER|PRESENCE_DETECTION_STATE=12002/5/2;ILLUMINATION=12001/5/4;|Flur;|Hausflur_Praesenzmelder:1|Hausflur_Praesenzmelder|12010|HmIP-RF.0003:1\n"
+            "CH|12500|MOTIONDETECTOR_TRANSCEIVER|MOTION=12502/5/2;|Garten;|Garten_Bewegung:1|Garten_Bewegung|12510|HmIP-RF.0006:1\n"
+            "SV|20001|16|Aus;Hell;Gedimmt|Hue Szene Wohnzimmer\n"
+            "SVC|18228|2|2||Gartenbeleuchtung\n"
+            "SVC|20001|16|29|Aus;Hell;Gedimmt|Hue Szene Wohnzimmer\n", encoding="utf-8")
+
+        # Overview: which programs the editor can open
+        st, o = self.rest("GET", "flows")
+        self.assertEqual(st, 200, o)
+        p = {x["id"]: x for x in o["programs"]}
+        for pid in ("13110", "13200", "13300", "13400", "13500"):
+            self.assertTrue(p[pid]["editor"], (pid, p[pid].get("editor_reason")))
+            self.assertEqual(p[pid]["editor_reason"], "")
+        self.assertEqual((p["13600"]["editor"], p["13600"]["editor_reason"]), (False, "script"))
+        self.assertEqual((p["13700"]["editor"], p["13700"]["editor_reason"]), (False, "mixed_ops"))
+
+        # (a) groups combined with "and", keys inside the first group with "or", else branch
+        st, f = self.rest("GET", "flows/13110")
+        self.assertEqual(st, 200, f)
+        rev_a, a = f["rev"], f["flow"]
+        self.assertTrue(rev_a)
+        self.assertEqual((a["id"], a["name"], a["active"], a["editable"]), ("13110", "Wohnzimmer Lampe", True, True))
+        self.assertEqual(len(a["branches"]), 1)
+        w = a["branches"][0]["when"]
+        self.assertEqual(w["op"], "and")
+        self.assertEqual([[i["kind"] for i in g] for g in w["groups"]], [["key", "key"], ["value"]])
+        self.assertEqual([i["press"] for i in w["groups"][0]], ["SHORT", "LONG"])
+        lamp = w["groups"][1][0]
+        self.assertEqual((lamp["dp"], lamp["ct"], lamp["ct2"], lamp["rv1"]), ("10119", "1", "15", "false"))
+        self.assertEqual([(x["dp"], x["value"], x["delay"]) for x in a["branches"][0]["then"]], [("10119", "true", "")])
+        self.assertTrue(a["branches"][0]["stop_delays"])
+        self.assertEqual([x["value"] for x in a["else"]["then"]], ["false"])
+
+        # (b) cross product stays as it is: two groups with "or", key repeated in each
+        st, f = self.rest("GET", "flows/13200")
+        w = f["flow"]["branches"][0]["when"]
+        self.assertEqual(w["op"], "or")
+        self.assertEqual([[i["dp"] for i in g] for g in w["groups"]], [["11594", "18308"], ["11594", "18408"]])
+        self.assertEqual(len(f["flow"]["else"]["then"]), 2)
+
+        # (c) one group with a comparison and a trigger on change; "else if" with its own trigger, no else
+        st, f = self.rest("GET", "flows/13300")
+        rev_c, c = f["rev"], f["flow"]
+        self.assertEqual(len(c["branches"]), 2)
+        self.assertIsNone(c["else"])
+        g = c["branches"][0]["when"]["groups"]
+        self.assertEqual(len(g), 1)
+        self.assertEqual([(i["ct"], i["ct2"], i["rv1"], i["rt1"]) for i in g[0]],
+                         [("10", "15", "45.000000", "4"), ("1", "15", "true", "2"), ("1", "4", "false", "2")])
+        self.assertEqual([(i["dp"], i["ct2"]) for i in c["branches"][1]["when"]["groups"][0]], [("12002", "4")])
+
+        # (d) delays as HH:MM:SS, (f) the empty placeholder rule is not a branch
+        st, f = self.rest("GET", "flows/13400")
+        rev_d, d = f["rev"], f["flow"]
+        self.assertEqual(len(d["branches"]), 1)
+        self.assertIsNone(d["else"])
+        self.assertEqual([(x["dp"], x["value"], x["delay"]) for x in d["branches"][0]["then"]],
+                         [("10119", "false", ""), ("11511", "0.000000", "00:00:03")])
+
+        # (e) time module
+        st, f = self.rest("GET", "flows/13500")
+        rev_e, e = f["rev"], f["flow"]
+        self.assertFalse(e["active"])
+        tm = e["branches"][0]["when"]["groups"][0][1]
+        self.assertEqual((tm["kind"], tm["lvt"], tm["ct2"]), ("time", "24", "15"))
+        self.assertEqual((str(tm["tm"]["type"]), str(tm["tm"]["sot"]), str(tm["tm"]["time"])), ("9", "6", "-1"))  # -1: no time of day (night)
+
+        # Unchanged flows go back with the same values
+        st, r, script = self.editor_save("13110", a, rev_a)
+        self.assertEqual(st, 200, r)
+        self.assertEqual(r["id"], "13110")
+        self.assertTrue(r["rev"])
+        self.assertTrue(script.startswith("!hue:flows:save"), script[:80])
+        for part in ("object p = dom.GetObject(13110);", "RuleDelSubRule", "ElseIfFlag(true)", "RuleCreateSubRule()",
+                     "ElseIfFlag(false)", "BreakOnRestart(true)", "CndOperatorType(1)", "OperatorType(2)",
+                     "ConditionType2(1)", "ConditionType2(15)", "system.Save();"):
+            self.assertIn(part, script)
+        self.assertEqual(len(list((RUN / "flow-backups").glob("*-13110.txt"))), 1)
+
+        st, r, script = self.editor_save("13300", c, rev_c)
+        self.assertEqual(st, 200, r)
+        for part in ("ConditionType(10)", "RightVal1(45.000000)", "ConditionType2(4)", "CndOperatorType(2)"):
+            self.assertIn(part, script)
+        self.assertNotIn("ElseIfFlag(false)", script)
+
+        st, r, script = self.editor_save("13400", d, rev_d)
+        self.assertEqual(st, 200, r)
+        self.assertIn("DestinationValueParamType(28)", script)
+        self.assertIn('DestinationValueParam("00:00:03")', script)
+        self.assertNotIn("ElseIfFlag(false)", script)
+
+        st, r, script = self.editor_save("13500", e, rev_e)
+        self.assertEqual(st, 200, r)
+        self.assertIn("OT_CALENDARDP", script)
+        self.assertIn("LeftValType(24)", script)
+        self.assertRegex(script, r"TimerType\((9|ttCalDaily)\)")
+        self.assertRegex(script, r"SunOffsetType\((6|sotAfterSunset)\)")
+        self.assertIn("Active(false)", script)
+
+        # Changed in the CCU meanwhile: conflict
+        st, r, _ = self.editor_save("13110", a, "bogus")
+        self.assertEqual(st, 409, r)
+        # Programs the editor cannot show are not overwritten
+        st, f = self.rest("GET", "flows/13600")
+        self.assertEqual(st, 200, f)
+        self.assertFalse(f["flow"]["editable"])
+        st, r, script = self.editor_save("13600", f["flow"], f["rev"])
+        self.assertEqual(st, 400, r)
+        self.assertNotIn("!hue:flows:save", script)
+
+        # Validation: names, values, ids, missing trigger or action
+        def changed(fn):
+            x = json.loads(json.dumps(a))
+            fn(x)
+            return x
+        bad = [
+            changed(lambda x: x.update(name='a"b')),
+            changed(lambda x: x["branches"][0]["then"][0].update(value="true); dom.DeleteObject(1")),
+            changed(lambda x: x["branches"][0]["then"][0].update(dp="10119); dom.DeleteObject(1")),
+            changed(lambda x: x["branches"][0]["when"]["groups"][1][0].update(rv1="false); x(")),
+            changed(lambda x: x["branches"][0]["when"]["groups"][0][0].update(dp="9346\")")),
+            changed(lambda x: x["branches"][0]["then"][0].update(delay="00:00:03\"); x(\"")),
+            changed(lambda x: x["branches"][0]["when"].update(groups=[x["branches"][0]["when"]["groups"][1]])),
+            changed(lambda x: (x["branches"][0].update(then=[]), x.update(**{"else": None}))),
+        ]
+        for i, flow in enumerate(bad):
+            st, r, script = self.editor_save("13110", flow, rev_a)
+            self.assertEqual(st, 400, (i, r))
+            self.assertNotIn("!hue:flows:save", script, i)
+
+        # New program
+        new = changed(lambda x: x.update(name="Neu: Lampe umschalten", active=True))
+        st, r, script = self.editor_save("", new, "")
+        self.assertEqual(st, 200, r)
+        self.assertEqual(r["id"], "99002")
+        self.assertIn("dom.CreateObject(OT_PROGRAM)", script)
+        self.assertNotIn("dom.GetObject(13110)", script)
+
+        # Preview values: clock, sun and current datapoint values
+        (RUN / "flow_values.txt").write_text("12001 30.5\n")
+        st, v = self.rest("POST", "flows/values", {"dps": ["12001", "12002"]})
+        self.assertEqual(st, 200, v)
+        self.assertEqual((v["now"], str(v["weekday"]), v["sunrise"], v["sunset"]), ("21:15:00", "3", "07:36", "16:52"))
+        self.assertEqual(v["values"], {"12001": "30.5", "12002": "true"})
+        st, v = self.rest("POST", "flows/values", {"dps": ["1); dom.DeleteObject(1"]})
+        self.assertEqual(st, 400, v)
+
+        # Run a program now
+        log = RUN / "rega.log"
+        log.write_text("")
+        st, r = self.rest("POST", "flows/13110/run")
+        self.assertEqual((st, r), (200, {"id": "13110"}))
+        self.assertIn("ProgramExecute()", log.read_text())
+
+        # Catalog: device values and system variables as conditions
+        st, cat = self.rest("GET", "flows/catalog")
+        self.assertEqual(st, 200, cat)
+        conds = {(x["kind"], x["dp"]) for x in cat["conditions"]}
+        for k in (("value", "12002"), ("value", "12001"), ("value", "12502"), ("sysvar", "18228"), ("sysvar", "20001")):
+            self.assertIn(k, conds)
+        self.assertNotIn(("value", "9346"), conds)  # key presses are triggers, not values
 
     def test_30_v1_bridge_fallback(self):
         """Round bridge / old firmware: everything over v1, nothing breaks."""

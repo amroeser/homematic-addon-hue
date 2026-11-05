@@ -126,7 +126,7 @@ Helligkeit, Weißton, Farbe und Effekte. Darunter das passende HomeMatic-Gerät:
 
 ### Abläufe auf einen Blick
 
-Welche Taste was schaltet, als Bild statt als Liste. Neue Abläufe entstehen mit zwei Klicks und landen direkt als Programm in der CCU. Doppelt belegte Tasten fallen sofort auf.
+Welche Taste was schaltet, als Bild statt als Liste. Im Editor baust du Auslöser, Bedingung und Aktionen zusammen, mit „Sonst“, Zeiten und Verzögerungen. Gespeichert wird direkt als Programm in der CCU.
 
 </td>
 </tr>
@@ -254,7 +254,7 @@ Das Addon legt drei Arten von CUxD-Geräten an:
 
 **Szenen in Programmen:** Schalte unter *Einstellungen* „Szenen als Systemvariablen“ ein, oder direkt in der Kurzanleitung. Jeder Raum und jede Zone bekommt die Variable „Hue Szene <Raum>“ als Werteliste: Eintrag „Aus“ schaltet den Raum aus, die übrigen rufen die Szene auf. Wählst du in der Hue-App eine Szene, steht sie auch hier, sodass Programme darauf reagieren können. Das Addon hängt neue Szenen an und markiert gelöschte als „(entfernt)“, damit sich die Positionen in deinen Programmen nie verschieben. Namen werden in ASCII geschrieben (`Kueche`), weil die CCU intern ISO-8859-1 nutzt. Benötigt API v2.
 
-**Abläufe:** Die Seite *Abläufe* zeigt alle CCU-Programme als Bild: Taste, Programm und was geschaltet wird, verbunden durch Linien. Neue Abläufe legst du mit Taste und Aktion an, ganz ohne die Programm-Oberfläche der CCU. Das Programm in der CCU bleibt die einzige Kopie, du kannst also an beiden Stellen ändern. Vor jeder Änderung wird das Programm unter `/usr/local/etc/config/hue-flow-backups` gesichert. Doppelt belegte Tasten und lange Tastendrücke, die beim Halten mehrfach auslösen, werden markiert. Programme mit Bedingungen, „Sonst“ oder Skripten werden angezeigt, geändert werden sie in der CCU.
+**Abläufe:** Die Seite *Abläufe* zeigt alle CCU-Programme als Bild: Taste, Programm und was geschaltet wird, verbunden durch Linien. Ein Klick öffnet den Ablauf im Editor: links die Auslöser (Taste, Gerät, Systemvariable, Zeit), in der Mitte die Bedingung, rechts was bei „Ja“ und bei „Nein“ passiert, mit „Sonst, wenn“, Verzögerungen sowie Tag und Nacht. Die Vorschau zeigt mit den aktuellen Werten, welcher Zweig jetzt liefe, ohne etwas zu schalten. Das Programm in der CCU bleibt die einzige Kopie, du kannst also an beiden Stellen ändern; wurde es inzwischen in der CCU geändert, warnt der Editor vor dem Speichern. Vor jeder Änderung wird das Programm unter `/usr/local/etc/config/hue-flow-backups` gesichert. Doppelt belegte Tasten und lange Tastendrücke, die beim Halten mehrfach auslösen, werden markiert. Nur Programme mit Skripten oder ungewöhnlich gemischtem „und“/„oder“ werden ausschließlich angezeigt. Aufbau und Datenmodell: [docs/FLOW_BUILDER.md](docs/FLOW_BUILDER.md).
 
 **Weitere Lampen im Raum:** In den Details eines Raums ordnest du Lampen ohne Hue zu, etwa einen Shelly hinter einem CUxD-Schalter oder einen HomeMatic-IP-Aktor. Das Addon schlägt Geräte vor, deren CCU-Raum oder Name zum Hue-Raum passt. Sie schalten mit dem Raum an und aus, egal von wo der Raum geschaltet wurde, wahlweise auch nur aus. Je Szene legst du fest, ob die Lampe an, aus oder unverändert bleibt. Geschaltet wird über die CCU, deine Geräte und Programme bleiben, wie sie sind. Benötigt API v2.
 

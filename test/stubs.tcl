@@ -89,6 +89,24 @@ proc rega_script {script} {
 	if {[regexp {^!hue:flows:create} $script]} { return [list STDOUT "ID|99001\n"] }
 	if {[regexp {^!hue:flows:update} $script] && [regexp {GetObject\(([0-9]+)\)} $script -> id]} { return [list STDOUT "OK|$id\n"] }
 	if {[regexp {^!hue:flows:delete} $script]} { return [list STDOUT "DEL|true\n"] }
+	# Flow editor: save an existing program (id from the first GetObject) or a new one (99002)
+	if {[regexp {^!hue:flows:save} $script]} {
+		if {[regexp {object p = dom\.GetObject\(([0-9]+)\);} $script -> id]} { return [list STDOUT "OK|$id\n"] }
+		return [list STDOUT "OK|99002\n"]
+	}
+	# Flow editor preview: fixed clock and sun times, "true" for every requested datapoint
+	# except ids listed in flow_values.txt as "<dp> <value>"
+	if {[regexp {^!hue:flows:values} $script]} {
+		array set V [::hue_test_read flow_values.txt]
+		set out "NOW|21:15:00|3\nSUN|07:36|16:52\n"
+		# One datapoint per line (no regexp -all, Tcl 8.2)
+		foreach line [split $script "\n"] {
+			if {![regexp {dom\.GetObject\(([0-9]+)\)} $line -> dp]} { continue }
+			if {[info exists V($dp)]} { append out "V|$dp|$V($dp)\n" } else { append out "V|$dp|true\n" }
+		}
+		return [list STDOUT $out]
+	}
+	if {[regexp {^!hue:flows:run} $script] && [regexp {GetObject\(([0-9]+)\)} $script -> id]} { return [list STDOUT "RUN|$id\n"] }
 	if {[regexp {^!hue:extras:candidates} $script]} {
 		return [list STDOUT [::hue_test_read ccu_channels.txt]]
 	}

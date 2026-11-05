@@ -455,7 +455,29 @@ proc process {} {
 			if {[string equal $a1 "catalog"]} {
 				return [hue::flows::catalog_json]
 			}
+			# Editor: one program as flow, save a flow, values for the preview, run
+			if {$plen == 2 && [regexp {^[0-9]+$} $a1] && [string equal $method "GET"]} {
+				if {[catch {hue::flows::flow_json $a1} res]} { error $res "Not Found" 404 }
+				return $res
+			}
 			if {![string equal $method "POST"]} { error "POST required" "Method Not Allowed" 405 }
+			if {[string equal $a1 "save"]} {
+				if {[catch {hue::flows::save B [arg id] [arg rev]} res]} {
+					if {[string equal $::errorCode "409"]} { error $res "Conflict" 409 }
+					error $res "Bad Request" 400
+				}
+				return [jobj id [jstr [lindex $res 0]] rev [jstr [lindex $res 1]]]
+			}
+			if {[string equal $a1 "values"]} {
+				set dps [list]
+				for {set i 0} {$i < [::hue::json::len B dps]} {incr i} { lappend dps [arg dps/$i] }
+				if {[catch {hue::flows::values_json $dps} res]} { error $res "Bad Request" 400 }
+				return $res
+			}
+			if {[regexp {^[0-9]+$} $a1] && [string equal $a2 "run"]} {
+				if {[catch {hue::flows::run $a1} res]} { error $res "Bad Request" 400 }
+				return [jobj id [jstr $res]]
+			}
 			set triggers [list]
 			for {set i 0} {$i < [::hue::json::len B triggers]} {incr i} { lappend triggers [arg triggers/$i] }
 			set actions [list]

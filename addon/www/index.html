@@ -344,6 +344,62 @@ pre { margin: 0; padding: 14px; border-radius: var(--r-sm); background: var(--fi
 .flow-card.warn { border-color: var(--bad); }
 .flow-card .flow-name { font-weight: 600; }
 @media (max-width: 760px) { .flow-wrap { display: none; } .flow-list { display: grid; } }
+/* flow editor: triggers -> condition -> yes/no -> actions */
+dialog.xl { width: min(1240px, calc(100vw - 32px)); }
+.fe-body { display: grid; gap: 14px; }
+.fe-top { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.fe-name { flex: 1; min-width: 200px; font-size: 1.05rem; font-weight: 600; }
+.fe-active { display: flex; gap: 8px; align-items: center; font-weight: 560; }
+.fe-split { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+.fe-main { display: grid; gap: 12px; min-width: 0; }
+.fe-main .notice { margin: 0; }
+.fe-scroll { overflow-x: auto; padding-bottom: 6px; }
+.fe-canvas { position: relative; display: grid; grid-template-columns: minmax(190px, 1fr) minmax(200px, 1fr) minmax(200px, 1fr); column-gap: 56px; min-width: 700px; padding: 10px; border-radius: var(--r-md); background-image: radial-gradient(var(--line) 1px, transparent 1px); background-size: 18px 18px; }
+.fe-col { display: grid; gap: 10px; align-content: start; position: relative; z-index: 1; }
+.fe-head { font-size: .75rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+.fe-slot { display: grid; gap: 8px; align-content: start; padding-bottom: 18px; }
+.fe-node { display: grid; gap: 2px; text-align: left; padding: 10px 12px; border-radius: var(--r-md); border: 1px solid var(--line); border-left: 4px solid var(--c, var(--ink-3)); background: var(--surface); color: var(--ink); cursor: pointer; }
+.fe-node.trigger { --c: #8b6cd8; }
+.fe-node.cond { --c: #3a9bd9; }
+.fe-node.action { --c: var(--amber); }
+.fe-node.sel { outline: 2px solid var(--amber); outline-offset: 2px; }
+.fe-node.ok { box-shadow: inset 0 0 0 1px var(--ok); }
+.fe-node.no { box-shadow: inset 0 0 0 1px var(--bad); }
+.fe-title { font-weight: 600; line-height: 1.3; font-size: .9rem; }
+.fe-sub { font-size: .75rem; color: var(--ink-2); }
+.fe-pass { font-size: .8125rem; color: var(--ink-3); padding: 10px 0; }
+.fe-badge { justify-self: start; font-size: .6875rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--fill); color: var(--ink-2); }
+.fe-badge.yes { background: var(--ok-soft); color: var(--ok); }
+.fe-badge.no { background: var(--bad-soft); color: var(--bad); }
+.fe-add { justify-self: start; border: 1px dashed var(--line); background: none; color: var(--ink-2); padding: 6px 10px; border-radius: 10px; font-size: .8125rem; }
+.fe-add:hover { border-color: var(--amber); color: var(--ink); }
+.fe-add.small { padding: 3px 8px; font-size: .75rem; }
+.fe-lines { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; z-index: 0; }
+.fe-lines .edge { fill: none; stroke: color-mix(in srgb, var(--ink-3) 60%, transparent); stroke-width: 1.6; }
+.fe-lines .edge.yes { stroke: var(--ok); }
+.fe-lines .edge.no { stroke: var(--bad); stroke-dasharray: 5 4; }
+.fe-more { grid-column: 1 / -1; }
+.fe-sentence { font-size: .875rem; color: var(--ink-2); padding: 12px 14px; border-radius: var(--r-md); background: var(--fill); }
+.fe-sentence p { margin: 2px 0; }
+.fe-inspect { position: sticky; top: 0; display: grid; gap: 12px; align-content: start; padding: 14px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); }
+.fe-ihead { display: flex; align-items: center; gap: 8px; }
+.fe-ihead .grow { flex: 1; }
+.fe-form { display: grid; gap: 10px; }
+.fe-form select, .fe-form input:not([type=checkbox]):not([type=range]) { width: 100%; }
+.fe-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.fe-row input, .fe-row select { width: auto !important; }
+.fe-days { display: flex; gap: 6px; flex-wrap: wrap; }
+.fe-days label { display: flex; gap: 4px; align-items: center; font-size: .8125rem; }
+.fe-groups { display: grid; gap: 6px; }
+.fe-group { display: grid; gap: 6px; padding: 8px; border-radius: 10px; background: var(--fill); }
+.fe-join { font-size: .75rem; font-weight: 700; color: var(--ink-2); text-transform: uppercase; }
+.fe-join.small { font-weight: 600; text-transform: none; }
+.fe-item summary { cursor: pointer; font-size: .875rem; font-weight: 560; }
+.fe-item[open] { padding-bottom: 6px; }
+.fe-addrow { display: flex; gap: 8px; flex-wrap: wrap; }
+.fe-check { display: flex; gap: 8px; align-items: center; font-size: .8125rem; color: var(--ink-2); }
+@media (max-width: 900px) { .fe-split { grid-template-columns: 1fr; } .fe-inspect { position: static; } }
+@media (max-width: 640px) { .fe-canvas { grid-template-columns: 1fr; min-width: 0; row-gap: 14px; background: none; padding: 0; } .fe-lines { display: none; } }
 .sys-dev { display: flex; align-items: center; gap: 10px; padding: 6px 0; flex-wrap: wrap; }
 .sys-dev .grow { min-width: 160px; }
 .badge.warn { background: var(--amber-soft); color: var(--ink); }
@@ -526,6 +582,37 @@ const I18N = {
 		fl_delete: "Löschen", fl_delete_q: "„{{name}}“ aus der CCU löschen? Eine Sicherung bleibt auf der CCU.", fl_disable: "Pausieren", fl_enable: "Aktivieren",
 		fl_need_name: "Bitte gib dem Ablauf einen Namen.", fl_need_both: "Ein Ablauf braucht mindestens eine Taste und eine Aktion.",
 		fl_last: "Zuletzt ausgeführt: {{d}}", fl_never: "Noch nicht ausgeführt",
+		fe_triggers: "Auslöser", fe_conditions: "Bedingung", fe_actions: "Aktionen", fe_trigger: "Auslöser", fe_condition: "Bedingung", fe_action: "Aktion",
+		fe_add_trigger: "Auslöser", fe_add_condition: "Bedingung", fe_add_action: "Aktion", fe_add_else: "Sonst", fe_add_else_if: "Sonst, wenn …",
+		fe_yes_then: "Ja, dann", fe_no_else: "Nein, sonst", fe_no_condition: "Ohne Bedingung", fe_always: "Immer", fe_and_if: "und wenn",
+		fe_also_triggers: "mit eigenem Auslöser ({{t}})", fe_hint: "Element anklicken, um es zu bearbeiten. Mit + fügst du Auslöser, Bedingungen und Aktionen hinzu. Gespeichert wird als Programm in der CCU.",
+		fe_new_text: "Auslöser, Bedingung und Aktionen wählen. Das Addon legt daraus ein Programm in der CCU an.",
+		fe_k_key: "Taste", fe_k_value: "Gerät", fe_k_sysvar: "Variable", fe_k_time: "Zeit", fe_key: "Taste", fe_source: "Was", fe_pick_source: "Gerät oder Wert wählen …",
+		fe_value: "Wert", fe_mode: "Wirkung", fe_apply: "Übernehmen", fe_target: "Was soll passieren", fe_delay: "Verzögerung", fe_delay_hint: "0 = sofort",
+		fe_on_change: "löst bei Änderung aus", fe_on_update: "löst bei Aktualisierung aus", fe_check_only: "nur prüfen", fe_on_time: "löst zur Zeit aus",
+		fe_or_group: "Oder-Alternative", fe_and_group: "Weitere Bedingung", fe_flip: "Und/Oder tauschen", fe_stop_delays: "Laufende Verzögerungen vorher beenden",
+		fe_yes: "ja", fe_no: "nein", fe_is: "{{a}} ist {{b}}", fe_between: "zwischen {{a}} und {{b}}", fe_range_op: "zwischen", fe_after: "nach {{d}}",
+		fe_time: "Zeit", fe_daily: "täglich", fe_weekly: "wöchentlich", fe_workdays: "Mo–Fr", fe_weekend: "Sa–So", fe_day: "tagsüber", fe_night: "nachts",
+		fe_allday: "ganztägig", fe_from_to: "{{a}}–{{b}} Uhr", fe_at: "um {{a}} Uhr", fe_range: "Zeitraum", fe_at_time: "Uhrzeit", fe_when_time: "Wann", fe_days: "Tage",
+		fe_mo: "Mo", fe_tu: "Di", fe_we: "Mi", fe_th: "Do", fe_fr: "Fr", fe_sa: "Sa", fe_su: "So",
+		fe_p_state: "Zustand", fe_p_level: "Position", fe_p_motion: "Bewegung", fe_p_presence_detection_state: "Anwesenheit", fe_p_illumination: "Helligkeit",
+		fe_p_current_illumination: "Helligkeit", fe_p_actual_temperature: "Temperatur", fe_p_humidity: "Luftfeuchte",
+		fe_true_state: "an", fe_false_state: "aus", fe_true_motion: "Bewegung erkannt", fe_false_motion: "keine Bewegung", fe_true_presence_detection_state: "anwesend", fe_false_presence_detection_state: "abwesend",
+		fe_g_presence: "Anwesenheit", fe_g_motion: "Bewegung", fe_g_lux: "Helligkeit", fe_g_climate: "Temperatur und Feuchte", fe_g_state: "Schalter und Lampen", fe_g_level: "Dimmer und Rollläden",
+		fe_g_hue_sensor: "Hue-Sensoren", fe_g_sysvar: "Systemvariablen", fe_g_scene: "Hue-Szenen", fe_g_other: "Weitere",
+		fe_t_scene: "Hue-Szenen", fe_t_hue_scene_key: "Hue-Szenen-Tasten", fe_t_hue_light: "Hue-Räume und -Lampen", fe_t_lamp: "Lampen", fe_t_shelly: "Shelly",
+		fe_t_plug: "Steckdosen", fe_t_switch: "Schalter", fe_t_level: "Dimmer", fe_t_blind: "Rollläden", fe_t_awning: "Markisen", fe_t_output: "Ausgänge und LEDs", fe_t_sysvar: "Systemvariablen",
+		fe_preview: "Vorschau", fe_preview_at: "Stand {{now}} Uhr, Sonnenaufgang {{rise}}, -untergang {{set}}. Tasten gelten als gedrückt, es wird nichts geschaltet.",
+		fe_runs_then: "Jetzt würde „Dann“ ausgeführt", fe_runs_elseif: "Jetzt würde „Sonst, wenn“ Nr. {{n}} ausgeführt", fe_runs_else: "Jetzt würde „Sonst“ ausgeführt", fe_runs_none: "Jetzt würde nichts ausgeführt",
+		fe_run: "Jetzt ausführen", fe_run_q: "„{{name}}“ jetzt einmal ausführen? Die Aktionen werden wirklich geschaltet.", fe_ran: "Ausgeführt.",
+		fe_need_trigger: "Ein Ablauf braucht einen Auslöser.", fe_need_action: "Ein Ablauf braucht eine Aktion.",
+		fe_conflict: "Das Programm wurde inzwischen in der CCU geändert. Bitte neu öffnen.",
+		fe_ro_script: "Dieses Programm führt ein Skript aus. Du siehst es hier vollständig, ändern kannst du es in der CCU unter Programme.",
+		fe_ro_unknown_condition: "Dieses Programm nutzt eine Bedingung, die der Editor nicht kennt. Ändern kannst du es in der CCU.",
+		fe_ro_unknown_action: "Dieses Programm nutzt eine Aktion, die der Editor nicht kennt. Ändern kannst du es in der CCU.",
+		fe_ro_mixed_ops: "Dieses Programm mischt „und“ und „oder“ in einer Gruppe. Damit sich seine Bedeutung nicht ändert, bearbeitest du es in der CCU.",
+		fe_ro_layout: "Dieses Programm ist so aufgebaut, dass es sich nicht als Auslöser → Bedingung → Aktion darstellen lässt. Ändern kannst du es in der CCU.",
+		fe_ro_other: "Dieses Programm kann nur in der CCU geändert werden.",
 		rooms_title: "Räume", rooms_summary: "{{on}} von {{n}} Lampen an", all_off: "Alles aus", more: "Details",
 		no_room: "Ohne Raum", room_on: "{{on}} von {{n}} an", room_all_on: "Alle an", room_off: "Aus",
 		lamp_off: "Aus", lamp_on: "An", lamp_on_bri: "{{p}} %", unreachable: "Nicht erreichbar",
@@ -671,6 +758,37 @@ const I18N = {
 		fl_delete: "Delete", fl_delete_q: "Delete “{{name}}” from the CCU? A backup is kept on the CCU.", fl_disable: "Pause", fl_enable: "Activate",
 		fl_need_name: "Please give the flow a name.", fl_need_both: "A flow needs at least one key and one action.",
 		fl_last: "Last run: {{d}}", fl_never: "Not run yet",
+		fe_triggers: "Triggers", fe_conditions: "Condition", fe_actions: "Actions", fe_trigger: "Trigger", fe_condition: "Condition", fe_action: "Action",
+		fe_add_trigger: "Trigger", fe_add_condition: "Condition", fe_add_action: "Action", fe_add_else: "Else", fe_add_else_if: "Else if …",
+		fe_yes_then: "Yes, then", fe_no_else: "No, else", fe_no_condition: "No condition", fe_always: "Always", fe_and_if: "and if",
+		fe_also_triggers: "with its own trigger ({{t}})", fe_hint: "Click an element to edit it. Use + to add triggers, conditions and actions. It is saved as a program in the CCU.",
+		fe_new_text: "Pick a trigger, a condition and actions. The addon creates a program in the CCU from it.",
+		fe_k_key: "Key", fe_k_value: "Device", fe_k_sysvar: "Variable", fe_k_time: "Time", fe_key: "Key", fe_source: "What", fe_pick_source: "Pick a device or value …",
+		fe_value: "Value", fe_mode: "Effect", fe_apply: "Apply", fe_target: "What should happen", fe_delay: "Delay", fe_delay_hint: "0 = immediately",
+		fe_on_change: "triggers on change", fe_on_update: "triggers on update", fe_check_only: "check only", fe_on_time: "triggers at the time",
+		fe_or_group: "Or alternative", fe_and_group: "Another condition", fe_flip: "Swap and/or", fe_stop_delays: "Stop running delays first",
+		fe_yes: "yes", fe_no: "no", fe_is: "{{a}} is {{b}}", fe_between: "between {{a}} and {{b}}", fe_range_op: "between", fe_after: "after {{d}}",
+		fe_time: "Time", fe_daily: "daily", fe_weekly: "weekly", fe_workdays: "Mon–Fri", fe_weekend: "Sat–Sun", fe_day: "during the day", fe_night: "at night",
+		fe_allday: "all day", fe_from_to: "{{a}}–{{b}}", fe_at: "at {{a}}", fe_range: "Time span", fe_at_time: "Time of day", fe_when_time: "When", fe_days: "Days",
+		fe_mo: "Mon", fe_tu: "Tue", fe_we: "Wed", fe_th: "Thu", fe_fr: "Fri", fe_sa: "Sat", fe_su: "Sun",
+		fe_p_state: "state", fe_p_level: "position", fe_p_motion: "motion", fe_p_presence_detection_state: "presence", fe_p_illumination: "brightness",
+		fe_p_current_illumination: "brightness", fe_p_actual_temperature: "temperature", fe_p_humidity: "humidity",
+		fe_true_state: "on", fe_false_state: "off", fe_true_motion: "motion", fe_false_motion: "no motion", fe_true_presence_detection_state: "present", fe_false_presence_detection_state: "absent",
+		fe_g_presence: "Presence", fe_g_motion: "Motion", fe_g_lux: "Brightness", fe_g_climate: "Temperature and humidity", fe_g_state: "Switches and lamps", fe_g_level: "Dimmers and blinds",
+		fe_g_hue_sensor: "Hue sensors", fe_g_sysvar: "System variables", fe_g_scene: "Hue scenes", fe_g_other: "More",
+		fe_t_scene: "Hue scenes", fe_t_hue_scene_key: "Hue scene keys", fe_t_hue_light: "Hue rooms and lights", fe_t_lamp: "Lamps", fe_t_shelly: "Shelly",
+		fe_t_plug: "Plugs", fe_t_switch: "Switches", fe_t_level: "Dimmers", fe_t_blind: "Blinds", fe_t_awning: "Awnings", fe_t_output: "Outputs and LEDs", fe_t_sysvar: "System variables",
+		fe_preview: "Preview", fe_preview_at: "As of {{now}}, sunrise {{rise}}, sunset {{set}}. Keys count as pressed, nothing is switched.",
+		fe_runs_then: "“Then” would run now", fe_runs_elseif: "“Else if” no. {{n}} would run now", fe_runs_else: "“Else” would run now", fe_runs_none: "Nothing would run now",
+		fe_run: "Run now", fe_run_q: "Run “{{name}}” once now? The actions really switch.", fe_ran: "Done.",
+		fe_need_trigger: "A flow needs a trigger.", fe_need_action: "A flow needs an action.",
+		fe_conflict: "The program was changed in the CCU meanwhile. Please open it again.",
+		fe_ro_script: "This program runs a script. You see all of it here; change it in the CCU under Programs.",
+		fe_ro_unknown_condition: "This program uses a condition the editor does not know. Change it in the CCU.",
+		fe_ro_unknown_action: "This program uses an action the editor does not know. Change it in the CCU.",
+		fe_ro_mixed_ops: "This program mixes “and” and “or” within a group. To keep its meaning, change it in the CCU.",
+		fe_ro_layout: "This program cannot be shown as trigger → condition → action. Change it in the CCU.",
+		fe_ro_other: "This program can only be changed in the CCU.",
 		rooms_title: "Rooms", rooms_summary: "{{on}} of {{n}} lights on", all_off: "All off", more: "Details",
 		no_room: "No room", room_on: "{{on}} of {{n}} on", room_all_on: "All on", room_off: "Off",
 		lamp_off: "Off", lamp_on: "On", lamp_on_bri: "{{p}} %", unreachable: "Unreachable",
@@ -1742,8 +1860,8 @@ function renderFlows() {
 		const rule = p.rules[0] || { conditions: [], actions: [] };
 		const pNode = h("button", { class: "flow-node prog" + (p.active ? "" : " off") + (issues.has(p.id) ? " warn" : ""), "data-id": p.id, onclick: () => openFlow(p) },
 			h("span", { class: "flow-name" }, p.name),
-			h("span", { class: "flow-meta" }, !p.active ? t("fl_inactive") : !p.editable ? t("fl_ccu_only") : issues.has(p.id) ? t("fl_check") : t("fl_active")));
-		pNode.addEventListener("dragover", e => { if (p.editable) { e.preventDefault(); pNode.classList.add("drop"); } });
+			h("span", { class: "flow-meta" }, !p.active ? t("fl_inactive") : !p.editor ? t("fl_ccu_only") : issues.has(p.id) ? t("fl_check") : t("fl_active")));
+		pNode.addEventListener("dragover", e => { if (p.editor) { e.preventDefault(); pNode.classList.add("drop"); } });
 		pNode.addEventListener("dragleave", () => pNode.classList.remove("drop"));
 		pNode.addEventListener("drop", e => { e.preventDefault(); pNode.classList.remove("drop"); addTriggerTo(p, e.dataTransfer.getData("text/plain")); });
 		colP.append(pNode);
@@ -1835,144 +1953,606 @@ function renderFlows() {
 	if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (S.page === "flows") draw(); });
 }
 
+/* ====================================================================== flow editor */
+// One CCU program as flow: triggers -> condition -> yes/no -> actions, see docs/FLOW_BUILDER.md.
+// The flow keeps the raw CCU fields of every condition and action, so an unchanged flow is
+// written back exactly as it was. A branch is rebuilt only after it was edited.
+
+const FE = {
+	isTrig: it => String(it.ct2) !== "15",
+	key: it => [it.lvt, it.dp, it.ct, it.ct2, it.rv1, it.rv2, JSON.stringify(it.tm || "")].join("|"),
+	inv: op => op === "and" ? "2" : "1",
+	// Display name: "Kueche_Wandlampe:2" -> "Wandlampe" (in Küche) or "Küche Wandlampe"
+	label(name, room, keepKey) {
+		let n = String(name || "").replace(/\.(PRESS_\w+|STATE|LEVEL|TOGGLE|MOTION|PRESENCE_DETECTION_STATE|ILLUMINATION|CURRENT_ILLUMINATION|ACTUAL_TEMPERATURE|HUMIDITY)$/, "");
+		const m = /:(\d+)$/.exec(n);
+		n = n.replace(/:\d+$/, "").replace(/_/g, " ").replace(/\s+/g, " ").trim();
+		if (room) {
+			const fold = s => s.toLowerCase().replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss").replace(/[^a-z0-9]/g, "");
+			const first = n.split(" ")[0];
+			if (n.includes(" ") && fold(first) === fold(room)) n = n.slice(first.length + 1);
+		}
+		return keepKey && m ? n + ", " + t("fl_key", { n: m[1] }) : n;
+	},
+	hhmm: secs => String(Math.floor(secs / 3600)).padStart(2, "0") + ":" + String(Math.floor(secs % 3600 / 60)).padStart(2, "0"),
+	secs: hm => { const m = /^(\d{1,2}):(\d{2})/.exec(hm || ""); return m ? Math.min(86399, +m[1] * 3600 + +m[2] * 60) : -1; },
+	days: ["fe_mo", "fe_tu", "fe_we", "fe_th", "fe_fr", "fe_sa", "fe_su"],
+	tmText(tm) {
+		const parts = [];
+		if (+tm.type === 5) {
+			const wd = +tm.wd;
+			parts.push(wd === 31 ? t("fe_workdays") : wd === 96 ? t("fe_weekend") : FE.days.filter((d, i) => wd & (1 << i)).map(d => t(d)).join(", ") || t("fe_weekly"));
+		} else parts.push(+tm.wd === 31 ? t("fe_workdays") : +tm.wd === 96 ? t("fe_weekend") : t("fe_daily"));
+		if (+tm.sot === 3) parts.push(t("fe_day"));
+		else if (+tm.sot === 6) parts.push(t("fe_night"));
+		else if (+tm.time < 0) parts.push(t("fe_allday"));
+		else if (+tm.dur > 0) parts.push(t("fe_from_to", { a: FE.hhmm(+tm.time), b: FE.hhmm((+tm.time + +tm.dur) % 86400) }));
+		else parts.push(t("fe_at", { a: FE.hhmm(+tm.time) }));
+		return parts.join(", ");
+	},
+	cmpText(it) {
+		const num = v => { const f = parseFloat(v); return isNaN(f) ? v : String(Math.round(f * 100) / 100).replace(".", lang === "de" ? "," : "."); };
+		const val = v => v === "true" ? t("fe_yes") : v === "false" ? t("fe_no") : num(v);
+		const ct = String(it.ct);
+		if (ct === "7") return t("fe_between", { a: val(it.rv1), b: val(it.rv2) });
+		return ({ "8": "> ", "9": "≥ ", "10": "< ", "11": "≤ ", "6": "≠ ", "12": "≠ " })[ct] ? ({ "8": "> ", "9": "≥ ", "10": "< ", "11": "≤ ", "6": "≠ ", "12": "≠ " })[ct] + val(it.rv1) : "= " + val(it.rv1);
+	},
+	condOf(it) { return (S.catalog.conditions || []).find(c => c.dp === it.dp); },
+	itemText(it) {
+		if (it.kind === "time") return t("fe_time") + ": " + FE.tmText(it.tm || {});
+		if (it.kind === "key") { const k = keyName(it); return k.device + ", " + k.key + " " + pressLabel(it.press); }
+		const c = FE.condOf(it);
+		const param = c && c.param ? String(c.param).toLowerCase() : String(it.name || "").split(".").pop().toLowerCase();
+		let src = it.kind === "sysvar" ? (it.name || (c && c.name) || it.dp) : FE.label(it.channel_name || it.name || (c && c.name));
+		if (it.kind === "sysvar" && c && c.values && c.values.length > 1 && /^\d+$/.test(String(it.rv1)) && String(it.ct) === "1") return src + " = " + (c.values[+it.rv1] || it.rv1);
+		// Logic values in words: "Wohnzimmer Lampe ist aus", "Präsenzmelder: abwesend"
+		if (String(it.rt1) === "2" && /^(true|false)$/.test(String(it.rv1)) && /^(1|5)$/.test(String(it.ct)) && it.kind !== "sysvar") {
+			const w = t("fe_" + it.rv1 + "_" + param);
+			if (!w.startsWith("fe_")) return param === "state" ? t("fe_is", { a: src, b: w }) : src + ": " + w;
+		}
+		const what = t("fe_p_" + param);
+		if (it.kind !== "sysvar" && !what.startsWith("fe_p_")) src += " " + what;
+		return src + " " + FE.cmpText(it);
+	},
+	condText(ch) {
+		const inner = ch.op === "or" ? "fl_and" : "fl_or", outer = ch.op === "or" ? "fl_or" : "fl_and";
+		return ch.groups.map(g => g.map(FE.itemText).join(" " + t(inner) + " ")).map((s, i, a) => a.length > 1 ? "(" + s + ")" : s).join(" " + t(outer) + " ");
+	},
+	modeText: it => ({ "1": "", "4": t("fe_on_change"), "13": t("fe_on_update"), "15": t("fe_check_only") })[String(it.ct2)] || "",
+	// Branch as the canvas shows it: triggers, checks {op, groups} and whether that is faithful
+	view(br) {
+		const when = br.when || { op: "or", groups: [] };
+		const triggers = [], tk = new Set();
+		for (const g of when.groups) for (const it of g) if (FE.isTrig(it) && !tk.has(FE.key(it))) { tk.add(FE.key(it)); triggers.push(it); }
+		const checks = [], ck = new Set();
+		let ok = true;
+		for (const g of when.groups) {
+			const c = g.filter(it => !FE.isTrig(it));
+			const gt = new Set(g.filter(FE.isTrig).map(FE.key));
+			const inner = g.length > 1 ? String(g[1].op) : FE.inv(when.op);
+			if (when.op === "or") {
+				// Every alternative needs the same triggers, triggers and checks joined by "and"
+				if (triggers.length && (gt.size !== tk.size || [...tk].some(k => !gt.has(k)))) ok = false;
+				if (c.length && gt.size && inner !== "1") ok = false;
+			} else if (gt.size && c.length) ok = false;
+			if (!c.length) continue;
+			const k = c.map(FE.key).join("&");
+			if (!ck.has(k)) { ck.add(k); checks.push(c); }
+		}
+		if (when.op === "and" && when.groups.filter(g => g.some(FE.isTrig)).length > 1) ok = false;
+		return { triggers, checks: { op: when.op, groups: checks }, ok };
+	},
+	// Canvas edits back to CCU conditions, in the form the WebUI and real programs use
+	rebuild(triggers, checks) {
+		const set = (it, op) => Object.assign({}, it, { op });
+		if (!checks.groups.length) return { op: "or", groups: triggers.map(x => [set(x, "1")]) };
+		if (checks.op === "or") {
+			const groups = [];
+			for (const cg of checks.groups) for (const tr of (triggers.length ? triggers : [null])) groups.push([...(tr ? [tr] : []), ...cg].map(x => set(x, "1")));
+			return { op: "or", groups };
+		}
+		return { op: "and", groups: [...(triggers.length ? [triggers] : []), ...checks.groups].map(g => g.map(x => set(x, "2"))) };
+	},
+	newKey: (tr, long) => ({ kind: "key", lvt: "18", dp: long ? tr.long : tr.short, ch: tr.channel, ct: "1", ct2: "1", rv1: "true", rv2: "false", rt1: "2", rt2: "2",
+		name: tr.name + (long ? ".PRESS_LONG" : ".PRESS_SHORT"), channel_name: tr.name, press: long ? "LONG_START" : "SHORT" }),
+	newCond(c, mode) {
+		const vt = String(c.vtype || "2");
+		const rt = vt === "2" ? "2" : vt === "20" ? "20" : vt === "16" ? "16" : "4";
+		const rv1 = rt === "2" ? "true" : rt === "20" ? "" : rt === "16" ? "0" : "0.0";
+		return { kind: c.kind, lvt: c.kind === "sysvar" ? "19" : "18", dp: c.dp, ch: c.channel || "", ct: "1", ct2: mode || "15", rv1, rv2: rt === "2" ? "false" : rv1, rt1: rt, rt2: rt,
+			name: c.name, channel_name: c.kind === "sysvar" ? "" : c.name, press: "" };
+	},
+	newTime: () => ({ kind: "time", lvt: "24", ct: "3", ct2: "15", tm: { type: 9, sot: 6, time: -1, dur: 0, wd: 0, rep: 0, count: 0, begin: "", end: "" } }),
+	newAction(tg) {
+		const sv = tg.kind === "scene" || tg.kind === "sysvar";
+		const vt = tg.kind === "switch" ? "2" : tg.kind === "level" || tg.kind === "blind" ? "4" : String(tg.vtype || "16");
+		const value = tg.kind === "switch" ? "true" : tg.kind === "level" || tg.kind === "blind" ? "1.0" : sv && tg.values && tg.values.length > 1 ? "1" : "true";
+		return { param: sv ? "19" : "18", dp: tg.dp, ch: tg.channel || "", vt: vt === "16" && tg.kind === "sysvar" && !(tg.values && tg.values.length > 1) ? "2" : vt, value, delay: "", name: tg.name, channel_name: tg.name };
+	},
+	targetOf: a => (S.catalog.targets || []).find(x => x.dp === a.dp || x.toggle === a.dp),
+	actText(a) {
+		const tg = FE.targetOf(a);
+		const n = tg ? (tg.kind === "scene" ? tg.name.replace(/^Hue Szene /, "Hue ") : FE.label(tg.name)) : FE.label(a.channel_name || a.name);
+		const what = actionText(Object.assign({}, a, { name: a.name || (tg && a.dp === tg.toggle ? ".TOGGLE" : tg && tg.kind === "level" || tg && tg.kind === "blind" ? ".LEVEL" : "") }));
+		return n + ": " + what + (a.delay ? " " + t("fe_after", { d: FE.delayText(a.delay) }) : "");
+	},
+	delayText(d) {
+		const m = /^(\d\d):(\d\d):(\d\d)$/.exec(d || "");
+		if (!m) return "";
+		const s = +m[1] * 3600 + +m[2] * 60 + +m[3];
+		return s % 3600 === 0 && s ? s / 3600 + " h" : s % 60 === 0 && s ? s / 60 + " min" : s + " s";
+	},
+	groupOf(tg) { return tg.group || tg.kind; },
+	icon: { hue_scene_key: "bulb", hue_light: "bulb", scene: "bulb", lamp: "bulb", shelly: "plug", plug: "plug", switch: "plug", output: "dots", blind: "dots", awning: "dots", level: "bulb", sysvar: "dots" },
+	// Preview: is a single condition true with the current values?
+	evalItem(it, V) {
+		if (it.kind === "key") return null;
+		if (it.kind === "time") {
+			const tm = it.tm || {}, now = FE.secs(V.now), wd = +V.weekday, bit = wd === 0 ? 64 : 1 << (wd - 1);
+			if ((+tm.type === 5 || +tm.wd) && !(+tm.wd & bit)) return false;
+			if (+tm.sot) { const day = now >= FE.secs(V.sunrise) && now < FE.secs(V.sunset); return +tm.sot === 3 ? day : !day; }
+			if (+tm.time < 0) return true;
+			if (+tm.dur === 0) return null;
+			const end = (+tm.time + +tm.dur) % 86400;
+			return +tm.time <= end ? now >= +tm.time && now < end : now >= +tm.time || now < end;
+		}
+		const raw = V.values[it.dp];
+		if (raw == null) return null;
+		const num = s => s === "true" ? 1 : s === "false" ? 0 : parseFloat(s);
+		const v = num(String(raw)), a = num(String(it.rv1)), b = num(String(it.rv2));
+		if (isNaN(v) || isNaN(a)) return String(raw) === String(it.rv1);
+		switch (String(it.ct)) {
+			case "7": return v >= a && v < b;
+			case "8": return v > a; case "9": return v >= a; case "10": return v < a; case "11": return v <= a;
+			case "6": case "12": return v !== a;
+			default: return v === a;
+		}
+	},
+	evalBranch(br, V) {
+		const g = br.when.groups.map(gr => {
+			const join = gr.length > 1 ? String(gr[1].op) : FE.inv(br.when.op);
+			const vals = gr.map(it => FE.evalItem(it, V)).map(x => x == null ? true : x);
+			return join === "2" ? vals.some(Boolean) : vals.every(Boolean);
+		});
+		return br.when.op === "and" ? g.every(Boolean) : g.some(Boolean);
+	}
+};
+
+// Overview: drop a key on a program adds it as trigger
 async function addTriggerTo(p, dp) {
-	if (!dp) return;
-	const rule = p.rules[0];
-	const trig = rule.conditions.flatMap(c => c.singles).map(s => s.dp);
-	if (trig.includes(dp)) return;
+	if (!dp || !p.editor) return;
 	try {
-		await rest("POST", "flows/" + p.id + "/update", { name: p.name, active: p.active, triggers: [...trig, dp],
-			actions: rule.actions.map(a => ({ dp: a.dp, value: a.value })) });
+		const { flow, rev } = await rest("GET", "flows/" + p.id);
+		const tr = (S.catalog.triggers || []).find(x => x.short === dp || x.long === dp);
+		if (!tr) return;
+		const br = flow.branches[0], v = FE.view(br);
+		if (!v.ok || v.triggers.some(x => x.dp === dp)) return;
+		br.when = FE.rebuild([...v.triggers, FE.newKey(tr, tr.long === dp)], v.checks);
+		await rest("POST", "flows/save", { id: p.id, rev, flow });
 		toast(t("fl_saved", { name: p.name }));
 		S.flows = null; render();
 	} catch (e) { fail(e); }
 }
 
-// Editor: one flow, "when" keys and "then" actions
-function openFlow(p, presetTrigger) {
-	const cat = S.catalog || { triggers: [], targets: [] };
-	const editable = !p || p.editable;
-	const rule = p ? p.rules[0] : { conditions: [], actions: [] };
-	const draft = {
-		name: p ? p.name : "",
-		active: p ? p.active : true,
-		triggers: p ? [...new Set(rule.conditions.flatMap(c => c.singles).filter(s => s.press).map(s => s.dp))] : (presetTrigger ? [presetTrigger] : []),
-		actions: p ? rule.actions.map(a => ({ dp: a.dp, value: a.value })) : []
-	};
-	const trigLabel = dp => {
-		for (const tr of cat.triggers) {
-			const k = keyName({ channel_name: tr.name });
-			if (tr.short === dp) return k.device + ", " + k.key + " " + t("fl_key_short");
-			if (tr.long === dp) return k.device + ", " + k.key + " " + t("fl_key_long");
+async function openFlow(p, presetTrigger) {
+	let flow, rev = "";
+	try {
+		if (p) ({ flow, rev } = await rest("GET", "flows/" + p.id));
+		else {
+			const tr = presetTrigger && (S.catalog.triggers || []).find(x => x.short === presetTrigger || x.long === presetTrigger);
+			flow = { id: "", name: "", active: true, editable: true, reason: "", else: null,
+				branches: [{ when: { op: "or", groups: tr ? [[FE.newKey(tr, tr.long === presetTrigger)]] : [] }, then: [], stop_delays: true }] };
 		}
-		const s = p && rule.conditions.flatMap(c => c.singles).find(x => x.dp === dp);
-		return s ? keyName(s).device + ", " + keyName(s).key + " " + pressLabel(s.press) : dp;
-	};
-	const groups = [["scene", t("fl_g_scene")], ["switch", t("fl_g_switch")], ["blind", t("fl_g_blind")], ["level", t("fl_g_level")], ["sysvar", t("fl_g_sysvar")]];
-	const tgName = tg => tg.kind === "scene" ? tg.name.replace(/^Hue Szene /, "Hue ") : cleanName(tg.name);
-	const valueCtl = (a, tg, onchange) => {
-		if (!tg) return h("span", { class: "muted" }, a.value);
-		if ((tg.kind === "scene" || tg.kind === "sysvar") && tg.values && tg.values.length > 1) {
-			return h("select", { style: "width:auto", onchange: e => onchange(e.target.value) }, tg.values.map((v, i) => { const o = h("option", { value: String(i) }, tg.kind === "scene" && v === "Aus" ? t("fl_off") : v); o.selected = String(a.value) === String(i); return o; }));
-		}
-		if (tg.kind === "blind" || tg.kind === "level") {
-			const out = h("span", { class: "num muted", style: "min-width:48px;text-align:right" }, Math.round(parseFloat(a.value || 0) * 100) + " %");
-			return h("span", { style: "display:flex;gap:8px;align-items:center;min-width:200px" },
-				h("input", { type: "range", min: 0, max: 100, step: 5, value: Math.round(parseFloat(a.value || 0) * 100),
-					oninput: e => { out.textContent = e.target.value + " %"; onchange(String(e.target.value / 100)); } }), out);
-		}
-		const opts = [["true", t("fl_on")], ["false", t("fl_off")]];
-		if (tg.toggle) opts.push(["toggle", t("fl_toggle")]);
-		const cur = a.dp === tg.toggle ? "toggle" : a.value;
-		const seg = h("div", { class: "seg", role: "group" });
-		opts.forEach(([v, l]) => seg.append(h("button", { "aria-pressed": String(cur === v), onclick: e => {
-			seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b === e.currentTarget)));
-			onchange(v);
-		} }, l)));
-		return seg;
-	};
-	openSheet(() => {
-		const body = h("div", { class: "sheet-body" });
-		const draw = () => {
-			const name = h("input", { value: draft.name, placeholder: t("fl_name_ph"), "aria-label": t("fl_name"), disabled: !editable, oninput: e => draft.name = e.target.value });
-			const whenList = h("div", {}, draft.triggers.map((dp, i) => h("div", { class: "row" },
-				h("span", { class: "flow-dot" }), h("div", { class: "grow" }, trigLabel(dp)),
-				editable ? h("button", { class: "btn sm quiet", onclick: () => { draft.triggers.splice(i, 1); draw(); } }, t("remove")) : null)));
-			// Add a key: device, key and short/long
-			const keys = cat.triggers.slice().sort((a, b) => a.name.localeCompare(b.name));
-			const keySel = h("select", { style: "width:auto;max-width:100%", "aria-label": t("fl_add_key") },
-				h("option", { value: "" }, t("fl_pick_key")), keys.map(k => h("option", { value: k.short }, keyName({ channel_name: k.name }).device + ", " + keyName({ channel_name: k.name }).key + (k.rooms.length ? " (" + k.rooms.join(", ") + ")" : ""))));
-			const lenSeg = h("div", { class: "seg", role: "group" });
-			let len = "short";
-			[["short", t("fl_key_short")], ["long", t("fl_key_long")]].forEach(([v, l]) => lenSeg.append(h("button", { "aria-pressed": String(v === len), onclick: e => {
-				len = v; lenSeg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b === e.currentTarget))); } }, l)));
-			const addKey = h("div", { class: "flow-add" }, keySel, lenSeg, h("button", { class: "btn sm", onclick: () => {
-				const k = keys.find(x => x.short === keySel.value);
-				if (!k) return;
-				const dp = len === "long" ? k.long : k.short;
-				if (dp && !draft.triggers.includes(dp)) draft.triggers.push(dp);
-				draw();
-			} }, t("fl_add")));
-			const thenList = h("div", {}, draft.actions.map((a, i) => {
-				const tg = targetOf(a.dp);
-				return h("div", { class: "row", style: "flex-wrap:wrap" },
-					h("span", { class: "flow-dot target" }), h("div", { class: "grow", style: "min-width:160px;font-weight:560" }, tg ? tgName(tg) : cleanName(a.dp)),
-					editable ? valueCtl(a, tg, v => {
-						if (tg && tg.toggle && v === "toggle") { a.dp = tg.toggle; a.value = "true"; }
-						else if (tg && tg.kind === "switch") { a.dp = tg.dp; a.value = v; }
-						else a.value = v;
-					}) : h("span", { class: "muted" }, actionText(Object.assign({ name: a.dp === (tg && tg.toggle) ? ".TOGGLE" : "" }, a))),
-					editable ? h("button", { class: "btn sm quiet", onclick: () => { draft.actions.splice(i, 1); draw(); } }, t("remove")) : null);
-			}));
-			const tSel = h("select", { style: "width:auto;max-width:100%", "aria-label": t("fl_add_target") }, h("option", { value: "" }, t("fl_pick_target")),
-				groups.map(([k, l]) => { const items = cat.targets.filter(x => x.kind === k); return items.length ? h("optgroup", { label: l }, items.sort((a, b) => tgName(a).localeCompare(tgName(b))).map(x => h("option", { value: x.dp }, tgName(x)))) : null; }));
-			const addTarget = h("div", { class: "flow-add" }, tSel, h("button", { class: "btn sm", onclick: () => {
-				const tg = cat.targets.find(x => x.dp === tSel.value);
-				if (!tg) return;
-				const value = tg.kind === "switch" ? "true" : tg.kind === "blind" || tg.kind === "level" ? "1" : "1";
-				draft.actions.push({ dp: tg.dp, value });
-				draw();
-			} }, t("fl_add")));
-			const issues = p ? (flowIssues().get(p.id) || []) : [];
-			body.replaceChildren(...[
-				!editable ? h("div", { class: "notice", style: "margin-bottom:12px" }, h("div", {}, h("div", { class: "t-h3" }, t("fl_ro_title")), h("p", { class: "muted" }, t("fl_ro_text")))) : null,
-				...issues.map(x => h("div", { class: "notice", style: "margin-bottom:12px" }, h("div", { class: "grow" },
-					h("div", { class: "t-h3" }, x.kind === "repeat" ? t("fl_repeat_title") : t("fl_twice_title")),
-					h("p", { class: "muted" }, x.kind === "repeat" ? t("fl_repeat_text") : t("fl_twice_text", { names: x.others.join(", ") }))),
-					x.kind === "repeat" && editable ? h("button", { class: "btn sm primary", onclick: () => {
-						const k = cat.triggers.find(y => y.long && (rule.conditions.flatMap(c => c.singles).find(s => s.dp === x.dp) || {}).channel === y.channel);
-						if (k) { draft.triggers = draft.triggers.map(d => d === x.dp ? k.long : d); toast(t("fl_repeat_fixed")); draw(); }
-					} }, t("fl_repeat_fix")) : null)),
-				h("label", { class: "field" }, t("fl_name"), name),
-				h("div", { class: "big-toggle", style: "margin:12px 0" }, h("div", { class: "grow", style: "font-weight:600" }, t("fl_active_label")),
-					h("input", { type: "checkbox", class: "switch", role: "switch", checked: draft.active, disabled: !p && false, onchange: e => draft.active = e.target.checked })),
-				editable || draft.triggers.length ? h("div", { class: "section" }, h("div", { class: "t-h3" }, t("fl_when")), h("p", { class: "muted t-small", style: "margin:2px 0 6px" }, t("fl_when_text")), whenList, editable ? addKey : null) : null,
-				h("div", { class: "section" }, h("div", { class: "t-h3" }, t("fl_then")), thenList, editable ? addTarget : null),
-				!editable && p ? h("div", { class: "section" }, h("div", { class: "t-h3" }, t("fl_all_conditions")), flowLogic(p)) : null].filter(Boolean));
-			foot.replaceChildren(
-				p ? h("button", { class: "btn quiet", style: "color:var(--bad)", onclick: async () => {
-					if (!confirm(t("fl_delete_q", { name: p.name }))) return;
-					try { await rest("POST", "flows/" + p.id + "/delete"); toast(t("fl_deleted")); S.flows = null; closeSheet(); } catch (e) { fail(e); }
-				} }, t("fl_delete")) : h("span"),
-				h("span", { class: "grow" }),
-				!editable && p ? h("button", { class: "btn primary", onclick: async () => {
-					try { await rest("POST", "flows/" + p.id + "/active", { on: !p.active }); toast(t("saved")); S.flows = null; closeSheet(); } catch (e) { fail(e); }
-				} }, p.active ? t("fl_disable") : t("fl_enable"))
-				: h("button", { class: "btn primary", onclick: async e => {
-					if (!draft.name.trim()) { toast(t("fl_need_name"), true); return; }
-					if (!draft.triggers.length || !draft.actions.length) { toast(t("fl_need_both"), true); return; }
-					e.currentTarget.disabled = true;
-					try {
-						const body = { name: draft.name.trim(), active: draft.active, triggers: draft.triggers, actions: draft.actions };
-						await rest("POST", p ? "flows/" + p.id + "/update" : "flows/create", body);
-						toast(t("fl_saved", { name: body.name })); S.flows = null; closeSheet();
-					} catch (x) { fail(x); e.currentTarget.disabled = false; }
-				} }, t("save")));
-		};
-		const foot = h("div", { class: "sheet-foot" });
+	} catch (e) { fail(e); return; }
+	const draft = JSON.parse(JSON.stringify(flow));
+	const dirty = new Set();
+	const editable = draft.editable;
+	const views = () => draft.branches.map(FE.view);
+	const layoutOk = editable && views().every(v => v.ok);
+	let sel = null;          // {type: "trigger"|"cond"|"action"|"branch", b, i}
+	let preview = null;      // values from the CCU
+	const cat = S.catalog || { triggers: [], targets: [], conditions: [] };
+	const sheet = $("#sheet");
+	sheet.classList.add("xl");
+	sheet.addEventListener("close", () => sheet.classList.remove("xl"), { once: true });
+
+	// Edit helpers: change a branch through its canvas view
+	const edit = (b, fn) => {
+		const v = FE.view(draft.branches[b]);
+		const r = fn(v.triggers, v.checks) || {};
+		draft.branches[b].when = FE.rebuild(r.triggers || v.triggers, r.checks || v.checks);
+		dirty.add(b);
 		draw();
-		return [sheetHead(p ? p.name : t("fl_new"), p ? (p.last && !p.last.startsWith("1970") ? t("fl_last", { d: p.last }) : t("fl_never")) : t("fl_new_text")), body, foot];
+	};
+
+	const body = h("div", { class: "sheet-body fe-body" });
+	const foot = h("div", { class: "sheet-foot" });
+	const nameIn = h("input", { value: draft.name, placeholder: t("fl_name_ph"), "aria-label": t("fl_name"), class: "fe-name", disabled: !editable, oninput: e => draft.name = e.target.value });
+
+	const node = (cls, title, sub, onSelect, selected, mark) => h("button", { class: "fe-node " + cls + (selected ? " sel" : "") + (mark === true ? " ok" : mark === false ? " no" : ""), onclick: onSelect },
+		h("span", { class: "fe-title" }, title), sub ? h("span", { class: "fe-sub" }, sub) : null);
+
+	function canvas() {
+		const V = preview;
+		const wrap = h("div", { class: "fe-canvas" });
+		const col = (cls, head, kids) => h("div", { class: "fe-col " + cls }, h("div", { class: "fe-head" }, head), ...kids);
+		const vs = views();
+		// Column 1: triggers of the first branch
+		const trig = vs[0].triggers.map((it, i) => node("trigger", FE.itemText(it), FE.modeText(it), () => { sel = { type: "trigger", b: 0, i }; draw(); },
+			sel && sel.type === "trigger" && sel.i === i, null));
+		if (editable && layoutOk) trig.push(h("button", { class: "fe-add", onclick: () => { sel = { type: "trigger", b: 0, i: -1 }; draw(); } }, "+ " + t("fe_add_trigger")));
+		// Column 2 and 3: per branch condition and actions
+		const conds = [], acts = [];
+		draft.branches.forEach((br, b) => {
+			const v = vs[b];
+			const res = V ? FE.evalBranch(br, V) : null;
+			const condTxt = FE.condText(b ? { op: br.when.op, groups: br.when.groups } : v.checks);
+			const extra = b > 0 && v.triggers.length ? t("fe_also_triggers", { t: v.triggers.map(FE.modeText).filter(Boolean).join(", ") }) : "";
+			conds.push(h("div", { class: "fe-slot", "data-b": b },
+				b > 0 ? h("div", { class: "fe-badge no" }, t("fl_else_if")) : null,
+				condTxt || extra ? node("cond", condTxt || t("fe_always"), extra, () => { sel = { type: "cond", b }; draw(); }, sel && sel.type === "cond" && sel.b === b, res)
+					: h("div", { class: "fe-pass" }, t("fe_no_condition")),
+				editable && layoutOk && !condTxt ? h("button", { class: "fe-add", onclick: () => { sel = { type: "cond", b }; draw(); addCheck(b, -1); } }, "+ " + t("fe_add_condition")) : null));
+			acts.push(h("div", { class: "fe-slot", "data-b": b },
+				condTxt ? h("div", { class: "fe-badge yes" }, t("fe_yes_then")) : h("div", { class: "fe-badge" }, t("fl_then")),
+				...br.then.map((a, i) => node("action", FE.actText(a), "", () => { sel = { type: "action", b, i }; draw(); }, sel && sel.type === "action" && sel.b === b && sel.i === i, null)),
+				editable && layoutOk ? h("button", { class: "fe-add", onclick: () => { sel = { type: "action", b, i: -1 }; draw(); } }, "+ " + t("fe_add_action")) : null));
+		});
+		if (draft.else || (editable && layoutOk && vs.some(v => v.checks.groups.length))) {
+			conds.push(h("div", { class: "fe-slot else" }, draft.else ? h("div", { class: "fe-badge no" }, t("fe_no_else")) : null));
+			acts.push(h("div", { class: "fe-slot else" }, draft.else ? h("div", { class: "fe-badge no" }, t("fl_else")) : null,
+				...(draft.else ? draft.else.then.map((a, i) => node("action", FE.actText(a), "", () => { sel = { type: "action", b: -1, i }; draw(); }, sel && sel.type === "action" && sel.b === -1 && sel.i === i, null)) : []),
+				editable && layoutOk ? h("button", { class: "fe-add", onclick: () => { if (!draft.else) draft.else = { then: [], stop_delays: true }; sel = { type: "action", b: -1, i: -1 }; draw(); } }, "+ " + t(draft.else ? "fe_add_action" : "fe_add_else")) : null));
+		}
+		wrap.append(col("c1", t("fe_triggers"), trig), col("c2", t("fe_conditions"), conds), col("c3", t("fe_actions"), acts));
+		if (editable && layoutOk) wrap.append(h("div", { class: "fe-more" }, h("button", { class: "btn sm quiet", onclick: () => {
+			draft.branches.push({ when: { op: "or", groups: [] }, then: [], stop_delays: true }); dirty.add(draft.branches.length - 1); sel = { type: "cond", b: draft.branches.length - 1 }; draw(); addCheck(draft.branches.length - 1, -1);
+		} }, "+ " + t("fe_add_else_if"))));
+		return wrap;
+	}
+
+	// Lines between the columns, drawn after layout
+	function lines(wrap) {
+		const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+		svg.setAttribute("class", "fe-lines");
+		const box = wrap.getBoundingClientRect();
+		svg.setAttribute("width", box.width); svg.setAttribute("height", box.height);
+		const pt = (el, side) => { const r = el.getBoundingClientRect(); return [side === "r" ? r.right - box.left : r.left - box.left, r.top - box.top + Math.min(r.height / 2, 26)]; };
+		const path = (a, b, cls) => {
+			const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+			const mx = (a[0] + b[0]) / 2;
+			p.setAttribute("d", `M${a[0]},${a[1]} C${mx},${a[1]} ${mx},${b[1]} ${b[0]},${b[1]}`);
+			p.setAttribute("class", "edge " + (cls || ""));
+			svg.append(p);
+		};
+		const trig = [...wrap.querySelectorAll(".c1 .fe-node")];
+		const slots2 = [...wrap.querySelectorAll(".c2 .fe-slot")], slots3 = [...wrap.querySelectorAll(".c3 .fe-slot")];
+		const first2 = slots2[0] && (slots2[0].querySelector(".fe-node, .fe-pass"));
+		for (const n of trig) if (first2) path(pt(n, "r"), pt(first2, "l"));
+		slots2.forEach((s, i) => {
+			const c = s.querySelector(".fe-node, .fe-pass") || s.querySelector(".fe-badge");
+			const a = slots3[i] && slots3[i].querySelector(".fe-badge");
+			if (c && a) path(pt(c, "r"), pt(a, "l"), s.classList.contains("else") ? "no" : "yes");
+			const next = slots2[i + 1] && slots2[i + 1].querySelector(".fe-badge");
+			if (next && c && c !== next) {
+				const r = c.getBoundingClientRect(), n = next.getBoundingClientRect();
+				const x = r.left - box.left + 18;
+				const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+				p.setAttribute("d", `M${x},${r.bottom - box.top} L${x},${n.top - box.top}`);
+				p.setAttribute("class", "edge no");
+				svg.append(p);
+			}
+		});
+		wrap.prepend(svg);
+	}
+
+	// Inspector: editing the selected element
+	function inspector() {
+		const box = h("div", { class: "fe-inspect" });
+		if (!sel) {
+			box.append(h("p", { class: "muted t-small" }, editable ? t("fe_hint") : t("fl_ro_text")));
+			return box;
+		}
+		const close = () => { sel = null; draw(); };
+		const head = (title) => h("div", { class: "fe-ihead" }, h("div", { class: "t-h3 grow" }, title), h("button", { class: "btn icon-btn", "aria-label": t("close"), onclick: close }, icon("close")));
+		const del = (fn) => editable && layoutOk && !(sel && (sel.type === "trigger" || sel.type === "action") && sel.i < 0) ? h("button", { class: "btn sm quiet", style: "color:var(--bad)", onclick: () => { fn(); sel = null; draw(); } }, t("remove")) : null;
+		const vs = views();
+		if (sel.type === "trigger") {
+			const cur = sel.i >= 0 ? vs[0].triggers[sel.i] : null;
+			box.append(head(cur ? t("fe_trigger") : t("fe_add_trigger")));
+			box.append(conditionEditor(cur, true, it => edit(0, (tr) => {
+				const list = tr.slice();
+				if (sel.i >= 0) list[sel.i] = it; else { list.push(it); sel.i = list.length - 1; }
+				return { triggers: list };
+			})), del(() => edit(0, tr => ({ triggers: tr.filter((x, i) => i !== sel.i) }))));
+		} else if (sel.type === "cond") {
+			const b = sel.b, v = vs[b], br = draft.branches[b];
+			box.append(head(b > 0 ? t("fl_else_if") : t("fe_condition")));
+			const op = v.checks.op;
+			const groupsBox = h("div", { class: "fe-groups" });
+			v.checks.groups.forEach((g, gi) => {
+				if (gi) groupsBox.append(h("div", { class: "fe-join" }, t(op === "or" ? "fl_or" : "fl_and")));
+				const gb = h("div", { class: "fe-group" });
+				g.forEach((it, ii) => {
+					if (ii) gb.append(h("div", { class: "fe-join small" }, t(op === "or" ? "fl_and" : "fl_or")));
+					gb.append(h("details", { class: "fe-item", open: false },
+						h("summary", {}, FE.itemText(it), h("span", { class: "muted t-small" }, " " + FE.modeText(it))),
+						conditionEditor(it, false, nit => edit(b, (tr, ch) => { const gs = ch.groups.map(x => x.slice()); gs[gi][ii] = nit; return { checks: { op, groups: gs } }; })),
+						del(() => edit(b, (tr, ch) => { const gs = ch.groups.map(x => x.slice()); gs[gi].splice(ii, 1); return { checks: { op, groups: gs.filter(x => x.length) } }; }))));
+				});
+				if (editable && layoutOk) gb.append(h("button", { class: "fe-add small", onclick: () => addCheck(b, gi) }, "+ " + t(op === "or" ? "fl_and" : "fl_or")));
+				groupsBox.append(gb);
+			});
+			box.append(groupsBox);
+			if (editable && layoutOk) {
+				box.append(h("div", { class: "fe-addrow" },
+					h("button", { class: "btn sm", onclick: () => addCheck(b, -1) }, "+ " + (v.checks.groups.length ? t(op === "or" ? "fe_or_group" : "fe_and_group") : t("fe_add_condition"))),
+					v.checks.groups.length > 1 || (v.checks.groups.length === 1 && v.checks.groups[0].length > 1) ? h("button", { class: "btn sm quiet", onclick: () => edit(b, (tr, ch) => ({ checks: flipOp(ch) })) }, t("fe_flip")) : null));
+				box.append(h("label", { class: "fe-check" }, h("input", { type: "checkbox", checked: br.stop_delays !== false, onchange: e => { br.stop_delays = e.target.checked; } }), t("fe_stop_delays")));
+				if (b > 0) box.append(del(() => { draft.branches.splice(b, 1); }));
+			}
+		} else if (sel.type === "action") {
+			const list = sel.b === -1 ? draft.else.then : draft.branches[sel.b].then;
+			const cur = sel.i >= 0 ? list[sel.i] : null;
+			box.append(head(cur ? t("fe_action") : t("fe_add_action")));
+			box.append(actionEditor(cur, a => { if (sel.i >= 0) list[sel.i] = a; else { list.push(a); sel.i = list.length - 1; } draw(); }),
+				del(() => { list.splice(sel.i, 1); if (sel.b === -1 && !list.length) draft.else = null; }));
+			if (sel.b === -1 && editable && layoutOk) box.append(h("label", { class: "fe-check" }, h("input", { type: "checkbox", checked: draft.else && draft.else.stop_delays !== false, onchange: e => { if (draft.else) draft.else.stop_delays = e.target.checked; } }), t("fe_stop_delays")));
+		}
+		return box;
+	}
+	function flipOp(ch) {
+		// (a and b) or c  <->  (a or b) and c, item by item
+		return { op: ch.op === "or" ? "and" : "or", groups: ch.groups };
+	}
+	function addCheck(b, gi) {
+		const it = null;
+		const pick = conditionEditor(it, false, nit => edit(b, (tr, ch) => {
+			const gs = ch.groups.map(x => x.slice());
+			if (gi >= 0) gs[gi].push(nit); else gs.push([nit]);
+			return { checks: { op: ch.op || "or", groups: gs } };
+		}));
+		const box = $(".fe-inspect");
+		box.replaceChildren(h("div", { class: "fe-ihead" }, h("div", { class: "t-h3 grow" }, t("fe_add_condition")), h("button", { class: "btn icon-btn", "aria-label": t("close"), onclick: () => draw() }, icon("close"))), pick);
+	}
+
+	// Editor for one condition: source, comparison, value, trigger mode
+	function conditionEditor(it, asTrigger, done) {
+		const box = h("div", { class: "fe-form" });
+		if (!editable || !layoutOk) { box.append(h("p", { class: "muted" }, it ? FE.itemText(it) : "")); return box; }
+		let kind = it ? it.kind : (asTrigger ? "key" : "value");
+		const kinds = h("div", { class: "seg", role: "group" });
+		[["key", "fe_k_key"], ["value", "fe_k_value"], ["sysvar", "fe_k_sysvar"], ["time", "fe_k_time"]].filter(([k]) => asTrigger || k !== "key")
+			.forEach(([k, l]) => kinds.append(h("button", { "aria-pressed": String(kind === k), onclick: () => { kind = k; fill(); } }, t(l))));
+		const area = h("div", {});
+		const fill = () => {
+			kinds.querySelectorAll("button").forEach((b, i) => b.setAttribute("aria-pressed", String(b.textContent === t({ key: "fe_k_key", value: "fe_k_value", sysvar: "fe_k_sysvar", time: "fe_k_time" }[kind]))));
+			area.replaceChildren();
+			if (kind === "key") {
+				const keys = cat.triggers.slice().sort((a, b) => (a.room || "").localeCompare(b.room || "") || a.name.localeCompare(b.name));
+				const cur = it && it.kind === "key" ? keys.find(k => k.short === it.dp || k.long === it.dp) : null;
+				const sel1 = h("select", { "aria-label": t("fl_add_key") }, h("option", { value: "" }, t("fl_pick_key")),
+					keys.map(k => { const o = h("option", { value: k.short }, (k.room ? k.room + " · " : "") + FE.label(k.name, k.room, true)); o.selected = cur === k; return o; }));
+				let long = it && it.kind === "key" && cur ? it.dp === cur.long : false;
+				const len = h("div", { class: "seg", role: "group" });
+				[[false, "fl_key_short"], [true, "fl_key_long"]].forEach(([v, l]) => len.append(h("button", { "aria-pressed": String(long === v), onclick: e => { long = v; len.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === e.currentTarget))); } }, t(l))));
+				area.append(h("label", { class: "field" }, t("fe_key"), sel1), len,
+					h("button", { class: "btn primary sm", onclick: () => { const k = keys.find(x => x.short === sel1.value); if (k) done(FE.newKey(k, long && !!k.long)); } }, t("fe_apply")));
+			} else if (kind === "time") {
+				const tm = Object.assign({ type: 9, sot: 6, time: -1, dur: 0, wd: 0, rep: 0, count: 0, begin: "", end: "" }, it && it.kind === "time" ? it.tm : {});
+				let when = +tm.sot === 3 ? "day" : +tm.sot === 6 ? "night" : +tm.time < 0 ? "allday" : +tm.dur > 0 ? "range" : "at";
+				const whenSel = h("select", {}, [["night", "fe_night"], ["day", "fe_day"], ["range", "fe_range"], ["at", "fe_at_time"], ["allday", "fe_allday"]].map(([v, l]) => { const o = h("option", { value: v }, t(l)); o.selected = v === when; return o; }));
+				const from = h("input", { type: "time", value: +tm.time >= 0 ? FE.hhmm(+tm.time) : "18:00" });
+				const to = h("input", { type: "time", value: +tm.time >= 0 && +tm.dur ? FE.hhmm((+tm.time + +tm.dur) % 86400) : "22:00" });
+				const days = h("div", { class: "fe-days" }, FE.days.map((d, i) => h("label", {}, h("input", { type: "checkbox", "data-bit": 1 << i, checked: +tm.wd ? !!(+tm.wd & (1 << i)) : true }), t(d))));
+				const trig = h("select", {}, [["15", "fe_check_only"], ["13", "fe_on_time"]].map(([v, l]) => { const o = h("option", { value: v }, t(l)); o.selected = String(it ? it.ct2 : asTrigger ? "13" : "15") === v; return o; }));
+				const times = h("div", { class: "fe-row" }, from, h("span", { class: "muted" }, "–"), to);
+				const sync = () => { times.hidden = !["range", "at"].includes(whenSel.value); to.hidden = whenSel.value !== "range"; };
+				whenSel.onchange = sync; sync();
+				area.append(h("label", { class: "field" }, t("fe_when_time"), whenSel), times, h("div", { class: "field" }, t("fe_days"), days),
+					h("label", { class: "field" }, t("fe_mode"), trig),
+					h("button", { class: "btn primary sm", onclick: () => {
+						const w = whenSel.value, a = FE.secs(from.value), z = FE.secs(to.value);
+						let wd = 0; days.querySelectorAll("input").forEach(c => { if (c.checked) wd |= +c.dataset.bit; });
+						const ntm = Object.assign({}, tm, { type: wd === 127 || wd === 0 ? 9 : 5, wd: wd === 127 ? 0 : wd, sot: w === "day" ? 3 : w === "night" ? 6 : 0,
+							time: w === "range" || w === "at" ? Math.max(0, a) : -1, dur: w === "range" ? ((z - a + 86400) % 86400) : 0 });
+						if (ntm.type === 9 && wd && wd !== 127) ntm.type = 9;
+						done(Object.assign({}, it && it.kind === "time" ? it : FE.newTime(), { tm: ntm, ct2: trig.value }));
+					} }, t("fe_apply")));
+			} else {
+				const list = (cat.conditions || []).filter(c => c.kind === kind).slice().sort((a, b) => (a.room || "").localeCompare(b.room || "") || a.name.localeCompare(b.name));
+				const groups = {};
+				for (const c of list) (groups[c.group || "other"] = groups[c.group || "other"] || []).push(c);
+				const src = h("select", {}, h("option", { value: "" }, t("fe_pick_source")), Object.entries(groups).map(([g, cs]) => h("optgroup", { label: t("fe_g_" + g) },
+					cs.map(c => { const o = h("option", { value: c.dp }, (c.room ? c.room + " · " : "") + (c.kind === "sysvar" ? c.name : FE.label(c.name, c.room)) + (c.param && c.kind === "value" ? " – " + t("fe_p_" + c.param.toLowerCase()) : "")); o.selected = it && it.dp === c.dp; return o; }))));
+				const valArea = h("div", {});
+				const mode = h("select", {}, (asTrigger ? [["4", "fe_on_change"], ["13", "fe_on_update"]] : [["15", "fe_check_only"], ["4", "fe_on_change"], ["13", "fe_on_update"]]).map(([v, l]) => { const o = h("option", { value: v }, t(l)); o.selected = String(it && it.kind === kind ? it.ct2 : asTrigger ? "4" : "15") === v; return o; }));
+				let getter = null;
+				const fillVal = () => {
+					const c = list.find(x => x.dp === src.value);
+					valArea.replaceChildren(); getter = null;
+					if (!c) return;
+					const base = it && it.dp === c.dp ? it : FE.newCond(c, mode.value);
+					const rt = String(base.rt1);
+					if (rt === "2") {
+						const vSel = h("select", {}, [["true", c.kind === "sysvar" ? "fe_yes" : "fe_true_" + (c.param || "").toLowerCase()], ["false", c.kind === "sysvar" ? "fe_no" : "fe_false_" + (c.param || "").toLowerCase()]]
+							.map(([v, l]) => { const o = h("option", { value: v }, t(l).startsWith("fe_") ? t(v === "true" ? "fe_yes" : "fe_no") : t(l)); o.selected = String(base.rv1) === v; return o; }));
+						valArea.append(h("label", { class: "field" }, t("fe_value"), vSel));
+						getter = () => Object.assign({}, base, { ct: "1", rv1: vSel.value, rv2: "false" });
+					} else if (c.values && c.values.length > 1) {
+						const vSel = h("select", {}, c.values.map((v, i) => { const o = h("option", { value: String(i) }, v); o.selected = String(base.rv1) === String(i); return o; }));
+						valArea.append(h("label", { class: "field" }, t("fe_value"), vSel));
+						getter = () => Object.assign({}, base, { ct: "1", rv1: vSel.value, rv2: vSel.value });
+					} else if (rt === "20") {
+						const tIn = h("input", { value: base.rv1, placeholder: "short_release", pattern: "[A-Za-z0-9_ .:-]*" });
+						valArea.append(h("label", { class: "field" }, t("fe_value"), tIn));
+						getter = () => Object.assign({}, base, { ct: "1", rv1: tIn.value.trim(), rv2: tIn.value.trim() });
+					} else {
+						const cmp = h("select", {}, [["1", "="], ["8", ">"], ["9", "≥"], ["10", "<"], ["11", "≤"], ["7", t("fe_range_op")]].map(([v, l]) => { const o = h("option", { value: v }, l); o.selected = String(base.ct) === v || (v === "1" && String(base.ct) === "5"); return o; }));
+						const a = h("input", { type: "number", step: "any", value: parseFloat(base.rv1) || 0, style: "max-width:110px" });
+						const z = h("input", { type: "number", step: "any", value: parseFloat(base.rv2) || 0, style: "max-width:110px" });
+						const sync = () => z.hidden = cmp.value !== "7"; cmp.onchange = sync; sync();
+						valArea.append(h("div", { class: "fe-row" }, cmp, a, z));
+						const lit = v => rt === "4" ? (String(v).includes(".") ? String(v) : v + ".0") : String(Math.round(v));
+						getter = () => Object.assign({}, base, { ct: cmp.value === "1" && String(base.ct) === "5" ? "5" : cmp.value, rv1: lit(a.value || 0), rv2: lit(cmp.value === "7" ? (z.value || 0) : (a.value || 0)) });
+					}
+				};
+				src.onchange = fillVal; fillVal();
+				area.append(h("label", { class: "field" }, t("fe_source"), src), valArea, h("label", { class: "field" }, t("fe_mode"), mode),
+					h("button", { class: "btn primary sm", onclick: () => { if (getter) done(Object.assign(getter(), { ct2: mode.value, op: (it && it.op) || "1" })); } }, t("fe_apply")));
+			}
+		};
+		box.append(kinds, area);
+		fill();
+		return box;
+	}
+
+	// Editor for one action: target, value, delay
+	function actionEditor(a, done) {
+		const box = h("div", { class: "fe-form" });
+		if (!editable || !layoutOk) { box.append(h("p", { class: "muted" }, a ? FE.actText(a) : "")); return box; }
+		const order = ["scene", "hue_scene_key", "hue_light", "lamp", "shelly", "plug", "switch", "level", "blind", "awning", "output", "sysvar"];
+		const groups = {};
+		for (const tg of cat.targets) (groups[FE.groupOf(tg)] = groups[FE.groupOf(tg)] || []).push(tg);
+		const tgName = tg => tg.kind === "scene" ? tg.name.replace(/^Hue Szene /, "") : (tg.room ? tg.room + " · " : "") + FE.label(tg.name, tg.room);
+		const curTg = a ? FE.targetOf(a) : null;
+		const sel1 = h("select", {}, h("option", { value: "" }, t("fl_pick_target")),
+			order.filter(g => groups[g]).map(g => h("optgroup", { label: t("fe_t_" + g) }, groups[g].sort((x, y) => tgName(x).localeCompare(tgName(y))).map(tg => { const o = h("option", { value: tg.dp }, tgName(tg)); o.selected = curTg === tg; return o; }))));
+		const valBox = h("div", {});
+		let draftA = a ? Object.assign({}, a) : null;
+		const fillVal = () => {
+			const tg = cat.targets.find(x => x.dp === sel1.value);
+			valBox.replaceChildren();
+			if (!tg) return;
+			if (!draftA || (draftA.dp !== tg.dp && draftA.dp !== tg.toggle)) draftA = FE.newAction(tg);
+			if ((tg.kind === "scene" || tg.kind === "sysvar") && tg.values && tg.values.length > 1) {
+				const s = h("select", { onchange: e => draftA.value = e.target.value }, tg.values.map((v, i) => { const o = h("option", { value: String(i) }, tg.kind === "scene" && v === "Aus" ? t("fl_off") : v); o.selected = String(draftA.value) === String(i); return o; }));
+				valBox.append(h("label", { class: "field" }, t("fe_value"), s));
+			} else if (tg.kind === "blind" || tg.kind === "level") {
+				const out = h("span", { class: "num muted" }, Math.round(parseFloat(draftA.value || 0) * 100) + " %");
+				valBox.append(h("div", { class: "field" }, t("fe_value"), h("div", { class: "fe-row" }, h("input", { type: "range", min: 0, max: 100, step: 5, value: Math.round(parseFloat(draftA.value || 0) * 100),
+					oninput: e => { out.textContent = e.target.value + " %"; draftA.value = (e.target.value / 100).toFixed(2); } }), out)));
+			} else {
+				const opts = [["true", t("fl_on")], ["false", t("fl_off")]];
+				if (tg.toggle) opts.push(["toggle", t("fl_toggle")]);
+				const cur = draftA.dp === tg.toggle ? "toggle" : String(draftA.value);
+				const seg = h("div", { class: "seg", role: "group" });
+				opts.forEach(([v, l]) => seg.append(h("button", { "aria-pressed": String(cur === v), onclick: e => {
+					seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b === e.currentTarget)));
+					if (v === "toggle") Object.assign(draftA, { dp: tg.toggle, value: "true", name: tg.name + ".TOGGLE" }); else Object.assign(draftA, { dp: tg.dp, value: v, name: tg.name + ".STATE" });
+				} }, l)));
+				valBox.append(h("div", { class: "field" }, t("fe_value"), seg));
+			}
+		};
+		sel1.onchange = () => { draftA = null; fillVal(); };
+		fillVal();
+		const m = /^(\d\d):(\d\d):(\d\d)$/.exec(a && a.delay || "");
+		const secs = m ? +m[1] * 3600 + +m[2] * 60 + +m[3] : 0;
+		const unit = secs && secs % 3600 === 0 ? 3600 : secs && secs % 60 === 0 ? 60 : 1;
+		const dNum = h("input", { type: "number", min: 0, max: 359999, value: secs / unit, style: "max-width:90px" });
+		const dUnit = h("select", {}, [[1, "s"], [60, "min"], [3600, "h"]].map(([v, l]) => { const o = h("option", { value: v }, l); o.selected = unit === v; return o; }));
+		box.append(h("label", { class: "field" }, t("fe_target"), sel1), valBox,
+			h("div", { class: "field" }, t("fe_delay"), h("div", { class: "fe-row" }, dNum, dUnit, h("span", { class: "muted t-small" }, t("fe_delay_hint")))),
+			h("button", { class: "btn primary sm", onclick: () => {
+				if (!draftA) return;
+				const s = Math.max(0, Math.min(359999, Math.round((+dNum.value || 0) * +dUnit.value)));
+				draftA.delay = s ? [Math.floor(s / 3600), Math.floor(s % 3600 / 60), s % 60].map(x => String(x).padStart(2, "0")).join(":") : "";
+				done(draftA);
+			} }, t("fe_apply")));
+		return box;
+	}
+
+	function sentence() {
+		const vs = views();
+		const parts = [];
+		draft.branches.forEach((br, b) => {
+			const v = vs[b];
+			const cond = FE.condText(b ? { op: br.when.op, groups: br.when.groups } : v.checks);
+			const trig = b === 0 ? v.triggers.map(FE.itemText).join(" " + t("fl_or") + " ") : "";
+			parts.push(h("p", {}, h("b", {}, b ? t("fl_else_if") : t("fl_when")), " ", [trig, cond].filter(Boolean).join(", " + t("fe_and_if") + " ") || "–", ", ",
+				h("b", {}, t("fl_then").toLowerCase()), " ", br.then.map(FE.actText).join("; ") || "–", "."));
+		});
+		if (draft.else) parts.push(h("p", {}, h("b", {}, t("fl_else")), " ", draft.else.then.map(FE.actText).join("; ") || "–", "."));
+		return h("div", { class: "fe-sentence" }, ...parts);
+	}
+
+	async function runPreview() {
+		const dps = new Set();
+		for (const br of draft.branches) for (const g of br.when.groups) for (const it of g) if (it.dp && it.kind !== "key") dps.add(it.dp);
+		try { preview = await rest("POST", "flows/values", { dps: [...dps] }); draw(); }
+		catch (e) { fail(e); }
+	}
+	function previewNote() {
+		if (!preview) return null;
+		let which = t("fe_runs_none");
+		const i = draft.branches.findIndex(br => FE.evalBranch(br, preview));
+		if (i === 0) which = t("fe_runs_then");
+		else if (i > 0) which = t("fe_runs_elseif", { n: i });
+		else if (draft.else) which = t("fe_runs_else");
+		return h("div", { class: "notice fe-preview" }, h("div", { class: "grow" }, h("div", { class: "t-h3" }, which),
+			h("p", { class: "muted t-small" }, t("fe_preview_at", { now: preview.now.slice(0, 5), rise: preview.sunrise, set: preview.sunset }))),
+			h("button", { class: "btn sm quiet", onclick: () => { preview = null; draw(); } }, t("close")));
+	}
+
+	async function save(btn) {
+		draft.name = nameIn.value.trim();
+		if (!draft.name) { toast(t("fl_need_name"), true); return; }
+		const v0 = views()[0];
+		if (!v0.triggers.length) { toast(t("fe_need_trigger"), true); return; }
+		if (!draft.branches.some(b => b.then.length) && !(draft.else && draft.else.then.length)) { toast(t("fe_need_action"), true); return; }
+		const out = JSON.parse(JSON.stringify(draft));
+		out.branches = out.branches.filter((b, i) => i === 0 || b.when.groups.length);
+		if (out.else && !out.else.then.length) out.else = null;
+		const body = { id: draft.id || "", rev, flow: { name: out.name, active: out.active, branches: out.branches } };
+		if (out.else) body.flow.else = out.else;
+		btn.disabled = true;
+		try {
+			const r = await rest("POST", "flows/save", body);
+			toast(t("fl_saved", { name: draft.name }));
+			S.flows = null; closeSheet();
+			return r;
+		} catch (e) {
+			btn.disabled = false;
+			if (e.status === 409) toast(t("fe_conflict"), true); else fail(e);
+		}
+	}
+
+	function draw() {
+		const issues = p ? (flowIssues().get(p.id) || []) : [];
+		const ro = !editable ? t("fe_ro_" + (draft.reason || "other")) : !layoutOk ? t("fe_ro_layout") : "";
+		const canvasBox = h("div", { class: "fe-main" },
+			ro ? h("div", { class: "notice" }, h("div", {}, h("div", { class: "t-h3" }, t("fl_ro_title")), h("p", { class: "muted" }, ro))) : null,
+			...issues.map(x => h("div", { class: "notice" }, h("div", {}, h("div", { class: "t-h3" }, x.kind === "repeat" ? t("fl_repeat_title") : t("fl_twice_title")),
+				h("p", { class: "muted" }, x.kind === "repeat" ? t("fl_repeat_text") : t("fl_twice_text", { names: x.others.join(", ") }))))),
+			previewNote(),
+			editable && layoutOk ? h("div", { class: "fe-scroll" }, canvas()) : (p ? h("div", { class: "section" }, flowLogic(p)) : null),
+			editable && layoutOk ? sentence() : null);
+		body.replaceChildren(h("div", { class: "fe-top" }, nameIn,
+			h("label", { class: "fe-active" }, h("input", { type: "checkbox", class: "switch", role: "switch", checked: draft.active, onchange: e => draft.active = e.target.checked }), t("fl_active_label"))),
+			h("div", { class: "fe-split" }, canvasBox, inspector()));
+		const sc = body.querySelector(".fe-canvas");
+		if (sc) requestAnimationFrame(() => lines(sc));
+		foot.replaceChildren(...[
+			p ? h("button", { class: "btn quiet", style: "color:var(--bad)", onclick: async () => {
+				if (!confirm(t("fl_delete_q", { name: p.name }))) return;
+				try { await rest("POST", "flows/" + p.id + "/delete"); toast(t("fl_deleted")); S.flows = null; closeSheet(); } catch (e) { fail(e); }
+			} }, t("fl_delete")) : h("span"),
+			h("span", { class: "grow" }),
+			h("button", { class: "btn quiet", onclick: runPreview }, t("fe_preview")),
+			p ? h("button", { class: "btn quiet", onclick: async () => {
+				if (!confirm(t("fe_run_q", { name: p.name }))) return;
+				try { await rest("POST", "flows/" + p.id + "/run"); toast(t("fe_ran")); } catch (e) { fail(e); }
+			} }, t("fe_run")) : null,
+			editable && layoutOk ? h("button", { class: "btn primary", onclick: e => save(e.currentTarget) }, t("save"))
+				: p ? h("button", { class: "btn primary", onclick: async () => {
+					try { await rest("POST", "flows/" + p.id + "/active", { on: !p.active }); toast(t("saved")); S.flows = null; closeSheet(); } catch (e) { fail(e); }
+				} }, p.active ? t("fl_disable") : t("fl_enable")) : null].filter(Boolean));
+	}
+	openSheet(() => {
+		draw();
+		return [sheetHead(p ? p.name : t("fl_new"), p ? (p.last && !p.last.startsWith("1970") ? t("fl_last", { d: p.last }) : t("fl_never")) : t("fe_new_text")), body, foot];
 	});
+	window.addEventListener("resize", function rl() { if (!sheet.open) { window.removeEventListener("resize", rl); return; } const sc = body.querySelector(".fe-canvas"); if (sc) { sc.querySelector(".fe-lines")?.remove(); lines(sc); } });
 }
 
 /* ====================================================================== bridge system */

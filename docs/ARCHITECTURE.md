@@ -150,7 +150,7 @@ Die CUxD-Geräte speichern Bridge-ID, Objekttyp und eine ID im Befehl. Alte Ger�
 
 ### Abläufe
 
-`lib/flows.tcl` liest alle CCU-Programme mit einem ReGa-Skript und stellt sie als Graph aus Taste, Programm und Ziel dar. Anlegen, Ändern und Löschen erzeugt ReGa-Skripte aus geprüften Bausteinen (`check_name`, `check_value`). Vor jeder Änderung sichert das Addon das Programm nach `/usr/local/etc/config/hue-flow-backups` (die letzten 40). Das Programm in der CCU bleibt die einzige Quelle; Programme mit Bedingungen, „Sonst“ oder Skripten werden nur angezeigt.
+`lib/flows.tcl` liest alle CCU-Programme mit einem ReGa-Skript und stellt sie als Graph aus Taste, Programm und Ziel dar. Der Editor arbeitet auf einem Flow-Modell, das die Programmstruktur 1 : 1 abbildet (Zweige, Bedingungsgruppen, Aktionen, Zeitmodule); Speichern erzeugt ReGa-Skripte aus geprüften Bausteinen und erkennt über einen Prüfwert (`rev`), ob das Programm inzwischen in der CCU geändert wurde. Vor jeder Änderung sichert das Addon das Programm nach `/usr/local/etc/config/hue-flow-backups` (die letzten 40). Das Programm in der CCU bleibt die einzige Quelle; Programme mit Skripten werden nur angezeigt. Datenmodell: [FLOW_BUILDER.md](FLOW_BUILDER.md).
 
 ## Addon-Seite
 
@@ -169,7 +169,8 @@ Wichtige Pfade:
 | `discover-bridges`, `establish-link` | Bridge finden und verbinden |
 | `bridges/<id>/info\|objects\|system\|swupdate\|repin\|request` | Bridge-Daten, Status, Firmware, TLS-Schlüssel neu einlesen, Anfragen aus der Diagnose |
 | `create-cuxd-device`, `get-cuxd-device-map`, `create-sysvars` | CUxD-Geräte und Systemvariablen anlegen |
-| `flows/…` | Abläufe |
+| `flows`, `flows/<id>`, `flows/catalog` | Abläufe als Übersicht, ein Ablauf als Flow-Modell, wählbare Geräte und Werte |
+| `flows/save`, `flows/values`, `flows/<id>/run\|active\|delete` | Speichern mit Konfliktprüfung, Werte für die Vorschau, Ausführen, Pausieren, Löschen |
 | `extras/…` | Lampen ohne Hue |
 | `test-command` | `hue.tcl` mit Argumenten ausführen (Diagnose) |
 | `hued/status\|restart` | Dienst |

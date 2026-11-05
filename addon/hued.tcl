@@ -602,8 +602,18 @@ proc sync_scene_vars {b} {
 	variable scenevar_synced
 	hue::v2::aunset scenevars "$b|*"
 	set scenevar_synced($b) [hue::v2::loaded_at $b]
+	set used [list]
 	foreach owner [scene_owners $b] {
-		set name "Hue Szene [hue::v2::ascii [hue::v2::rget $b $owner metadata/name]]"
+		set label [hue::v2::ascii [hue::v2::rget $b $owner metadata/name]]
+		# Without a usable name ReGa cannot find the variable again and would
+		# create "Hue Szene 1", "Hue Szene 2", ... on every sync
+		if {$label == ""} { continue }
+		set name "Hue Szene $label"
+		if {[lsearch -exact $used [string tolower $name]] >= 0} {
+			hue::write_log 3 "Scene variable ${name} already used by another room or zone, skipping ${owner}"
+			continue
+		}
+		lappend used [string tolower $name]
 		set labels [list]
 		foreach rid [scenes_of $b $owner] {
 			set l [scene_label $b $rid]

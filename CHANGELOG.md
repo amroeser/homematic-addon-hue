@@ -1,7 +1,11 @@
 # Changelog
 
-## Unveröffentlicht
+## 4.1.3
 
+- Abläufe: neuer Editor. Auslöser (Taste, Gerät, Systemvariable, Zeit), Bedingung mit „und“/„oder“, Aktionen bei Ja und Nein, „Sonst, wenn“, Verzögerungen, tagsüber/nachts und Zeiträume. Bearbeitbar sind jetzt auch Programme mit Bedingungen, „Sonst“ und Verzögerungen; nur Programme mit Skripten bleiben der CCU vorbehalten.
+- Abläufe: Vorschau mit den aktuellen Werten (welcher Zweig liefe jetzt), „Jetzt ausführen“, Warnung, wenn das Programm inzwischen in der CCU geändert wurde.
+- Abläufe: Geräte werden erkannt und gruppiert: Hue-Räume und -Szenen-Tasten, Shellys, Steckdosen, Lampen, Rollläden, Markisen, Ausgänge von Wandtastern. Kanäle ohne Raum bekommen den Raum aus dem Namen.
+- Szenen als Systemvariablen: Szenen ohne Raumnamen (z. B. für alle Lampen) erzeugten bei jedem Abgleich eine neue Variable „Hue Szene 1“, „Hue Szene 2“ … Behoben; bereits angelegte leere Variablen bitte in der CCU löschen.
 - Releases tragen eine signierte Build-Provenance. Prüfen mit `gh attestation verify hm-hue.tar.gz -R amroeser/homematic-addon-hue`, siehe [SECURITY.md](SECURITY.md).
 
 ## 4.1.2
