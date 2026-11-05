@@ -1,8 +1,9 @@
 # Changelog
 
-## Unveröffentlicht
+## 4.1.2
 
 - Hue Bridge Pro: MotionAware-Bereiche erscheinen als Bewegungsmelder unter *Sensoren* und in den Systemvariablen `Hue_motionarea_<bridge>_<id>` (Bewegung) und `Hue_securityarea_<bridge>_<id>` (Hue Secure). Der Name kommt aus dem Bereich in der Hue-App. Bereiche, für die die Bridge keinen Bewegungswert sendet, zeigen „Keine Bewegung“ statt eines Fehlers.
+- Dokumentation: Architektur (`docs/ARCHITECTURE.md`) und Sicherheit (`SECURITY.md`) mit Meldeweg für Schwachstellen.
 
 ## 4.1.1
 
