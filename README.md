@@ -11,7 +11,7 @@
 [![Lizenz](https://img.shields.io/badge/Lizenz-GPLv3-2b8a57)](LICENSE)
 ![Zentralen](https://img.shields.io/badge/CCU3%20·%20OpenCCU%20·%20RaspberryMatic-unterst%C3%BCtzt-5a606b)
 
-[**Herunterladen**](https://github.com/amroeser/homematic-addon-hue/releases/latest) &nbsp;·&nbsp; [Schnellstart](#schnellstart) &nbsp;·&nbsp; [Dokumentation](#dokumentation) &nbsp;·&nbsp; [Änderungen](CHANGELOG.md)
+[**Herunterladen**](https://github.com/amroeser/homematic-addon-hue/releases/latest) &nbsp;·&nbsp; [Schnellstart](#schnellstart) &nbsp;·&nbsp; [Dokumentation](#dokumentation) &nbsp;·&nbsp; [Architektur](docs/ARCHITECTURE.md) &nbsp;·&nbsp; [Sicherheit](SECURITY.md) &nbsp;·&nbsp; [Änderungen](CHANGELOG.md)
 
 <br>
 
@@ -428,6 +428,8 @@ Die Addon-Seite meldet neue Versionen und installiert sie mit *Jetzt aktualisier
 
 Protokolle: `/tmp/hue-addon-log.txt` (auch in der Diagnose), `/tmp/hue-install.log`, `/tmp/hue-update.log`. Die Debug-Daten enthalten deine App-Keys, entferne `username` und `clientkey`, bevor du sie teilst.
 
+Sicherheitslücken bitte nicht als Issue melden, sondern wie in [SECURITY.md](SECURITY.md) beschrieben.
+
 </details>
 
 <details>
@@ -453,6 +455,8 @@ python3 tools/make_media.py                   # Screenshots und Videos neu erzeu
 | `addon/www/index.html` | Addon-Seite |
 
 Ein Release entsteht durch einen Tag `v<VERSION>`. GitHub Actions testet, baut und veröffentlicht das Paket mit Prüfsumme.
+
+Wie Dienst, Befehlszeile, Addon-Seite und Bridge zusammenspielen, beschreibt [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Sicherheitsmodell und Meldeweg für Schwachstellen stehen in [SECURITY.md](SECURITY.md).
 
 </details>
 
