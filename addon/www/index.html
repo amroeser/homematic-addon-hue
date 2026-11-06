@@ -228,6 +228,22 @@ input[type=range]::-moz-range-thumb { width: 26px; height: 26px; border: 0; bord
 .chip:hover { border-color: var(--ink-3); }
 .chip:active { transform: scale(.97); }
 .chip.active { border-color: var(--amber); background: var(--amber-soft); }
+/* Scene cards: the colours of the scene as a gradient, like a small picture */
+.scene-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px; margin: 0 0 16px; }
+.scene-card { position: relative; height: 68px; border: 0; border-radius: var(--r-md); background: var(--bg, var(--fill)); padding: 0; overflow: hidden; text-align: left;
+	box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); transition: transform 90ms ease-out, box-shadow 150ms; color: #fff; }
+.scene-card::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 35%, rgb(0 0 0 / .5)); pointer-events: none; }
+.scene-card .name { position: absolute; left: 10px; right: 10px; bottom: 8px; z-index: 1; font-weight: 600; font-size: .8125rem; line-height: 1.2;
+	text-shadow: 0 1px 2px rgb(0 0 0 / .45); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scene-card:hover { box-shadow: inset 0 0 0 1px rgba(0,0,0,.08), 0 2px 10px rgb(0 0 0 / .12); }
+.scene-card:active { transform: scale(.97); }
+.scene-card.active, .scene-card[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--amber); }
+.scene-card.add { background: transparent; box-shadow: none; border: 1.5px dashed var(--line); color: var(--ink-2); display: grid; place-items: center; text-align: center; }
+.scene-card.add::after { display: none; }
+.scene-card.add .name { position: static; text-shadow: none; display: inline-flex; gap: 6px; align-items: center; justify-content: center; }
+.scene-card.add:hover { border-color: var(--ink-3); color: var(--ink); }
+.scene-card.off { --bg: linear-gradient(120deg, #2b2d33, #45474f); }
+.scene-presets .t-small { margin: 0 0 10px; }
 
 .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(178px, 1fr)); gap: 12px; }
 /* The lamp tile glows in the real colour and brightness of the lamp */
@@ -687,6 +703,12 @@ const I18N = {
 		add_another: "Weiteres Gerät",
 		tech: "Technische Angaben", v1_id: "ID (API v1)", v2_id: "ID (API v2)", command: "Befehl", copy: "Kopieren", copied: "Kopiert",
 		close: "Schließen", cancel: "Abbrechen", save: "Speichern", remove: "Entfernen",
+		sc_scenes: "Szenen", sc_new: "Neue Szene", sc_create_title: "Neue Szene in {{room}}", sc_create_text: "Die Szene wird auf der Hue Bridge gespeichert. Sie erscheint auch in der Hue-App und in den Szenen-Listen der CCU.",
+		sc_whites: "Weißtöne", sc_colors: "Farben", sc_colors_hint: "Farblampen bekommen die Farben reihum, weiße Lampen ein passendes Weiß.", sc_name: "Name", sc_recall: "Gleich aufrufen",
+		sc_create: "Anlegen", sc_created: "Szene „{{name}}“ angelegt.", sc_exists: "In {{room}} gibt es schon eine Szene „{{name}}“.", sc_none: "Noch keine Szenen. Lege eine aus einer Vorlage an.",
+		sc_hint_app: "Szenen aus der Hue-App erscheinen hier automatisch.",
+		sp_warm: "Warmweiß", sp_cozy: "Gemütlich", sp_read: "Lesen", sp_focus: "Konzentrieren", sp_day: "Tageslicht", sp_night: "Nachtlicht",
+		sp_dusk: "Abendrot", sp_sea: "Meeresblau", sp_forest: "Waldlicht", sp_aurora: "Polarlicht", sp_fire: "Lagerfeuer", sp_lavender: "Lavendel", sp_cinema: "Kino", sp_party: "Party",
 		sensors_title: "Sensoren", sensors_text: "Werte von Hue-Sensoren und -Schaltern landen in Systemvariablen, die du in Programmen nutzen kannst.",
 		create_vars: "Fehlende Variablen anlegen ({{n}})", vars_created: "{{n}} Systemvariablen angelegt.",
 		no_sensors: "Keine Sensoren gefunden.", no_sensors_v1: "Sensoren werden mit API v2 unterstützt. Diese Bridge spricht nur API v1.",
@@ -882,6 +904,12 @@ const I18N = {
 		add_another: "Another device",
 		tech: "Technical details", v1_id: "ID (API v1)", v2_id: "ID (API v2)", command: "Command", copy: "Copy", copied: "Copied",
 		close: "Close", cancel: "Cancel", save: "Save", remove: "Remove",
+		sc_scenes: "Scenes", sc_new: "New scene", sc_create_title: "New scene in {{room}}", sc_create_text: "The scene is saved on the Hue Bridge. It also shows up in the Hue app and in the scene lists of the CCU.",
+		sc_whites: "Whites", sc_colors: "Colours", sc_colors_hint: "Colour lamps get the colours in turn, white lamps a matching white.", sc_name: "Name", sc_recall: "Recall now",
+		sc_create: "Create", sc_created: "Scene “{{name}}” created.", sc_exists: "{{room}} already has a scene “{{name}}”.", sc_none: "No scenes yet. Create one from a template.",
+		sc_hint_app: "Scenes from the Hue app show up here by themselves.",
+		sp_warm: "Warm white", sp_cozy: "Cosy", sp_read: "Reading", sp_focus: "Focus", sp_day: "Daylight", sp_night: "Night light",
+		sp_dusk: "Sunset glow", sp_sea: "Ocean blue", sp_forest: "Forest light", sp_aurora: "Aurora", sp_fire: "Campfire", sp_lavender: "Lavender", sp_cinema: "Cinema", sp_party: "Party",
 		sensors_title: "Sensors", sensors_text: "Values from Hue sensors and switches go into system variables you can use in programs.",
 		create_vars: "Create missing variables ({{n}})", vars_created: "{{n}} system variables created.",
 		no_sensors: "No sensors found.", no_sensors_v1: "Sensors need API v2. This bridge only speaks API v1.",
@@ -986,6 +1014,7 @@ const ICON = {
 	check: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>',
 	cross: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
 	warn: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 7v6M12 17h.01"/></svg>',
+	plus: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
 	close: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>'
 };
 function icon(name) { const s = h("span", { style: "display:inline-grid", "aria-hidden": "true" }); s.innerHTML = ICON[name]; return s; }
@@ -1223,7 +1252,7 @@ function roomSection(r, members, scenes) {
 			grouped ? h("button", { class: "btn quiet sm", onclick: () => openControl("group", r, members) }, t("more")) : null,
 			grouped ? h("input", { type: "checkbox", class: "switch", role: "switch", "aria-label": r.name, checked: on > 0,
 				onchange: e => roomPower(r, members, e.target.checked) }) : null),
-		scenes.length ? h("div", { class: "scenes" }, scenes.map(s => h("button", { class: "chip", onclick: e => recall(s, e.currentTarget) }, s.name))) : null,
+		scenes.length || canCreateScene(r) ? sceneCards(r, members, scenes) : null,
 		// Zones reuse lamps of rooms: list them by name instead of repeating the tiles
 		r.type === "zone" ? h("p", { class: "muted t-small", style: "margin:0" }, members.map(m => m.name).join(", "))
 			: h("div", { class: "tiles" }, members.map(tile), extrasOf(r).map(x => extraTile(x, r))));
@@ -1297,10 +1326,120 @@ async function allOff() {
 	refreshSoon();
 }
 async function recall(s, el) {
-	document.querySelectorAll(".scenes .chip.active").forEach(c => c.classList.remove("active"));
+	const box = el.closest(".scene-cards") || document;
+	box.querySelectorAll(".scene-card.active").forEach(c => c.classList.remove("active"));
 	el.classList.add("active");
 	try { await hue(["group", s.group || "0", "scene:" + s.id]); refreshSoon(); }
 	catch (e) { el.classList.remove("active"); fail(e); }
+}
+
+/* ====================================================================== scenes */
+// Colours of a scene (from the bridge) -> rgb list; dimmed lamps look darker
+function sceneRgbs(colors) {
+	return (colors || []).map(c => {
+		// White tones a bit lighter: the lamp looks white in the room, not orange
+		const rgb = Array.isArray(c.xy) ? xyToRgb(c.xy[0], c.xy[1]) : (c.mirek ? mirekToRgb(c.mirek) : [255, 214, 150]).map(v => Math.round(v + (255 - v) * 0.3));
+		const bri = c.bri == null ? 100 : Math.min(100, Math.max(0, c.bri));
+		const f = 0.5 + 0.5 * bri / 100;
+		return rgb.map(v => Math.round(v * f));
+	});
+}
+function sceneBg(rgbs) {
+	const list = [];
+	for (const c of rgbs || []) {
+		const last = list[list.length - 1];
+		if (!last || c.some((v, i) => Math.abs(v - last[i]) > 12)) list.push(c);
+		if (list.length === 6) break;
+	}
+	if (!list.length) list.push([255, 196, 120]);
+	if (list.length === 1) list.push(list[0].map(v => Math.round(v * 0.78)));
+	return "linear-gradient(120deg, " + list.map((c, i) => `rgb(${c.join(" ")}) ${Math.round(i * 100 / (list.length - 1))}%`).join(", ") + ")";
+}
+function sceneCard(name, bg, attrs) {
+	return h("button", Object.assign({ class: "scene-card", style: "--bg:" + bg, title: name }, attrs || {}), h("span", { class: "name" }, name));
+}
+// Own templates (names and colours of the addon). ct for white lamps, colours for colour lamps.
+const SCENE_PRESETS = [
+	{ k: "warm", ct: 454, bri: 70 }, { k: "cozy", ct: 400, bri: 45 }, { k: "read", ct: 290, bri: 100 },
+	{ k: "focus", ct: 233, bri: 100 }, { k: "day", ct: 182, bri: 100 }, { k: "night", ct: 500, bri: 4, colors: ["ff6a00"] },
+	{ k: "dusk", ct: 454, bri: 60, colors: ["ff5a1f", "ff9a3c", "d6336c"] }, { k: "sea", ct: 200, bri: 60, colors: ["0077b6", "00b4d8", "48cae4"] },
+	{ k: "forest", ct: 300, bri: 60, colors: ["2d6a4f", "74c69d", "b7e4c7"] }, { k: "aurora", ct: 200, bri: 50, colors: ["00f5a0", "00d9f5", "7b2ff7"] },
+	{ k: "fire", ct: 500, bri: 55, colors: ["ff4500", "ff8c00", "ffb347"] }, { k: "lavender", ct: 300, bri: 50, colors: ["b57edc", "e0b0ff", "8e7cc3"] },
+	{ k: "cinema", ct: 454, bri: 20, colors: ["3a0ca3", "4361ee", "7209b7"] }, { k: "party", ct: 300, bri: 90, colors: ["ff006e", "8338ec", "3a86ff", "ffbe0b"] }
+];
+function presetBg(p, bri) {
+	const b = bri == null ? p.bri : bri;
+	const cols = p.colors ? p.colors.map(c => { const [r, g, bl] = hexToRgb("#" + c); return { rgb: [r, g, bl] }; }) : [];
+	const rgbs = cols.length ? cols.map(c => c.rgb.map(v => Math.round(v * (0.5 + 0.5 * b / 100)))) : sceneRgbs([{ mirek: p.ct, bri: b }, { mirek: Math.min(500, p.ct + 40), bri: b }]);
+	return sceneBg(rgbs);
+}
+function canCreateScene(r) { return v2() && r && r.id != null && (r.type === "room" || r.type === "zone"); }
+function roomScenes(r) { return (S.objects.scenes || []).filter(s => String(s.group) === String(r.id)); }
+// The scenes of a room as cards; the last card creates a new one
+function sceneCards(r, members, scenes) {
+	return h("div", { class: "scene-cards" },
+		scenes.map(s => sceneCard(s.name, sceneBg(sceneRgbs(s.colors)), { class: "scene-card" + (s.active && s.active !== "inactive" ? " active" : ""),
+			onclick: e => recall(s, e.currentTarget) })),
+		canCreateScene(r) ? h("button", { class: "scene-card add", onclick: () => openSceneCreate(r, members) }, h("span", { class: "name" }, icon("plus"), t("sc_new"))) : null);
+}
+function freeSceneName(r, name) {
+	const taken = new Set(roomScenes(r).map(s => s.name.toLowerCase()));
+	if (!taken.has(name.toLowerCase())) return name;
+	for (let i = 2; i < 100; i++) if (!taken.has((name + " " + i).toLowerCase())) return name + " " + i;
+	return name;
+}
+function openSceneCreate(r, members) {
+	const hasColor = members.some(m => m.color);
+	let preset = SCENE_PRESETS[0];
+	const nameIn = h("input", { type: "text", maxlength: 32, value: freeSceneName(r, t("sp_" + preset.k)), "aria-label": t("sc_name") });
+	let nameTouched = false;
+	nameIn.addEventListener("input", () => { nameTouched = true; });
+	const briOut = h("span", { class: "muted num" }, preset.bri + " %");
+	const briIn = h("input", { type: "range", min: 1, max: 100, value: preset.bri, "aria-label": t("brightness") });
+	const recallIn = h("input", { type: "checkbox", class: "switch", role: "switch", checked: true, "aria-label": t("sc_recall") });
+	const cards = [];
+	const pick = (p, el) => {
+		preset = p;
+		cards.forEach(c => c.setAttribute("aria-pressed", String(c === el)));
+		briIn.value = p.bri; briOut.textContent = p.bri + " %";
+		if (!nameTouched) nameIn.value = freeSceneName(r, t("sp_" + p.k));
+	};
+	briIn.addEventListener("input", () => {
+		briOut.textContent = briIn.value + " %";
+		const el = cards.find(c => c.getAttribute("aria-pressed") === "true");
+		if (el) el.style.setProperty("--bg", presetBg(preset, +briIn.value));
+	});
+	const grid = list => h("div", { class: "scene-cards" }, list.map(p => {
+		const el = sceneCard(t("sp_" + p.k), presetBg(p), { "aria-pressed": String(p === preset), onclick: e => pick(p, e.currentTarget) });
+		cards.push(el);
+		return el;
+	}));
+	const create = async btn => {
+		const name = nameIn.value.trim();
+		if (!name) { nameIn.focus(); return; }
+		btn.disabled = true;
+		try {
+			const res = await rest("POST", "bridges/" + S.bridge + "/scene", { group: String(r.id), name, bri: +briIn.value, ct: preset.ct, colors: (preset.colors || []).join(",") });
+			toast(t("sc_created", { name }));
+			if (recallIn.checked && res && res.rid) await hue(["group", r.id, "scene:" + res.rid]).catch(fail);
+			closeSheet();
+			await loadObjects(false).catch(() => {});
+			render();
+		} catch (e) {
+			btn.disabled = false;
+			if (e.status === 409) toast(t("sc_exists", { room: r.name, name }), true); else fail(e);
+		}
+	};
+	openSheet(() => [sheetHead(t("sc_create_title", { room: r.name }), t("sc_create_text")),
+		h("div", { class: "sheet-body scene-presets" },
+			h("div", { class: "section" }, h("div", { class: "t-h3" }, t("sc_whites")), grid(SCENE_PRESETS.filter(p => !p.colors || p.k === "night"))),
+			hasColor ? h("div", { class: "section" }, h("div", { class: "t-h3" }, t("sc_colors")), h("p", { class: "muted t-small" }, t("sc_colors_hint")),
+				grid(SCENE_PRESETS.filter(p => p.colors && p.k !== "night"))) : null,
+			h("div", { class: "section" }, h("label", { class: "field" }, t("sc_name"), nameIn)),
+			h("div", { class: "section" }, h("div", { style: "display:flex;justify-content:space-between;align-items:baseline" }, h("span", { class: "t-h3" }, t("brightness")), briOut), briIn),
+			h("div", { class: "section" }, h("div", { class: "big-toggle" }, h("div", { class: "grow t-h3" }, t("sc_recall")), recallIn))),
+		h("div", { class: "sheet-foot" }, h("button", { class: "btn", onclick: closeSheet }, t("cancel")),
+			h("button", { class: "btn primary", onclick: e => create(e.currentTarget) }, t("sc_create")))]);
 }
 
 async function addAll(btn) {
@@ -1529,6 +1668,8 @@ function openControl(type, obj, members, focus) {
 		sections.push(hmSection(type, obj));
 		if (type === "group") {
 			const sc = (S.objects.scenes || []).filter(s => String(s.group) === String(id));
+			if (sc.length || canCreateScene(obj)) sections.push(h("div", { class: "section" }, h("div", { class: "t-h3" }, t("sc_scenes")),
+				sc.length ? null : h("p", { class: "muted t-small", style: "margin:0 0 10px" }, t("sc_none")), sceneCards(obj, members, sc)));
 			if (sc.length) { sections.push(sceneVarSection(obj)); sections.push(sceneKeySection(obj, sc)); }
 		}
 		sections.push(techSection(type, obj));
@@ -2701,7 +2842,21 @@ async function openFlow(p, presetTrigger) {
 			valBox.replaceChildren();
 			if (!tg) return;
 			if (!draftA || (draftA.dp !== tg.dp && draftA.dp !== tg.toggle)) draftA = FE.newAction(tg);
-			if ((tg.kind === "scene" || tg.kind === "sysvar") && tg.values && tg.values.length > 1) {
+			if (tg.kind === "scene" && tg.values && tg.values.length > 1) {
+				// The scenes of the room as colour cards, "Aus" as dark card
+				const room = ((S.objects && S.objects.groups) || []).find(g => "Hue Szene " + asciiName(g.name) === tg.name);
+				const known = room ? roomScenes(room) : [];
+				const cardsBox = h("div", { class: "scene-cards", role: "group" });
+				tg.values.forEach((v, i) => {
+					if (v === "(entfernt)" && String(draftA.value) !== String(i)) return;
+					const sc = known.find(x => x.name === v || asciiName(x.name) === v);
+					const off = v === "Aus";
+					cardsBox.append(sceneCard(off ? t("fl_off") : v, off ? "linear-gradient(120deg, #2b2d33, #45474f)" : sceneBg(sceneRgbs(sc ? sc.colors : [])), {
+						"aria-pressed": String(String(draftA.value) === String(i)),
+						onclick: e => { draftA.value = String(i); cardsBox.querySelectorAll(".scene-card").forEach(c => c.setAttribute("aria-pressed", String(c === e.currentTarget))); } }));
+				});
+				valBox.append(h("div", { class: "field" }, t("fe_value"), cardsBox));
+			} else if ((tg.kind === "scene" || tg.kind === "sysvar") && tg.values && tg.values.length > 1) {
 				const s = h("select", { onchange: e => draftA.value = e.target.value }, tg.values.map((v, i) => { const o = h("option", { value: String(i) }, tg.kind === "scene" && v === "Aus" ? t("fl_off") : v); o.selected = String(draftA.value) === String(i); return o; }));
 				valBox.append(h("label", { class: "field" }, t("fe_value"), s));
 			} else if (tg.kind === "blind" || tg.kind === "level") {

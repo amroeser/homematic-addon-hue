@@ -168,6 +168,7 @@ Wichtige Pfade:
 | `config`, `config/global`, `config/bridge/<id>` | Einstellungen lesen und schreiben |
 | `discover-bridges`, `establish-link` | Bridge finden und verbinden |
 | `bridges/<id>/info\|objects\|system\|swupdate\|repin\|request` | Bridge-Daten, Status, Firmware, TLS-Schlüssel neu einlesen, Anfragen aus der Diagnose |
+| `bridges/<id>/scene` (POST) | Neue Szene in einem Raum oder einer Zone aus einer Vorlage (`group`, `name`, `bri`, `ct`, `colors`), 409 bei gleichem Namen |
 | `create-cuxd-device`, `get-cuxd-device-map`, `create-sysvars` | CUxD-Geräte und Systemvariablen anlegen |
 | `flows`, `flows/<id>`, `flows/catalog` | Abläufe als Übersicht, ein Ablauf als Flow-Modell, wählbare Geräte und Werte |
 | `flows/save`, `flows/values`, `flows/<id>/run\|active\|delete` | Speichern mit Konfliktprüfung, Werte für die Vorschau, Ausführen, Pausieren, Löschen |

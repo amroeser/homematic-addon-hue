@@ -1268,6 +1268,106 @@ proc ::hue::v2::xyjson {xy} {
 	return "\[[lindex $xy 0],[lindex $xy 1]\]"
 }
 
+# One colour entry of a scene: {"xy":[x,y],"bri":n} or {"mirek":n,"bri":n} or {"bri":n}
+proc ::hue::v2::scene_color {b rid path} {
+	set bri [rget $b $rid $path/dimming/brightness 100]
+	if {![isnum $bri]} { set bri 100 }
+	set x [rget $b $rid $path/color/xy/x]
+	set y [rget $b $rid $path/color/xy/y]
+	if {[isnum $x] && [isnum $y]} {
+		return [jobj xy "\[$x,$y\]" bri $bri]
+	}
+	set m [rget $b $rid $path/color_temperature/mirek]
+	if {[isnum $m]} {
+		return [jobj mirek $m bri $bri]
+	}
+	return [jobj bri $bri]
+}
+
+# The colours of a scene for the web UI, lamp by lamp (lamps that stay off are left out).
+# Gradient lamps add their points. Scenes without lamp actions show their palette.
+proc ::hue::v2::scene_colors {b rid} {
+	set out [list]
+	for {set i 0} {$i < [rget $b $rid actions/# 0]} {incr i} {
+		set a "actions/$i/action"
+		if {[string equal [rget $b $rid $a/on/on true] "false"]} { continue }
+		set np [rget $b $rid $a/gradient/points/# 0]
+		if {$np > 0} {
+			set bri [rget $b $rid $a/dimming/brightness 100]
+			for {set k 0} {$k < $np && $k < 5} {incr k} {
+				set x [rget $b $rid $a/gradient/points/$k/color/xy/x]
+				set y [rget $b $rid $a/gradient/points/$k/color/xy/y]
+				if {[isnum $x] && [isnum $y] && [isnum $bri]} {
+					lappend out [jobj xy "\[$x,$y\]" bri $bri]
+				}
+			}
+			continue
+		}
+		lappend out [scene_color $b $rid $a]
+	}
+	if {![llength $out]} {
+		for {set i 0} {$i < [rget $b $rid palette/color/# 0]} {incr i} {
+			lappend out [scene_color $b $rid palette/color/$i]
+		}
+		for {set i 0} {$i < [rget $b $rid palette/color_temperature/# 0]} {incr i} {
+			lappend out [scene_color $b $rid palette/color_temperature/$i]
+		}
+	}
+	return [::hue::json::arr $out]
+}
+
+# Create a scene in a room or zone (CLIP v2 POST resource/scene).
+# group: v1 group id or rid; bri: 1..100 %; ct: mirek for white lamps ("" = none);
+# colors: list of "rrggbb", given to the colour lamps in turn. Returns the new scene rid.
+proc ::hue::v2::create_scene {bridge_id group name bri ct colors} {
+	set b $bridge_id
+	ensure_loaded $b
+	set gl [group_rid $b $group]
+	set owner [lookup $b "owner_of,$gl"]
+	set otype [rget $b $owner type]
+	if {$gl == "" || [lsearch -exact {room zone} $otype] < 0} {
+		error "Scenes need a room or zone"
+	}
+	set name [string trim $name]
+	if {$name == "" || [string length $name] > 32 || [regexp {[\x00-\x1f]} $name]} {
+		error "Invalid scene name"
+	}
+	foreach srid [resources $b scene] {
+		if {[string equal [rget $b $srid group/rid] $owner] && [string equal -nocase [rget $b $srid metadata/name] $name]} {
+			error "Scene ${name} exists"
+		}
+	}
+	if {![isnum $bri] || $bri < 1 || $bri > 100} { error "Invalid brightness" }
+	if {$ct != "" && (![string is integer -strict $ct] || $ct < 153 || $ct > 500)} { error "Invalid colour temperature" }
+	if {[llength $colors] > 8} { error "Too many colours" }
+	foreach c $colors {
+		if {![regexp {^[0-9a-fA-F]{6}$} $c]} { error "Invalid colour ${c}" }
+	}
+	set lights [group_light_rids $b $gl]
+	if {![llength $lights]} { error "No lights in this group" }
+	set actions [list]
+	set ci 0
+	foreach l $lights {
+		set act [list on [jobj on true] dimming [jobj brightness [num $bri]]]
+		set mmin [rget $b $l color_temperature/mirek_schema/mirek_minimum]
+		set mmax [rget $b $l color_temperature/mirek_schema/mirek_maximum]
+		if {[llength $colors] && [rhas $b $l color/xy/x]} {
+			set xy [color_to_xy [lindex $colors [expr {$ci % [llength $colors]}]] [gamut_of $b $l]]
+			incr ci
+			lappend act color [jobj xy $xy]
+		} elseif {$ct != "" && [isnum $mmin] && [isnum $mmax]} {
+			lappend act color_temperature [jobj mirek [expr {int([clamp $ct $mmin $mmax])}]]
+		}
+		lappend actions [jobj target [jobj rid [jstr $l] rtype [jstr light]] action [::hue::json::objl $act]]
+	}
+	set body [jobj type [jstr scene] metadata [jobj name [jstr $name]] \
+		group [jobj rid [jstr $owner] rtype [jstr $otype]] actions [::hue::json::arr $actions]]
+	request "command" $b POST "resource/scene" $body P
+	set rid [::hue::json::get P data/0/rid]
+	load $b
+	return $rid
+}
+
 proc ::hue::v2::objects_json {bridge_id {reload 1}} {
 	set b $bridge_id
 	if {$reload} { load $b } else { ensure_loaded $b }
@@ -1307,7 +1407,8 @@ proc ::hue::v2::objects_json {bridge_id {reload 1}} {
 		set grp [rget $b $rid group/rid]
 		set gv1 [lookup $b "v1_group,[lookup $b gl_of,$grp]"]
 		lappend scenes [jobj id [jstr $id] rid [jstr $rid] name [jstr [rget $b $rid metadata/name]] \
-			group [jstr $gv1] group_name [jstr [rget $b $grp metadata/name]]]
+			group [jstr $gv1] group_name [jstr [rget $b $grp metadata/name]] \
+			active [jstr [rget $b $rid status/active inactive]] colors [scene_colors $b $rid]]
 	}
 	set sensors [list]
 	foreach s [sensor_list $b] {

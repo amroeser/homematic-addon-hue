@@ -106,7 +106,7 @@ Schaltest du einen Shelly am Wandschalter, erfährt HomeMatic es trotzdem. Das A
 
 ### Deine Räume auf einen Blick
 
-Jede Lampe leuchtet in ihrer echten Farbe und Helligkeit, und das live. Antippen schaltet. Szenen rufst du direkt im Raum auf.
+Jede Lampe leuchtet in ihrer echten Farbe und Helligkeit, und das live. Antippen schaltet. Szenen erscheinen je Raum als Kacheln in ihren Farben, die aktive ist markiert. Neue Szenen legst du aus Vorlagen an.
 
 </td>
 </tr>
@@ -259,6 +259,8 @@ Das Addon legt drei Arten von CUxD-Geräten an:
 | **Farbe und Helligkeit** (`VIR-LG-RGBW-DIM`) | Schalten, Dimmen, Farbe, Weißton | Lampen und Räume, empfohlen |
 | **Getrennte Kanäle** (Multi-DIM) | Kanal 2 Helligkeit, 3 Weißton, 4 Farbton, 5 Sättigung, Kanal 1 liest den Status neu | Programme, die einzelne Werte setzen |
 | **Nur schalten** (`VIR-LG-ONOFF`) | An und aus | Steckdosen, einfache Lampen |
+
+**Szenen anlegen:** Unter jedem Raum und in seinen Details zeigt das Addon die Szenen der Bridge als Kacheln mit den Farben ihrer Lampen. „Neue Szene“ öffnet eigene Vorlagen des Addons: Weißtöne (Warmweiß, Gemütlich, Lesen, Konzentrieren, Tageslicht, Nachtlicht) und Farbstimmungen (Abendrot, Meeresblau, Waldlicht, Polarlicht, Lagerfeuer, Lavendel, Kino, Party). Name und Helligkeit sind änderbar. Farblampen bekommen die Farben reihum, weiße Lampen das passende Weiß. Die Szene wird auf der Bridge gespeichert und erscheint in der Hue-App, in den Szenen-Auswahllisten der CCU und im Ablauf-Editor. Die Szenengalerie der Hue-App selbst ist über die Bridge nicht abrufbar. Benötigt API v2.
 
 **Empfehlung:** Ein Gerät je Raum und je Zone, nicht je Lampe. Ein Raumbefehl schaltet alle Lampen gleichzeitig mit einem einzigen Funkbefehl. Einzelne Lampen nur dort, wo du sie einzeln brauchst. Was nur Licht betrifft (Hue-Schalter, Bewegungsmelder), regelt die Bridge selbst am schnellsten; HomeMatic übernimmt die Logik über Systemgrenzen hinweg.
 

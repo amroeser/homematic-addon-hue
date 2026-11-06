@@ -1191,6 +1191,56 @@ class AddonTest(unittest.TestCase):
         finally:
             links.unlink()
 
+    def test_67_scene_colors_and_create(self):
+        """Scene cards: colours per lamp from the bridge; new scenes from templates via POST resource/scene."""
+        st, o = self.rest("GET", f"bridges/{BRIDGE}/objects")
+        self.assertEqual(st, 200, o)
+        morning = next(x for x in o["scenes"] if x["name"] == "Guten Morgen")
+        self.assertIn(morning["active"], ("inactive", "static"))
+        self.assertEqual([c.get("mirek") for c in morning["colors"]], [250])
+        self.assertEqual(morning["colors"][0]["bri"], 100)
+        ctl("/_log")
+        st, r = self.rest("POST", f"bridges/{BRIDGE}/scene", {"group": "1", "name": "Meeresblau", "bri": 60, "ct": 200, "colors": "0077b6,00b4d8"})
+        self.assertEqual(st, 200, r)
+        self.assertTrue(r["rid"])
+        posts = [x for x in ctl("/_log") if x["method"] == "POST"]
+        self.assertEqual(len(posts), 1, posts)
+        body = posts[0]["body"]
+        self.assertEqual(body["type"], "scene")
+        self.assertEqual(body["metadata"]["name"], "Meeresblau")
+        self.assertEqual(body["group"]["rtype"], "room")
+        acts = {a["target"]["rid"]: a["action"] for a in body["actions"]}
+        self.assertEqual(len(acts), 2)
+        self.assertIn("color", acts[light_rid(1)])               # colour lamp: first colour
+        self.assertEqual(acts[light_rid(2)]["color_temperature"], {"mirek": 200})  # white lamp: the white of the template
+        self.assertTrue(all(a["on"]["on"] and a["dimming"]["brightness"] == 60 for a in acts.values()))
+        try:
+            st, o = self.rest("GET", f"bridges/{BRIDGE}/objects")
+            new = next(x for x in o["scenes"] if x["name"] == "Meeresblau")
+            self.assertEqual(new["group"], "1")
+            self.assertTrue(any(isinstance(c.get("xy"), list) for c in new["colors"]))
+            # The same name in the same room: 409; bad input: 400
+            st, r = self.rest("POST", f"bridges/{BRIDGE}/scene", {"group": "1", "name": "meeresblau", "bri": 50})
+            self.assertEqual(st, 409, r)
+            for bad in ({"group": "0", "name": "X", "bri": 50}, {"group": "1", "name": "", "bri": 50},
+                        {"group": "1", "name": "Y" * 33, "bri": 50}, {"group": "1", "name": "Z", "bri": 0},
+                        {"group": "1", "name": "Z", "bri": 50, "ct": 90}, {"group": "1", "name": "Z", "bri": 50, "colors": "red"}):
+                st, r = self.rest("POST", f"bridges/{BRIDGE}/scene", bad)
+                self.assertEqual(st, 400, (bad, r))
+            st, r = self.rest("GET", f"bridges/{BRIDGE}/scene")
+            self.assertEqual(st, 405, r)
+            # Zones work too; a lamp without colour and white gets only brightness
+            st, r = self.rest("POST", f"bridges/{BRIDGE}/scene", {"group": "2", "name": "Nacht", "bri": 5, "ct": 500})
+            self.assertEqual(st, 200, r)
+            body = [x for x in ctl("/_log") if x["method"] == "POST"][-1]["body"]
+            self.assertEqual(body["group"]["rtype"], "zone")
+            self.assertEqual(body["actions"][0]["action"], {"on": {"on": True}, "dimming": {"brightness": 5}})
+        finally:
+            st, o = self.rest("GET", f"bridges/{BRIDGE}/objects")
+            for x in o["scenes"]:
+                if x["name"] in ("Meeresblau", "Nacht"):
+                    ctl("/_scene_delete", {"id": x["id"]})
+
     def test_66_flow_backups_and_names(self):
         """Earlier versions of a program: list and load as draft; names with umlauts are written as Latin-1."""
         (RUN / "flows_dump.txt").write_text(self.EDITOR_DUMP, encoding="utf-8")

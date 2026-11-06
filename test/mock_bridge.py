@@ -93,6 +93,10 @@ class Model:
             "Konzentrier0001": ("Konzentrieren", "1", {"1": dict(on=True, bri=254, ct=233), "2": dict(on=True, bri=254, ct=233)}),
             "Nachtlicht00001": ("Nachtlicht", "3", {"6": dict(on=True, bri=10, ct=500), "7": dict(on=False)}),
             "Kochen000000001": ("Kochen", "2", {"4": dict(on=True, bri=254, ct=250), "5": dict(on=True, bri=200, ct=300)}),
+            "Kinoabend000001": ("Kinoabend", "1", {"1": dict(on=True, bri=90, xy=[0.25, 0.1]), "2": dict(on=True, bri=40, ct=454),
+                                                    "3": dict(on=True, bri=110, xy=[0.17, 0.12])}),
+            "Sonnenunterg001": ("Abendrot", "1", {"1": dict(on=True, bri=150, xy=[0.6, 0.37]), "2": dict(on=True, bri=120, ct=454),
+                                                   "3": dict(on=True, bri=150, xy=[0.53, 0.3])}),
         }
 
     # --- ids -------------------------------------------------------------
@@ -193,9 +197,20 @@ class Model:
                         "owner": {"rid": self.group_owner_rid(g), "rtype": owner_type},
                         "on": {"on": bool(on_lights)}, "dimming": {"brightness": round(bri, 2)},
                         "alert": {"action_values": ["breathe"]}})
-        for s, (name, g, _) in self.scenes.items():
+        for s, (name, g, states) in self.scenes.items():
+            actions = []
+            for n, st in states.items():
+                a = {"on": {"on": bool(st.get("on"))}}
+                if st.get("bri"):
+                    a["dimming"] = {"brightness": round(st["bri"] * 100 / 254, 2)}
+                if st.get("xy"):
+                    a["color"] = {"xy": {"x": st["xy"][0], "y": st["xy"][1]}}
+                elif st.get("ct"):
+                    a["color_temperature"] = {"mirek": st["ct"]}
+                actions.append({"target": {"rid": self.light_rid(n), "rtype": "light"}, "action": a})
             out.append({"id": self.scene_rid(s), "id_v1": f"/scenes/{s}", "type": "scene",
-                        "metadata": {"name": name}, "group": {"rid": self.group_owner_rid(g), "rtype": "room"},
+                        "metadata": {"name": name}, "group": {"rid": self.group_owner_rid(g), "rtype": self.groups[g][0] if g in self.groups else "room"},
+                        "actions": actions,
                         "status": {"active": "static" if self.active_scene.get(g) == s else "inactive"}})
         out.append({"id": rid("bridge"), "id_v1": "", "type": "bridge", "bridge_id": "001788fffe000000",
                     "owner": {"rid": rid("bridge-device"), "rtype": "device"}})
@@ -245,6 +260,49 @@ class Model:
             if self.gl_rid(g) == r:
                 return g
         return None
+
+    def add_scene_v2(self, body):
+        """POST resource/scene as the bridge checks it: name, group, light targets of that group."""
+        try:
+            p = json.loads(body)
+        except ValueError:
+            return "Bad body", None
+        name = (p.get("metadata") or {}).get("name", "")
+        if p.get("type") != "scene" or not (1 <= len(name) <= 32):
+            return "invalid scene name", None
+        grid = (p.get("group") or {}).get("rid")
+        g = next((g for g in self.groups if self.group_owner_rid(g) == grid), None)
+        if g is None:
+            return "group not found", None
+        if any(v[0] == name and v[1] == g for v in self.scenes.values()):
+            return "duplicate scene name", None
+        states = {}
+        for a in p.get("actions") or []:
+            n = self.find_light_by_rid((a.get("target") or {}).get("rid"))
+            if n is None or n not in self.group_lights(g):
+                return "target not in group", None
+            act = a.get("action") or {}
+            st = {"on": bool((act.get("on") or {}).get("on"))}
+            if "dimming" in act:
+                b = act["dimming"]["brightness"]
+                if not (0 < b <= 100):
+                    return "brightness out of range", None
+                st["bri"] = round(b * 254 / 100)
+            if "color" in act:
+                st["xy"] = [act["color"]["xy"]["x"], act["color"]["xy"]["y"]]
+            if "color_temperature" in act:
+                m = act["color_temperature"]["mirek"]
+                if not (153 <= m <= 500):
+                    return "mirek out of range", None
+                st["ct"] = m
+            states[n] = st
+        if not states:
+            return "no actions", None
+        sid = "New" + str(len(self.scenes) + 1).zfill(12)
+        self.scenes[sid] = (name, g, states)
+        res = [r for r in self.v2_resources() if r["id"] == self.scene_rid(sid)]
+        self.emit(res, "add")
+        return None, sid
 
     def find_scene(self, r):
         for s in self.scenes:
@@ -513,6 +571,12 @@ class Handler(BaseHTTPRequestHandler):
                     if found:
                         return self.send_json({"errors": [], "data": found})
                     return self.send_json({"errors": [{"description": "Not Found"}], "data": []}, 404)
+            if method == "POST" and parts == ["resource", "scene"]:
+                self.record(method, body)
+                err, sid = M.add_scene_v2(body)
+                if err:
+                    return self.send_json({"errors": [{"description": err}], "data": []}, 400)
+                return self.send_json({"errors": [], "data": [{"rid": M.scene_rid(sid), "rtype": "scene"}]})
             if method == "PUT" and len(parts) == 3:
                 self.record(method, body)
                 try:

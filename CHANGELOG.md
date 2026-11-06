@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.1.9
+
+- Szenen: je Raum als Kacheln in den Farben ihrer Lampen, die aktive Szene ist markiert. Auch in den Raum-Details und bei der Szenenwahl im Ablauf-Editor.
+- Szenen: „Neue Szene“ legt aus eigenen Vorlagen (6 Weißtöne, 8 Farbstimmungen) eine Szene auf der Bridge an, mit Name und Helligkeit. Sie erscheint auch in der Hue-App und in den Szenen-Auswahllisten der CCU.
+
 ## 4.1.8
 
 - Lampen ohne Hue: je Lampe zwei Schalter „Mit dem Raum einschalten“ und „Mit dem Raum ausschalten“. Damit geht auch „nur an“ und „gar nicht“ (dann nur über Szenen oder von Hand). Bisherige Einstellungen bleiben erhalten.

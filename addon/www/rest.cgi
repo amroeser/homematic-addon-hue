@@ -410,6 +410,18 @@ proc process {} {
 					}
 					return [hue::objects_json $id]
 				}
+				scene {
+					# New scene in a room or zone from a template of the web UI
+					if {![string equal $method "POST"]} { error "POST required" "Method Not Allowed" 405 }
+					if {![hue::v2::active $id]} { error "Needs the Hue API v2" "Bad Request" 400 }
+					set colors [list]
+					foreach c [split [arg colors] ","] { if {[string trim $c] != ""} { lappend colors [string trim $c] } }
+					if {[catch {hue::v2::create_scene $id [arg group] [arg name] [arg bri 100] [arg ct] $colors} res]} {
+						if {[string match "Scene * exists" $res]} { error $res "Conflict" 409 }
+						error $res "Bad Request" 400
+					}
+					return [jobj ok true rid [jstr $res]]
+				}
 				system {
 					# Cloud, Hue account, firmware updates, apps with access
 					return [hue::system::status_json $id]
