@@ -258,7 +258,8 @@ input[type=range]::-moz-range-thumb { width: 26px; height: 26px; border: 0; bord
 .extra-row .row { padding: 8px 0; }
 .extra-ic { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--fill-2); color: var(--ink-3); flex: none; }
 .extra-ic.on { background: rgb(255 206 140); color: rgba(0,0,0,.5); box-shadow: 0 0 16px rgb(255 206 140 / .8); }
-.extra-follow { display: grid; gap: 8px; margin-top: 14px; padding: 12px; border-radius: var(--r-md); background: var(--fill); }
+.extra-check { display: flex; align-items: center; gap: 10px; font-size: .875rem; cursor: pointer; }
+.extra-follow { display: grid; gap: 12px; margin-top: 14px; padding: 12px; border-radius: var(--r-md); background: var(--fill); }
 .extra-opts { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding-left: 44px; }
 .extra-opts details { width: 100%; }
 .extra-opts summary { cursor: pointer; color: var(--ink-2); font-weight: 540; padding: 6px 0; }
@@ -589,7 +590,7 @@ const I18N = {
 		fl_last: "Zuletzt ausgeführt: {{d}}", fl_never: "Noch nicht ausgeführt",
 		extras_follow: "Mitschalten, wenn der Raum geschaltet wird", extras_follow_all: "Immer", extras_follow_addon: "Nur über HomeMatic", extras_follow_none: "Nur über Szenen",
 		extras_follow_text: "„Immer“: auch aus der Hue-App und mit Hue-Schaltern, wenn der ganze Raum schaltet. „Nur über HomeMatic“: Addon-Seite, CUxD-Raumgerät und Programme. Einzelne Hue-Lampen schalten nie mit.",
-		extras_only_hue: "Einmal nur die Hue-Lampen schalten:", extras_only_hue_on: "Nur Hue an", extras_only_hue_off: "Nur Hue aus",
+		extras_only_hue: "Nur die Hue-Lampen schalten, diese Lampen bleiben, wie sie sind:", extras_only_hue_on: "An", extras_only_hue_off: "Aus", extras_follow_app: "Auch bei Hue-App und Hue-Schaltern", extras_follow_app_text: "Aus: Sie schalten nur mit, wenn du den Raum über HomeMatic schaltest, also auf dieser Seite, mit dem CUxD-Raumgerät oder in einem Programm.",
 		extras_only_hue_on_done: "Hue-Lampen an, die übrigen Lampen bleiben, wie sie sind.", extras_only_hue_off_done: "Hue-Lampen aus, die übrigen Lampen bleiben, wie sie sind.",
 		fe_every: "Wiederholen", fe_every_hint: "alle n Tage bzw. Wochen, 1 = jeden", fe_every_days: "alle {{n}} Tage", fe_every_weeks: "alle {{n}} Wochen", fe_valid: "Gültig (optional)", fe_until: "bis {{d}}",
 		fe_undo: "Rückgängig", fe_backups: "Frühere Fassungen", fe_backups_text: "Vor jeder Änderung sichert das Addon das Programm auf der CCU. Laden übernimmt eine Fassung in den Editor; gespeichert wird erst mit „Speichern“.",
@@ -727,11 +728,11 @@ const I18N = {
 		ob_add: "Alle zu HomeMatic hinzufügen", ob_later: "Später",
 		login: "Anmelden", username: "Benutzername", password: "Passwort", login_text: "Melde dich mit deinem CCU-Konto an.",
 		failed: "Das hat nicht geklappt: {{e}}",
-		extras: "Weitere Lampen", extras_text: "Lampen ohne Hue, etwa am Shelly oder an einem HomeMatic-Aktor. Sie schalten mit, wenn der ganze Raum geschaltet wird; wann genau, legst du unten fest.",
+		extras: "Weitere Lampen", extras_text: "Lampen ohne Hue in diesem Raum, etwa am Shelly oder an einem HomeMatic-Aktor. Schaltest du den ganzen Raum, schalten sie mit. Eine einzelne Hue-Lampe schaltet sie nie.",
 		extras_none: "In diesem Raum gibt es noch keine weiteren Lampen.", extras_add: "Lampe hinzufügen", extras_loading: "Suche Schaltaktoren in der CCU …",
 		extras_suggested: "Passt zu diesem Raum", extras_other: "Alle anderen Schaltaktoren", extras_empty: "Die CCU hat keine weiteren Schaltaktoren.",
-		extras_pick: "Hinzufügen", extras_added: "{{name}} schaltet jetzt mit dem Raum.", extras_removed: "{{name}} entfernt.",
-		extras_mode_both: "An und aus", extras_mode_off: "Nur aus", extras_scenes: "Bei Szenen", extras_scene_keep: "Unverändert",
+		extras_pick: "Hinzufügen", extras_added: "{{name}} schaltet jetzt mit dem Raum an und aus.", extras_removed: "{{name}} entfernt.",
+		extras_with_on: "Mit dem Raum einschalten", extras_with_off: "Mit dem Raum ausschalten", extras_scenes: "Bei Szenen", extras_scene_keep: "Unverändert",
 		extra_on: "An", extra_off: "Aus", extra_unknown: "Zustand unbekannt",
 		shelly_sync: "Shelly-Zustand abgleichen", shelly_sync_text: "Für Shellys hinter CUxD-Schaltern: Das Addon liest alle 10 Sekunden das Relais und korrigiert den Zustand in HomeMatic, etwa nach dem Wandschalter.",
 		scene_state: "Szenen-Tasten zeigen ihre Szene", scene_state_text: "Eine Szenen-Taste steht nur auf „an“, solange ihre Szene aktiv ist. So wechseln Programme mit „Umschalten“ zuverlässig zwischen den Szenen eines Raums.",
@@ -784,7 +785,7 @@ const I18N = {
 		fl_last: "Last run: {{d}}", fl_never: "Not run yet",
 		extras_follow: "Switch along when the room switches", extras_follow_all: "Always", extras_follow_addon: "Only via HomeMatic", extras_follow_none: "Only via scenes",
 		extras_follow_text: "“Always”: also from the Hue app and Hue switches when the whole room switches. “Only via HomeMatic”: addon page, CUxD room device and programs. Single Hue lamps never switch them.",
-		extras_only_hue: "Switch only the Hue lamps once:", extras_only_hue_on: "Only Hue on", extras_only_hue_off: "Only Hue off",
+		extras_only_hue: "Switch only the Hue lamps, these lamps stay as they are:", extras_only_hue_on: "On", extras_only_hue_off: "Off", extras_follow_app: "Also from the Hue app and Hue switches", extras_follow_app_text: "Off: they switch along only when you switch the room via HomeMatic, on this page, with the CUxD room device or in a program.",
 		extras_only_hue_on_done: "Hue lamps on, the other lamps stay as they are.", extras_only_hue_off_done: "Hue lamps off, the other lamps stay as they are.",
 		fe_every: "Repeat", fe_every_hint: "every n days or weeks, 1 = every", fe_every_days: "every {{n}} days", fe_every_weeks: "every {{n}} weeks", fe_valid: "Valid (optional)", fe_until: "until {{d}}",
 		fe_undo: "Undo", fe_backups: "Earlier versions", fe_backups_text: "Before every change the addon backs up the program on the CCU. Load puts a version into the editor; it is saved only with “Save”.",
@@ -922,11 +923,11 @@ const I18N = {
 		ob_add: "Add all to HomeMatic", ob_later: "Later",
 		login: "Log in", username: "User name", password: "Password", login_text: "Log in with your CCU account.",
 		failed: "That did not work: {{e}}",
-		extras: "More lamps", extras_text: "Lamps without Hue, for example on a Shelly or a HomeMatic actuator. They switch along when the whole room switches; set below when exactly.",
+		extras: "More lamps", extras_text: "Lamps without Hue in this room, for example on a Shelly or a HomeMatic actuator. When you switch the whole room, they switch along. A single Hue lamp never switches them.",
 		extras_none: "This room has no other lamps yet.", extras_add: "Add a lamp", extras_loading: "Looking for switch actuators in the CCU …",
 		extras_suggested: "Matches this room", extras_other: "All other switch actuators", extras_empty: "The CCU has no other switch actuators.",
 		extras_pick: "Add", extras_added: "{{name}} now switches with the room.", extras_removed: "{{name}} removed.",
-		extras_mode_both: "On and off", extras_mode_off: "Off only", extras_scenes: "In scenes", extras_scene_keep: "Unchanged",
+		extras_with_on: "Switch on with the room", extras_with_off: "Switch off with the room", extras_scenes: "In scenes", extras_scene_keep: "Unchanged",
 		extra_on: "On", extra_off: "Off", extra_unknown: "State unknown",
 		shelly_sync: "Read back Shelly state", shelly_sync_text: "For Shellys behind CUxD switches: every 10 seconds the addon reads the relay and corrects the state in HomeMatic, for example after the wall switch.",
 		scene_state: "Scene buttons show their scene", scene_state_text: "A scene button is only “on” while its scene is active. Programs that toggle switch reliably between the scenes of a room.",
@@ -1400,28 +1401,36 @@ function extrasSection(room) {
 		const add = h("button", { class: "btn", style: "margin-top:10px", onclick: e => openPicker(e.currentTarget) }, t("extras_add"));
 		picker.replaceChildren();
 		box.replaceChildren(h("div", { class: "t-h3" }, t("extras")), h("p", { class: "muted t-small", style: "margin:0 0 10px" }, t("extras_text")),
-			list.length ? h("div", {}, list.map(x => h("div", { class: "extra-row" },
-				h("div", { class: "row" },
-					h("span", { class: "extra-ic" + (x.on ? " on" : "") }, icon("plug")),
-					h("div", { class: "grow" }, h("div", { style: "font-weight:600" }, extraName(x)), h("div", { class: "muted t-small" }, extraState(x))),
-					h("input", { type: "checkbox", class: "switch", role: "switch", "aria-label": extraName(x), checked: x.on === true, onchange: e => switchExtra(x, e.target.checked) })),
-				h("div", { class: "extra-opts" },
-					seg([["both", t("extras_mode_both")], ["off", t("extras_mode_off")]], x.mode, v => save("room", { room: room.owner, channel: x.channel, mode: v })),
-					h("button", { class: "btn quiet sm", onclick: async () => {
-						try { await save("room", { room: room.owner, channel: x.channel, mode: "" }); toast(t("extras_removed", { name: extraName(x) })); draw(); render(); } catch (e) { fail(e); }
-					} }, t("remove")),
-					scenes.length ? h("details", {}, h("summary", {}, t("extras_scenes")),
-						scenes.map(sc => h("div", { class: "extra-scene" }, h("div", { class: "grow" }, sc.name),
-							seg([["", t("extras_scene_keep")], ["on", t("extra_on")], ["off", t("extra_off")]], sceneVal(sc, x.channel),
-								v => save("scene", { scene: sc.rid, channel: x.channel, mode: v }))))) : null))))
+			list.length ? h("div", {}, list.map(x => {
+				// Two plain questions per lamp instead of modes: on with the room? off with the room?
+				const withOn = x.mode === "both" || x.mode === "on", withOff = x.mode === "both" || x.mode === "off";
+				const setMode = (on, off) => save("room", { room: room.owner, channel: x.channel, mode: on && off ? "both" : on ? "on" : off ? "off" : "none" });
+				const sw = (label, checked, onchange) => h("label", { class: "extra-check" },
+					h("input", { type: "checkbox", class: "switch", role: "switch", checked, onchange: async e => { try { await onchange(e.target.checked); } catch (er) { fail(er); } } }), label);
+				return h("div", { class: "extra-row" },
+					h("div", { class: "row" },
+						h("span", { class: "extra-ic" + (x.on ? " on" : "") }, icon("plug")),
+						h("div", { class: "grow" }, h("div", { style: "font-weight:600" }, extraName(x)), h("div", { class: "muted t-small" }, extraState(x))),
+						h("input", { type: "checkbox", class: "switch", role: "switch", "aria-label": extraName(x), checked: x.on === true, onchange: e => switchExtra(x, e.target.checked) })),
+					h("div", { class: "extra-opts" },
+						sw(t("extras_with_on"), withOn, v => setMode(v, withOff)),
+						sw(t("extras_with_off"), withOff, v => setMode(withOn, v)),
+						scenes.length ? h("details", {}, h("summary", {}, t("extras_scenes")),
+							scenes.map(sc => h("div", { class: "extra-scene" }, h("div", { class: "grow" }, sc.name),
+								seg([["", t("extras_scene_keep")], ["on", t("extra_on")], ["off", t("extra_off")]], sceneVal(sc, x.channel),
+									v => save("scene", { scene: sc.rid, channel: x.channel, mode: v }))))) : null,
+						h("button", { class: "btn quiet sm", onclick: async () => {
+							try { await save("room", { room: room.owner, channel: x.channel, mode: "" }); toast(t("extras_removed", { name: extraName(x) })); draw(); render(); } catch (e) { fail(e); }
+						} }, t("remove"))));
+			}))
 				: h("p", { class: "muted", style: "margin:0" }, t("extras_none")),
 			list.length ? h("div", { class: "extra-follow" },
-				h("div", { style: "font-weight:600" }, t("extras_follow")),
-				seg([["all", t("extras_follow_all")], ["addon", t("extras_follow_addon")], ["none", t("extras_follow_none")]],
-					(((S.extras || {}).follow || {})[room.owner]) || "all", v => save("follow", { room: room.owner, mode: v })),
-				h("p", { class: "muted t-small", style: "margin:0" }, t("extras_follow_text")),
+				h("label", { class: "extra-check" },
+					h("input", { type: "checkbox", class: "switch", role: "switch", checked: ((((S.extras || {}).follow || {})[room.owner]) || "all") === "all",
+						onchange: async e => { try { await save("follow", { room: room.owner, mode: e.target.checked ? "all" : "addon" }); } catch (er) { fail(er); } } }),
+					h("span", {}, h("span", { style: "font-weight:600" }, t("extras_follow_app")), h("br"), h("span", { class: "muted t-small" }, t("extras_follow_app_text")))),
 				h("div", { class: "row", style: "flex-wrap:wrap;gap:8px" },
-					h("span", { class: "grow muted t-small" }, t("extras_only_hue")),
+					h("span", { class: "grow t-small" }, t("extras_only_hue")),
 					h("button", { class: "btn sm", onclick: () => onlyHue(room, true) }, t("extras_only_hue_on")),
 					h("button", { class: "btn sm", onclick: () => onlyHue(room, false) }, t("extras_only_hue_off")))) : null,
 			add, picker);

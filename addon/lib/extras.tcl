@@ -79,7 +79,8 @@ proc ::hue::extras::put {kind bridge_id rid entries} {
 		error "Invalid room or scene"
 	}
 	foreach e $entries {
-		if {[llength $e] != 2 || ![valid_channel [lindex $e 0]] || [lsearch -exact {both off on} [lindex $e 1]] < 0} {
+		# Room: both | on | off | none (on/off with the room), scene: on | off
+		if {[llength $e] != 2 || ![valid_channel [lindex $e 0]] || [lsearch -exact {both off on none} [lindex $e 1]] < 0} {
 			error "Invalid entry ${e}"
 		}
 	}

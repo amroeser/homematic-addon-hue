@@ -539,7 +539,7 @@ proc process {} {
 					set ch [arg channel]
 					set mode [arg mode]
 					if {![hue::extras::valid_channel $ch] || ![hue::extras::valid_rid $rid]} { error "Invalid channel or ${action}" "Bad Request" 400 }
-					if {[string equal $action "room"]} { set ok {both off} } else { set ok {on off} }
+					if {[string equal $action "room"]} { set ok {both on off none} } else { set ok {on off} }
 					if {$mode != "" && [lsearch -exact $ok $mode] < 0} { error "Invalid mode" "Bad Request" 400 }
 					hue::extras::set_entry $action $b $rid $ch $mode
 					catch { hue::hued_command "reload_extras" }

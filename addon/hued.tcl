@@ -926,11 +926,12 @@ proc process_extras {b {init 0}} {
 		catch {unset want}
 		array set want {}
 		if {$room_switched} {
+			# Per lamp: on with the room (both, on), off with the room (both, off), none
 			foreach e $extras_rooms($k) {
 				foreach {ch mode} $e break
-				if {!$on} {
+				if {!$on && [lsearch -exact {both off} $mode] >= 0} {
 					set want($ch) 0
-				} elseif {[string equal $mode "both"]} {
+				} elseif {$on && [lsearch -exact {both on} $mode] >= 0} {
 					set want($ch) 1
 				}
 			}

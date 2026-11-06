@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.1.8
+
+- Lampen ohne Hue: je Lampe zwei Schalter „Mit dem Raum einschalten“ und „Mit dem Raum ausschalten“. Damit geht auch „nur an“ und „gar nicht“ (dann nur über Szenen oder von Hand). Bisherige Einstellungen bleiben erhalten.
+- Lampen ohne Hue: einfachere Bedienung. Je Raum ein Schalter „Auch bei Hue-App und Hue-Schaltern“, darunter „Nur die Hue-Lampen schalten: An / Aus“.
+
 ## 4.1.7
 
 - Lampen ohne Hue im Raum: Schaltete man eine einzelne Hue-Lampe des Raums (Addon-Seite, Handy, Hue-App), gingen Shelly und Steckdose mit an bzw. aus. Sie folgen jetzt nur dem Raum: wenn alle seine Hue-Lampen gemeinsam schalten, eine Szene aufgerufen wird oder der Raum über das Addon geschaltet wird (CUxD-Raumgerät, Programm, Addon-Seite).
