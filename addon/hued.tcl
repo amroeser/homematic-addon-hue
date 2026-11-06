@@ -778,12 +778,20 @@ variable extras_scenes
 array set extras_scenes {}
 variable extras_last
 array set extras_last {}
+# When the more lamps follow their room: all | addon | none (see extras.tcl)
+variable extras_follow
+array set extras_follow {}
+# Room on with not yet all lamps on: time of the change, see process_extras
+variable extras_pending
+array set extras_pending {}
 
 proc load_extras {} {
 	variable extras_rooms
 	variable extras_scenes
+	variable extras_follow
 	hue::v2::aunset extras_rooms *
 	hue::v2::aunset extras_scenes *
+	hue::v2::aunset extras_follow *
 	if {[catch {hue::extras::all} all]} {
 		hue::write_log 1 "More lamps: ${all}"
 		return
@@ -792,6 +800,8 @@ proc load_extras {} {
 		foreach {kind b rid entries} $e break
 		if {[string equal $kind "room"]} {
 			set extras_rooms($b|$rid) $entries
+		} elseif {[string equal $kind "follow"]} {
+			set extras_follow($b|$rid) $entries
 		} else {
 			set extras_scenes($b|$rid) $entries
 		}
@@ -823,10 +833,39 @@ proc active_scene {b owner} {
 }
 
 # init 1: only remember the current state (after loading the assignments)
+# Room switched through the addon (CUxD room device, program, addon page): {room rid -> time}
+variable extras_cmd
+array set extras_cmd {}
+proc note_room_command {b obj_id params {only_hue 0}} {
+	variable extras_cmd
+	set b [string tolower $b]
+	if {![hue::v2::active $b]} { return }
+	# Direction of the command: on/off, a brightness or a scene switches on
+	array set P $params
+	set on ""
+	if {[info exists P(on)]} { set on [expr {[lsearch -exact {true 1} $P(on)] >= 0}] }
+	if {$on == "" && ([info exists P(scene)] || ([info exists P(bri)] && $P(bri) > 0))} { set on 1 }
+	if {$on == ""} { return }
+	set gl [hue::v2::group_rid $b $obj_id]
+	set owner [hue::v2::lookup $b "owner_of,$gl"]
+	if {$owner != ""} { set extras_cmd($b|$owner) [list [clock seconds] $on $only_hue] }
+}
+
+# Lamps of a room that are on, and all lamps of the room: {on total}
+proc room_lights {b gl} {
+	set lights [hue::v2::group_light_rids $b $gl]
+	set on 0
+	foreach l $lights { if {[string equal [hue::v2::rget $b $l on/on] "true"]} { incr on } }
+	return [list $on [llength $lights]]
+}
+
 proc process_extras {b {init 0}} {
 	variable extras_rooms
 	variable extras_scenes
 	variable extras_last
+	variable extras_pending
+	variable extras_cmd
+	variable extras_follow
 	set pairs [list]
 	foreach k [array names extras_rooms "$b|*"] {
 		set room [lindex [split $k "|"] 1]
@@ -834,17 +873,59 @@ proc process_extras {b {init 0}} {
 		if {$gl == ""} { continue }
 		set on [string equal [hue::v2::rget $b $gl on/on] "true"]
 		set scene [active_scene $b $room]
+		foreach {non n} [room_lights $b $gl] break
 		if {![info exists extras_last($k)]} {
 			# First look after a start: remember only
-			set extras_last($k) [list $on $scene]
+			set extras_last($k) [list $on $scene $non $n]
 			continue
 		}
 		if {$init} { continue }
-		foreach {lon lscene} $extras_last($k) break
-		set extras_last($k) [list $on $scene]
+		foreach {lon lscene lnon ln} $extras_last($k) break
+		if {$lnon == ""} { set lnon 0; set ln 0 }
+		set extras_last($k) [list $on $scene $non $n]
+		# The bridge calls a room "on" as soon as one lamp is on. More lamps follow
+		# the room only when the room itself was switched: all its lamps together,
+		# or a scene. A single lamp switched in the app or the addon leaves them alone.
+		set room_switched 0
+		set cmd 0
+		set only_hue 0
+		if {[info exists extras_cmd($k)]} {
+			foreach {ct con co} $extras_cmd($k) break
+			if {[clock seconds] - $ct > 5} { unset extras_cmd($k) } elseif {$con == $on} { set cmd 1; set only_hue [expr {$co == 1}] }
+		}
+		set follow "all"
+		if {[info exists extras_follow($k)]} { set follow $extras_follow($k) }
+		if {$only_hue} {
+			# Switched with extras:false: the more lamps stay as they are, scenes too
+			catch {unset extras_pending($k)}
+			if {$on != $lon} { unset extras_cmd($k) }
+			continue
+		}
+		if {$on != $lon && $cmd} { set room_switched 1; unset extras_cmd($k) } elseif {$on != $lon && ![string equal $follow "all"]} {
+			# addon: only through HomeMatic, none: only scenes
+		} elseif {$on != $lon} {
+			if {$on} {
+				set room_switched [expr {($n > 0 && $non == $n) || $scene != ""}]
+				# The lamps of a room command arrive one after the other: wait a moment
+				if {!$room_switched} { set extras_pending($k) [clock seconds] }
+			} else {
+				set room_switched [expr {$lnon >= 2 || $lscene != "" || ($ln > 0 && $lnon == $ln)}]
+			}
+		}
+		if {$on && $on == $lon && [info exists extras_pending($k)]} {
+			if {($n > 0 && $non == $n) || $scene != ""} {
+				set room_switched 1
+				unset extras_pending($k)
+			} elseif {[clock seconds] - $extras_pending($k) > 3} {
+				unset extras_pending($k)
+			}
+		}
+		if {!$on} { catch {unset extras_pending($k)} }
+		# "none": only scenes switch the more lamps
+		if {[string equal $follow "none"]} { set room_switched 0 }
 		catch {unset want}
 		array set want {}
-		if {$on != $lon} {
+		if {$room_switched} {
 			foreach e $extras_rooms($k) {
 				foreach {ch mode} $e break
 				if {!$on} {
@@ -1023,6 +1104,15 @@ proc read_from_channel {channel} {
 	set response ""
 	if { [catch {
 		if {[regexp "^object_action\\s+(\\S+)\\s+(\\S+)\\s+(\\S+)\\s*(.*)$" $cmd match bridge_id obj_type obj_id params]} {
+			# "extras:false" (only the Hue lamps) is for hued, not for the bridge
+			set keep [list]
+			set only_hue 0
+			foreach {pk pv} $params {
+				if {[string equal $pk "extras"]} { set only_hue [expr {[lsearch -exact {false 0 off no} [string tolower [string trim $pv "\""]]] >= 0}] } else { lappend keep $pk $pv }
+			}
+			set params $keep
+			# Room commands through the addon: the more lamps of the room follow for sure
+			if {[string equal $obj_type "group"]} { catch { note_room_command $bridge_id $obj_id $params $only_hue } }
 			if {[hue::v2::active $bridge_id]} {
 				set response [hue::v2::object_action $bridge_id $obj_type $obj_id $params]
 			} else {

@@ -173,8 +173,12 @@ input[type=text], input[type=search], input[type=number], input[type=password], 
 	width: 100%; min-height: 42px; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--r-sm);
 	background: var(--surface); transition: border-color 150ms, box-shadow 150ms;
 }
+/* Own look for selects: Safari ignores the height of native ones */
+select { -webkit-appearance: none; appearance: none; padding-right: 36px; cursor: pointer; text-overflow: ellipsis;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%238a909b' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+	background-repeat: no-repeat; background-position: right 12px center; background-size: 12px 8px; }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--amber); box-shadow: 0 0 0 3px color-mix(in srgb, var(--amber) 25%, transparent); }
-label.field { display: grid; gap: 6px; font-weight: 560; font-size: .875rem; }
+label.field, div.field { display: grid; gap: 6px; font-weight: 560; font-size: .875rem; }
 .hint { font-weight: 400; color: var(--ink-2); font-size: .8125rem; }
 
 /* Switch */
@@ -254,6 +258,7 @@ input[type=range]::-moz-range-thumb { width: 26px; height: 26px; border: 0; bord
 .extra-row .row { padding: 8px 0; }
 .extra-ic { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--fill-2); color: var(--ink-3); flex: none; }
 .extra-ic.on { background: rgb(255 206 140); color: rgba(0,0,0,.5); box-shadow: 0 0 16px rgb(255 206 140 / .8); }
+.extra-follow { display: grid; gap: 8px; margin-top: 14px; padding: 12px; border-radius: var(--r-md); background: var(--fill); }
 .extra-opts { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding-left: 44px; }
 .extra-opts details { width: 100%; }
 .extra-opts summary { cursor: pointer; color: var(--ink-2); font-weight: 540; padding: 6px 0; }
@@ -582,6 +587,10 @@ const I18N = {
 		fl_delete: "Löschen", fl_delete_q: "„{{name}}“ aus der CCU löschen? Eine Sicherung bleibt auf der CCU.", fl_disable: "Pausieren", fl_enable: "Aktivieren",
 		fl_need_name: "Bitte gib dem Ablauf einen Namen.", fl_need_both: "Ein Ablauf braucht mindestens eine Taste und eine Aktion.",
 		fl_last: "Zuletzt ausgeführt: {{d}}", fl_never: "Noch nicht ausgeführt",
+		extras_follow: "Mitschalten, wenn der Raum geschaltet wird", extras_follow_all: "Immer", extras_follow_addon: "Nur über HomeMatic", extras_follow_none: "Nur über Szenen",
+		extras_follow_text: "„Immer“: auch aus der Hue-App und mit Hue-Schaltern, wenn der ganze Raum schaltet. „Nur über HomeMatic“: Addon-Seite, CUxD-Raumgerät und Programme. Einzelne Hue-Lampen schalten nie mit.",
+		extras_only_hue: "Einmal nur die Hue-Lampen schalten:", extras_only_hue_on: "Nur Hue an", extras_only_hue_off: "Nur Hue aus",
+		extras_only_hue_on_done: "Hue-Lampen an, die übrigen Lampen bleiben, wie sie sind.", extras_only_hue_off_done: "Hue-Lampen aus, die übrigen Lampen bleiben, wie sie sind.",
 		fe_every: "Wiederholen", fe_every_hint: "alle n Tage bzw. Wochen, 1 = jeden", fe_every_days: "alle {{n}} Tage", fe_every_weeks: "alle {{n}} Wochen", fe_valid: "Gültig (optional)", fe_until: "bis {{d}}",
 		fe_undo: "Rückgängig", fe_backups: "Frühere Fassungen", fe_backups_text: "Vor jeder Änderung sichert das Addon das Programm auf der CCU. Laden übernimmt eine Fassung in den Editor; gespeichert wird erst mit „Speichern“.",
 		fe_backups_none: "Keine Sicherungen vorhanden.", fe_backup_load: "Laden", fe_backup_loaded: "Fassung vom {{d}} geladen. Mit „Speichern“ übernehmen.", fe_backup_ro: "Diese Fassung kann der Editor nicht darstellen.",
@@ -718,7 +727,7 @@ const I18N = {
 		ob_add: "Alle zu HomeMatic hinzufügen", ob_later: "Später",
 		login: "Anmelden", username: "Benutzername", password: "Passwort", login_text: "Melde dich mit deinem CCU-Konto an.",
 		failed: "Das hat nicht geklappt: {{e}}",
-		extras: "Weitere Lampen", extras_text: "Lampen ohne Hue, etwa am Shelly oder an einem HomeMatic-Aktor. Sie schalten mit dem Raum, egal ob über diese Seite, ein Programm, die Hue-App oder einen Hue-Schalter.",
+		extras: "Weitere Lampen", extras_text: "Lampen ohne Hue, etwa am Shelly oder an einem HomeMatic-Aktor. Sie schalten mit, wenn der ganze Raum geschaltet wird; wann genau, legst du unten fest.",
 		extras_none: "In diesem Raum gibt es noch keine weiteren Lampen.", extras_add: "Lampe hinzufügen", extras_loading: "Suche Schaltaktoren in der CCU …",
 		extras_suggested: "Passt zu diesem Raum", extras_other: "Alle anderen Schaltaktoren", extras_empty: "Die CCU hat keine weiteren Schaltaktoren.",
 		extras_pick: "Hinzufügen", extras_added: "{{name}} schaltet jetzt mit dem Raum.", extras_removed: "{{name}} entfernt.",
@@ -773,6 +782,10 @@ const I18N = {
 		fl_delete: "Delete", fl_delete_q: "Delete “{{name}}” from the CCU? A backup is kept on the CCU.", fl_disable: "Pause", fl_enable: "Activate",
 		fl_need_name: "Please give the flow a name.", fl_need_both: "A flow needs at least one key and one action.",
 		fl_last: "Last run: {{d}}", fl_never: "Not run yet",
+		extras_follow: "Switch along when the room switches", extras_follow_all: "Always", extras_follow_addon: "Only via HomeMatic", extras_follow_none: "Only via scenes",
+		extras_follow_text: "“Always”: also from the Hue app and Hue switches when the whole room switches. “Only via HomeMatic”: addon page, CUxD room device and programs. Single Hue lamps never switch them.",
+		extras_only_hue: "Switch only the Hue lamps once:", extras_only_hue_on: "Only Hue on", extras_only_hue_off: "Only Hue off",
+		extras_only_hue_on_done: "Hue lamps on, the other lamps stay as they are.", extras_only_hue_off_done: "Hue lamps off, the other lamps stay as they are.",
 		fe_every: "Repeat", fe_every_hint: "every n days or weeks, 1 = every", fe_every_days: "every {{n}} days", fe_every_weeks: "every {{n}} weeks", fe_valid: "Valid (optional)", fe_until: "until {{d}}",
 		fe_undo: "Undo", fe_backups: "Earlier versions", fe_backups_text: "Before every change the addon backs up the program on the CCU. Load puts a version into the editor; it is saved only with “Save”.",
 		fe_backups_none: "No backups yet.", fe_backup_load: "Load", fe_backup_loaded: "Version of {{d}} loaded. Use “Save” to keep it.", fe_backup_ro: "The editor cannot show this version.",
@@ -909,7 +922,7 @@ const I18N = {
 		ob_add: "Add all to HomeMatic", ob_later: "Later",
 		login: "Log in", username: "User name", password: "Password", login_text: "Log in with your CCU account.",
 		failed: "That did not work: {{e}}",
-		extras: "More lamps", extras_text: "Lamps without Hue, for example on a Shelly or a HomeMatic actuator. They switch with the room, whether from this page, a program, the Hue app or a Hue switch.",
+		extras: "More lamps", extras_text: "Lamps without Hue, for example on a Shelly or a HomeMatic actuator. They switch along when the whole room switches; set below when exactly.",
 		extras_none: "This room has no other lamps yet.", extras_add: "Add a lamp", extras_loading: "Looking for switch actuators in the CCU …",
 		extras_suggested: "Matches this room", extras_other: "All other switch actuators", extras_empty: "The CCU has no other switch actuators.",
 		extras_pick: "Add", extras_added: "{{name}} now switches with the room.", extras_removed: "{{name}} removed.",
@@ -1271,6 +1284,11 @@ async function roomPower(r, members, on) {
 	try { await hue(["group", r.id, "on:" + on]); } catch (e) { fail(e); }
 	refreshSoon();
 }
+// The Hue lamps of a room without its more lamps (Shelly, plugs): "extras:false" for hued
+async function onlyHue(room, on) {
+	try { await hue(["group", room.id, "on:" + on, "extras:false"]); toast(t(on ? "extras_only_hue_on_done" : "extras_only_hue_off_done")); } catch (e) { fail(e); }
+	refreshSoon();
+}
 async function allOff() {
 	lights().forEach(l => l.on = false);
 	render();
@@ -1397,6 +1415,15 @@ function extrasSection(room) {
 							seg([["", t("extras_scene_keep")], ["on", t("extra_on")], ["off", t("extra_off")]], sceneVal(sc, x.channel),
 								v => save("scene", { scene: sc.rid, channel: x.channel, mode: v }))))) : null))))
 				: h("p", { class: "muted", style: "margin:0" }, t("extras_none")),
+			list.length ? h("div", { class: "extra-follow" },
+				h("div", { style: "font-weight:600" }, t("extras_follow")),
+				seg([["all", t("extras_follow_all")], ["addon", t("extras_follow_addon")], ["none", t("extras_follow_none")]],
+					(((S.extras || {}).follow || {})[room.owner]) || "all", v => save("follow", { room: room.owner, mode: v })),
+				h("p", { class: "muted t-small", style: "margin:0" }, t("extras_follow_text")),
+				h("div", { class: "row", style: "flex-wrap:wrap;gap:8px" },
+					h("span", { class: "grow muted t-small" }, t("extras_only_hue")),
+					h("button", { class: "btn sm", onclick: () => onlyHue(room, true) }, t("extras_only_hue_on")),
+					h("button", { class: "btn sm", onclick: () => onlyHue(room, false) }, t("extras_only_hue_off")))) : null,
 			add, picker);
 	};
 	draw();
@@ -2465,7 +2492,8 @@ async function openFlow(p, presetTrigger) {
 		}
 		const close = () => { sel = null; draw(); };
 		const head = (title) => h("div", { class: "fe-ihead" }, h("div", { class: "t-h3 grow" }, title), h("button", { class: "btn icon-btn", "aria-label": t("close"), onclick: close }, icon("close")));
-		const del = (fn) => editable && layoutOk && !(sel && (sel.type === "trigger" || sel.type === "action") && sel.i < 0) ? h("button", { class: "btn sm quiet", style: "color:var(--bad)", onclick: () => { fn(); sel = null; draw(); } }, t("remove")) : null;
+		// Nothing to remove yet: an empty text node, append() would print "null"
+		const del = (fn) => !(editable && layoutOk && !(sel && (sel.type === "trigger" || sel.type === "action") && sel.i < 0)) ? document.createTextNode("") : h("button", { class: "btn sm quiet", style: "color:var(--bad)", onclick: () => { fn(); sel = null; draw(); } }, t("remove"));
 		const vs = views();
 		if (sel.type === "backups") {
 			box.append(head(t("fe_backups")), h("p", { class: "muted t-small" }, t("fe_backups_text")));
@@ -2553,7 +2581,7 @@ async function openFlow(p, presetTrigger) {
 		const kinds = h("div", { class: "seg", role: "group" });
 		[["key", "fe_k_key"], ["value", "fe_k_value"], ["sysvar", "fe_k_sysvar"], ["time", "fe_k_time"]].filter(([k]) => asTrigger || k !== "key")
 			.forEach(([k, l]) => kinds.append(h("button", { "aria-pressed": String(kind === k), onclick: () => { kind = k; fill(); } }, t(l))));
-		const area = h("div", {});
+		const area = h("div", { class: "fe-form" });
 		const fill = () => {
 			kinds.querySelectorAll("button").forEach((b, i) => b.setAttribute("aria-pressed", String(b.textContent === t({ key: "fe_k_key", value: "fe_k_value", sysvar: "fe_k_sysvar", time: "fe_k_time" }[kind]))));
 			area.replaceChildren();

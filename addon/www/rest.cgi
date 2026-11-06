@@ -145,9 +145,11 @@ proc extras_json {b {with_state 1}} {
 	set rooms [list]
 	set scenes [list]
 	set channels [list]
+	set follow [list]
 	foreach e [hue::extras::all] {
 		foreach {kind eb rid entries} $e break
 		if {![string equal $eb $b]} { continue }
+		if {[string equal $kind "follow"]} { lappend follow $rid [jstr $entries]; continue }
 		foreach x $entries {
 			if {[lsearch -exact $channels [lindex $x 0]] < 0} { lappend channels [lindex $x 0] }
 		}
@@ -180,7 +182,7 @@ proc extras_json {b {with_state 1}} {
 		}
 		lappend so $rid [jarr $items]
 	}
-	return [jobj rooms [::hue::json::objl $ro] scenes [::hue::json::objl $so]]
+	return [jobj rooms [::hue::json::objl $ro] scenes [::hue::json::objl $so] follow [::hue::json::objl $follow]]
 }
 
 proc process {} {
@@ -540,6 +542,12 @@ proc process {} {
 					if {[string equal $action "room"]} { set ok {both off} } else { set ok {on off} }
 					if {$mode != "" && [lsearch -exact $ok $mode] < 0} { error "Invalid mode" "Bad Request" 400 }
 					hue::extras::set_entry $action $b $rid $ch $mode
+					catch { hue::hued_command "reload_extras" }
+					return [extras_json $b 0]
+				}
+				follow {
+					if {![string equal $method "POST"]} { error "POST required" "Method Not Allowed" 405 }
+					if {[catch {hue::extras::set_follow $b [arg room] [arg mode]} err]} { error $err "Bad Request" 400 }
 					catch { hue::hued_command "reload_extras" }
 					return [extras_json $b 0]
 				}

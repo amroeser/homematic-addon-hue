@@ -99,6 +99,31 @@ proc ::hue::extras::put {kind bridge_id rid entries} {
 	if {$rc} { error $err }
 }
 
+# When the more lamps of a room follow it: all (every room switch, also Hue app and
+# Hue switches), addon (only when switched through HomeMatic: addon page, CUxD,
+# programs), none (only scenes). "all" is the default and not stored.
+proc ::hue::extras::set_follow {bridge_id rid mode} {
+	variable section
+	set bridge_id [string tolower $bridge_id]
+	if {![regexp {^[0-9a-z]+$} $bridge_id] || ![valid_rid $rid] || [lsearch -exact {all addon none} $mode] < 0} {
+		error "Invalid room or mode"
+	}
+	::hue::acquire_lock $::hue::lock_id_ini_file
+	set rc [catch {
+		set ini [ini::open $::hue::ini_file r+]
+		set key "follow_${bridge_id}_${rid}"
+		if {[string equal $mode "all"]} {
+			if {[ini::exists $ini $section $key]} { ini::delete $ini $section $key }
+		} else {
+			ini::set $ini $section $key $mode
+		}
+		ini::commit $ini
+		ini::close $ini
+	} err]
+	::hue::release_lock $::hue::lock_id_ini_file
+	if {$rc} { error $err }
+}
+
 # Add, change or remove (mode "") one channel of a room or scene
 proc ::hue::extras::set_entry {kind bridge_id rid channel mode} {
 	set out [list]

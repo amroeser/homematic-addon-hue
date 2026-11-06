@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.1.7
+
+- Lampen ohne Hue im Raum: Schaltete man eine einzelne Hue-Lampe des Raums (Addon-Seite, Handy, Hue-App), gingen Shelly und Steckdose mit an bzw. aus. Sie folgen jetzt nur dem Raum: wenn alle seine Hue-Lampen gemeinsam schalten, eine Szene aufgerufen wird oder der Raum über das Addon geschaltet wird (CUxD-Raumgerät, Programm, Addon-Seite).
+- Lampen ohne Hue: je Raum einstellbar, wann sie mitschalten: immer, nur über HomeMatic oder nur über Szenen. „Nur Hue an/aus“ in den Raum-Details und der Befehlsparameter `extras:false` schalten einmalig nur die Hue-Lampen.
+- Abläufe: Im Editor stand bei neuen Elementen „null“; Auswahllisten waren in Safari gequetscht. Behoben, Auswahllisten haben jetzt überall dieselbe Höhe.
+
 ## 4.1.6
 
 - Abläufe: Namen mit Umlauten kamen in der CCU als „BÃ¼ro“ an. Das Addon schreibt sie jetzt in ISO-8859-1 wie die WebUI (über `ToLatin()`; ohne diese Methode werden Umlaute umschrieben).

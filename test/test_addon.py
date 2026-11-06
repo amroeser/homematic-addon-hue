@@ -678,6 +678,13 @@ class AddonTest(unittest.TestCase):
             until(lambda: "stream_connected=1" in self.hued_cmd("status"))
             time.sleep(0.5)
             (RUN / "rega.log").write_text("")
+            # A single lamp of the room (app, addon, phone): the other lamps stay as they are
+            hue(BRIDGE, "light", "1", "on:true")
+            time.sleep(4)
+            self.assertIn(f"{plug} false", states.read_text())
+            hue(BRIDGE, "light", "1", "on:false")
+            time.sleep(2)
+            self.assertIn(f"{plug} false", states.read_text())
             # Room on (e.g. in the Hue app): the plug follows, the "off only" Shelly does not
             hue(BRIDGE, "group", "1", "on:true")
             ok = until(lambda: f"{plug} true" in states.read_text(), 10)
@@ -690,6 +697,10 @@ class AddonTest(unittest.TestCase):
             ctl("/_recall", {"scene": "GutenMorgen0001"})
             ok = until(lambda: f"{plug} false" in states.read_text(), 10)
             self.assertTrue(ok, (RUN / "rega.log").read_text())
+            # One lamp off while the room stays on: nothing else changes
+            hue(BRIDGE, "light", "2", "on:false")
+            time.sleep(2)
+            self.assertIn(f"{shelly} true", states.read_text())
             # Room off: everything off
             hue(BRIDGE, "group", "1", "on:false")
             ok = until(lambda: f"{shelly} false" in states.read_text(), 10)
@@ -705,6 +716,59 @@ class AddonTest(unittest.TestCase):
         finally:
             self.rest("POST", f"extras/{BRIDGE}/room", {"room": room, "channel": plug, "mode": ""})
             self.rest("POST", f"extras/{BRIDGE}/room", {"room": room, "channel": shelly, "mode": ""})
+
+    def test_58b_more_lamps_follow_modes(self):
+        """Only the Hue lamps once (extras:false), and per room: always / only via HomeMatic / only scenes."""
+        import uuid
+        room = str(uuid.uuid5(uuid.NAMESPACE_DNS, "group-owner-1"))
+        plug = "HmIP-RF.0001AAAA000001:3"
+        states = RUN / "chan_states.txt"
+        (RUN / "ccu_channels.txt").write_text(f"{plug}|SWITCH_VIRTUAL_RECEIVER|HmIP-PSM-2|false|7|Wohnzimmer_Lampe:3|Wohnzimmer;\n")
+        app_room = lambda on: [ctl("/_set", {"light": n, "on": on}) for n in ("1", "2")]
+        def plug_after(action, want, wait=4):
+            states.write_text(f"{plug} {'false' if want else 'true'}\n")
+            action()
+            return until(lambda: f"{plug} {'true' if want else 'false'}" in states.read_text(), wait)
+        try:
+            hue(BRIDGE, "group", "1", "on:false")
+            st, o = self.rest("POST", f"extras/{BRIDGE}/room", {"room": room, "channel": plug, "mode": "both"})
+            self.assertEqual(st, 200, o)
+            until(lambda: "stream_connected=1" in self.hued_cmd("status"))
+            time.sleep(1)
+            # Once only the Hue lamps: the plug stays off
+            states.write_text(f"{plug} false\n")
+            hue(BRIDGE, "group", "1", "on:true", "extras:false")
+            time.sleep(4)
+            self.assertIn(f"{plug} false", states.read_text())
+            self.assertNotIn("extras", json.dumps(ctl("/_log")))
+            hue(BRIDGE, "group", "1", "on:false", "extras:false")
+            time.sleep(2)
+            # Always (default): the whole room in the Hue app switches the plug
+            self.assertTrue(plug_after(lambda: app_room(True), True), states.read_text())
+            app_room(False); time.sleep(2)
+            # Only via HomeMatic: the Hue app no longer, the addon still
+            st, o = self.rest("POST", f"extras/{BRIDGE}/follow", {"room": room, "mode": "addon"})
+            self.assertEqual((st, o["follow"]), (200, {room: "addon"}))
+            states.write_text(f"{plug} false\n")
+            app_room(True)
+            time.sleep(4)
+            self.assertIn(f"{plug} false", states.read_text())
+            app_room(False); time.sleep(2)
+            self.assertTrue(plug_after(lambda: hue(BRIDGE, "group", "1", "on:true"), True), states.read_text())
+            self.assertTrue(plug_after(lambda: hue(BRIDGE, "group", "1", "on:false"), False), states.read_text())
+            # Only via scenes: not even through the addon
+            st, o = self.rest("POST", f"extras/{BRIDGE}/follow", {"room": room, "mode": "none"})
+            self.assertEqual(st, 200, o)
+            states.write_text(f"{plug} false\n")
+            hue(BRIDGE, "group", "1", "on:true")
+            time.sleep(4)
+            self.assertIn(f"{plug} false", states.read_text())
+            st, bad = self.rest("POST", f"extras/{BRIDGE}/follow", {"room": room, "mode": "x\"]"})
+            self.assertEqual(st, 400, bad)
+        finally:
+            self.rest("POST", f"extras/{BRIDGE}/follow", {"room": room, "mode": "all"})
+            self.rest("POST", f"extras/{BRIDGE}/room", {"room": room, "channel": plug, "mode": ""})
+            hue(BRIDGE, "group", "1", "on:false")
 
     def test_59_shelly_state_is_read_back(self):
         """A Shelly switched at the wall: hued corrects the CUxD switch without running its command."""
